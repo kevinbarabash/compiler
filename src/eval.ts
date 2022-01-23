@@ -87,6 +87,14 @@ const evalExpr = (env: Scope, expr: Expr): Value => {
           return { tag: "VNum", value: x / y };
       }
     }
+    case "Let": {
+      // NOTE: when we implement destructuring we'll need to add
+      // multiple entries to the newEnv scope
+      const { name, value, body } = expr;
+      let evaledValue = evalExpr(env, value);
+      let newEnv = env.set(name, evaledValue);
+      return evalExpr(newEnv, body);
+    }
   }
 };
 

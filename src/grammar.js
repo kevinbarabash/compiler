@@ -12,7 +12,7 @@ const opNames = {
 var grammar = {
     Lexer: undefined,
     ParserRules: [
-    {"name": "input", "symbols": ["expr"], "postprocess": id},
+    {"name": "input", "symbols": ["_", "expr", "_"], "postprocess": data => data[1]},
     {"name": "expr$string$1", "symbols": [{"literal":"="}, {"literal":">"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "expr", "symbols": [{"literal":"("}, "params", {"literal":")"}, "_", "expr$string$1", "_", "expr"], "postprocess": 
         data => ({tag: "Lam", params: data[1], body: data[6]}) },
@@ -32,6 +32,14 @@ var grammar = {
     {"name": "args", "symbols": ["args", "_", {"literal":","}, "_", "expr"], "postprocess": data => [...data[0], data[4]]},
     {"name": "args", "symbols": ["expr"], "postprocess": data => [data[0]]},
     {"name": "atom", "symbols": [{"literal":"("}, "expr", {"literal":")"}], "postprocess": data => data[1]},
+    {"name": "atom$string$1", "symbols": [{"literal":"t"}, {"literal":"r"}, {"literal":"u"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "atom", "symbols": ["atom$string$1"], "postprocess": data => ({tag: "Lit", value: {tag: "LBool", value: true}})},
+    {"name": "atom$string$2", "symbols": [{"literal":"f"}, {"literal":"a"}, {"literal":"l"}, {"literal":"s"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "atom", "symbols": ["atom$string$2"], "postprocess": data => ({tag: "Lit", value: {tag: "LBool", value: false}})},
+    {"name": "atom$string$3", "symbols": [{"literal":"l"}, {"literal":"e"}, {"literal":"t"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "atom", "symbols": ["atom$string$3", "_", "identifier", "_", {"literal":"="}, "_", "expr", "_", /[;\n]/, "_", "expr"], "postprocess":  data =>
+        ({tag: "Let", name: data[2], value: data[6], body: data[10]})
+          },
     {"name": "atom", "symbols": ["number"], "postprocess": data => ({tag: "Lit", value: {tag: "LNum", value: data[0]}})},
     {"name": "atom", "symbols": ["identifier"], "postprocess": data => ({tag: "Var", name: data[0]})},
     {"name": "identifier$ebnf$1", "symbols": [/[a-zA-Z]/]},
@@ -43,7 +51,7 @@ var grammar = {
     {"name": "digits$ebnf$1", "symbols": ["digits$ebnf$1", /[0-9]/], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "digits", "symbols": ["digits$ebnf$1"], "postprocess": data => data[0].join("")},
     {"name": "_$ebnf$1", "symbols": []},
-    {"name": "_$ebnf$1", "symbols": ["_$ebnf$1", /[ \t]/], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "_$ebnf$1", "symbols": ["_$ebnf$1", /[ \t\r\n]/], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "_", "symbols": ["_$ebnf$1"]}
 ]
   , ParserStart: "input"

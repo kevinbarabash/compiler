@@ -11,5 +11,8 @@
   "dependencies": {
     "immutable": "^4.0.0",
     "nearley": "^2.20.1"
+  },
+  "scripts": {
+    "build:grammar": "nearleyc ./src/grammar.ne -o src/grammar.js"
   }
 }

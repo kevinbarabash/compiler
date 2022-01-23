@@ -8,7 +8,7 @@ const opNames = {
 %}
 
 input
-  ->expr {% id %}
+  -> _ expr _ {% data => data[1] %}
 
 expr
   ->"(" params ")" _ "=>" _ expr {%
@@ -41,6 +41,11 @@ args
 
 atom
   ->"(" expr ")" {% data => data[1] %}
+  | "true" {% data => ({tag: "Lit", value: {tag: "LBool", value: true}}) %}
+  | "false" {% data => ({tag: "Lit", value: {tag: "LBool", value: false}}) %}
+  | "let" _ identifier _ "=" _ expr _ [;\n] _ expr {% data =>
+    ({tag: "Let", name: data[2], value: data[6], body: data[10]})
+  %}
   | number {% data => ({tag: "Lit", value: {tag: "LNum", value: data[0]}}) %}
   | identifier {% data => ({tag: "Var", name: data[0]}) %}
 
@@ -53,5 +58,5 @@ number
 
 digits -> [0-9]:+ {% data => data[0].join("") %} 
 
-_ -> [ \t]:*
+_ -> [ \t\r\n]:*
 
