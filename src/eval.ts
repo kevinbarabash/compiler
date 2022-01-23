@@ -1,19 +1,28 @@
 import { Map } from "immutable";
 
-import { BinOp, Expr, Lit } from "./syntax";
+import { Expr, Lit } from "./syntax";
 
 type Scope = Map<string, Value>;
 
 type Value =
   | { tag: "VNum"; value: number }
   | { tag: "VBool"; value: boolean }
-  | { tag: "VClosure"; param: string; body: Expr; env: Scope };
+  | { tag: "VClosure"; params: readonly string[]; body: Expr; env: Scope };
 
-const apply = (x: Value, arg: Value): Value => {
+const apply = (x: Value, args: readonly Value[]): Value => {
   switch (x.tag) {
     case "VClosure": {
-      const { param, body, env } = x;
-      return evalExpr(env.set(param, arg), body);
+      const { params, body, env } = x;
+      // TODO: 
+      // - assert that params.length >= args.length
+      // - if params.length > args.length then we need to return an updated
+      //   closure with params.length - args.length number of params
+      const newEnv = env.withMutations((env) => {
+        params.forEach((param, index) => {
+          env.set(param, args[index]);
+        })
+      });
+      return evalExpr(newEnv, body);
     }
     default:
       throw new Error("tried to apply a non-closure value");
@@ -53,12 +62,13 @@ const evalExpr = (env: Scope, expr: Expr): Value => {
       return result;
     }
     case "Lam": {
-      const { param, body } = expr;
-      return { tag: "VClosure", param, body, env };
+      const { params, body } = expr;
+      return { tag: "VClosure", params, body, env };
     }
     case "App": {
-      const { func, arg } = expr;
-      return apply(evalExpr(env, func), evalExpr(env, arg));
+      const { func, args } = expr;
+      const evaledArgs = args.map((arg) => evalExpr(env, arg));
+      return apply(evalExpr(env, func), evaledArgs);
     }
     case "Prim": {
       const { op, args } = expr;

@@ -22,9 +22,12 @@ export const print = (e: Expr): string => {
     case "Var":
       return e.name;
     case "Lam":
-      return `(${e.param}) => ${print(e.body)}`;
-    case "App":
-      return `(${print(e.func)})(${print(e.arg)})`;
+      return `(${e.params.join(", ")}) => ${print(e.body)}`;
+    case "App": {
+      const func = print(e.func);
+      const args = e.args.map(print);
+      return `(${func})(${args.join(", ")})`;
+    }
     case "Prim": {
       // TODO: handle precedence
       return `${print(e.args[0])} ${operators[e.op]} ${print(e.args[1])}`;

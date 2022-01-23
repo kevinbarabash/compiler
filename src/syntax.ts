@@ -1,11 +1,12 @@
 export type BinOp = "Add" | "Sub" | "Mul" | "Div";
 
+// TODO: add support for let-in
 export type Expr =
   | { tag: "Var"; name: string }
   | { tag: "Lit"; value: Lit }
-  | { tag: "App"; func: Expr; arg: Expr }
-  | { tag: "Lam"; param: string; body: Expr }
-  | { tag: "Prim"; op: BinOp; args: Expr[] };
+  | { tag: "App"; func: Expr; args: readonly Expr[] }
+  | { tag: "Lam"; params: readonly string[]; body: Expr }
+  | { tag: "Prim"; op: BinOp; args: readonly Expr[] };
 
 export type Lit =
   // TODO: replace LNum with LInt and LFloat

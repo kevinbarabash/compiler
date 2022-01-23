@@ -11,9 +11,13 @@ input
   ->expr {% id %}
 
 expr
-  ->"(" identifier ")" _ "=>" _ expr {%
-    data => ({tag: "Lam", param: data[1], body: data[6]}) %}
+  ->"(" params ")" _ "=>" _ expr {%
+    data => ({tag: "Lam", params: data[1], body: data[6]}) %}
   | sum {% id %}
+
+params
+  ->params _ "," _ identifier {% data => [...data[0], data[4]] %}
+  | identifier {% data => [data[0]] %}
 
 sum  
   ->sum _ [+-] _ term {% 
@@ -28,8 +32,12 @@ term
   | fact {% id %}
 
 fact
-  ->fact "(" expr ")" {% data => ({tag: "App", func: data[0], arg: data[2]}) %}
+  ->fact "(" args ")" {% data => ({tag: "App", func: data[0], args: data[2]}) %}
   | atom {% id %}
+
+args
+  ->args _ "," _ expr {% data => [...data[0], data[4]] %}
+  | expr {% data => [data[0]] %}
 
 atom
   ->"(" expr ")" {% data => data[1] %}
