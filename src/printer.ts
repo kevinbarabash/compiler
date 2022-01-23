@@ -29,7 +29,15 @@ export const print = (e: Expr): string => {
       // which variables have been defined within a particular scope.
       // This will allow us to know whether we need to create a unique
       // name for a variable or if it's fine to rely on JS shadowing.
-      return `(${e.params.join(", ")}) => ${print(e.body)}`;
+      // return `(${e.params.join(", ")}) => ${print(e.body)}`;
+      const stmts = [];
+      let line: Expr = e.body;
+      while (line.tag === "Let") {
+        stmts.push(`let ${line.name} = ${print(line.value)}`);
+        line = line.body;
+      }
+      stmts.push(`${print(line)}`);
+      return `(${e.params.join(", ")}) => {\n${stmts.join("\n")}\n}`;
     case "App": {
       const func = print(e.func);
       const args = e.args.map(print);
@@ -44,6 +52,6 @@ export const print = (e: Expr): string => {
       // When we create a unique name, we need to have a mapping from the original
       // name to the unique one so that we can print out the unique one whenever
       // we run into a `Var` in the body
-      return `let ${e.name} = ${print(e.value)} in ${print(e.body)}`;
+      return `let ${e.name} = ${print(e.value)}\n${print(e.body)}`;
   }
 };
