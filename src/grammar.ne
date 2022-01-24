@@ -61,6 +61,8 @@ identifier
 
 number
   ->digits "." digits {% data => parseFloat(data.join("")) %}
+  | "." digits {% data => parseFloat(data.join("")) %}
+  | digits "." {% data => parseFloat(data.join("")) %}
   | digits {% data => parseInt(data[0]) %}
 
 digits -> [0-9]:+ {% data => data[0].join("") %} 

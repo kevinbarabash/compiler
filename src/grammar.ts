@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-
+import requireFromString from "require-from-string";
 import * as nearley from "nearley";
 
 // @ts-expect-error
@@ -11,15 +11,6 @@ import generate from "nearley/lib/generate.js";
 import lint from "nearley/lib/lint.js";
 // @ts-expect-error
 import Compile from "nearley/lib/compile.js";
-
-// https://stackoverflow.com/questions/17581830/load-node-js-module-from-string-in-memory
-function requireFromString(src: string, filename: string) {
-  const Module = module.constructor;
-  // @ts-expect-error
-  const m = new Module();
-  m._compile(src, filename);
-  return m.exports;
-}
 
 const parser = new nearley.Parser(parserGrammar);
 
