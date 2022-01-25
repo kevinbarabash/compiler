@@ -24,6 +24,7 @@ expect.extend({
         };
       }
     } catch (error) {
+      console.log(error);
       return {
         pass: false,
         message: () => `Expected ${received} to parse`,
@@ -40,11 +41,14 @@ describe("parse", () => {
     [".1"],
     ["true"],
     ["false"],
+    [`"hello, world"`],
+    [`"\\"\\r\\t\\n"`],
     ["1 + 2 + 3"],
     ["1 * 2 * 3"],
     ["1 + 2 * 3"],
     ["(x) => x + 1"],
     ["(x) => (y) => x + y"],
+    ["(x) => {let foo = 5; foo}"],
     ["((x) => (y) => x + y)(1)(2)"],
     ["(x, y, z) => x + y + z"],
     ["((x, y, z) => x + y + z)(1, 2, 3)"],
@@ -54,19 +58,21 @@ describe("parse", () => {
     })`],
     [`((x, y, z) => {
       let sum = x + y + z; sum
-    })`]
+    })`],
   ])("should parse '%s'", (input) => {
     expect(input).toParse();
   });
 
   it.each([
-    ["."],
-    [`((x, y, z) => let sum = x + y + z; sum)`],
+    [".", "Unexpected '.' at 1:1"],
+    ["((x, y, z) => let sum = x + y + z; sum)", "Unexpected 'let' at 1:15"],
     [`((x, y, z) =>
       let sum = x + y + z
       sum
-    )`]
-  ])("should not parse '%s'", (input) => {
-    expect(input).not.toParse();
+    )`, "Unexpected 'let' at 2:7"],
+    ["(x) => {let let = 5; foo}", "Unexpected 'let' at 1:13"], // keywords can't be identifiers
+    [`"hello, ""world!"`, "Unexpected '\"world!\"' at 1:10"]
+  ])("should not parse '%s'", (input, error) => {
+    expect(() => parse(input)).toThrowError(error)
   });
 });

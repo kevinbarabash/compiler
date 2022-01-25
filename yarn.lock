@@ -607,6 +607,11 @@
     jest-diff "^27.0.0"
     pretty-format "^27.0.0"
 
+"@types/moo@^0.5.5":
+  version "0.5.5"
+  resolved "https://registry.yarnpkg.com/@types/moo/-/moo-0.5.5.tgz#83220b7349c59fd4bb1bc14b1d4ea0041899dc15"
+  integrity sha512-eXQpwnkI4Ntw5uJg6i2PINdRFWLr55dqjuYQaLHNjvqTzF14QdNWbCbml9sza0byyXNA0hZlHtcdN+VNDcgVHA==
+
 "@types/nearley@^2.11.2":
   version "2.11.2"
   resolved "https://registry.yarnpkg.com/@types/nearley/-/nearley-2.11.2.tgz#ddd716fa4b9ab15acec51d39b7524709d4dd5cc8"
@@ -2686,7 +2691,7 @@ mixin-deep@^1.2.0:
     for-in "^1.0.2"
     is-extendable "^1.0.1"
 
-moo@^0.5.0:
+moo@^0.5.0, moo@^0.5.1:
   version "0.5.1"
   resolved "https://registry.yarnpkg.com/moo/-/moo-0.5.1.tgz#7aae7f384b9b09f620b6abf6f74ebbcd1b65dbc4"
   integrity sha512-I1mnb5xn4fO80BH9BLcF0yLypy2UKl+Cb01Fu0hJRkJjlCRtxZMWkTdAtDd5ZqCOxtCkhmRwyI57vWT+1iZ67w==
