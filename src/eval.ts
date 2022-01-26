@@ -7,20 +7,22 @@ type Scope = Map<string, Value>;
 type Value =
   | { tag: "VNum"; value: number }
   | { tag: "VBool"; value: boolean }
+  | { tag: "VStr"; value: string }
+  | { tag: "VArr"; value: Value[] }
   | { tag: "VClosure"; params: readonly string[]; body: Expr; env: Scope };
 
 const apply = (x: Value, args: readonly Value[]): Value => {
   switch (x.tag) {
     case "VClosure": {
       const { params, body, env } = x;
-      // TODO: 
+      // TODO:
       // - assert that params.length >= args.length
       // - if params.length > args.length then we need to return an updated
       //   closure with params.length - args.length number of params
       const newEnv = env.withMutations((env) => {
         params.forEach((param, index) => {
           env.set(param, args[index]);
-        })
+        });
       });
       return evalExpr(newEnv, body);
     }
@@ -40,19 +42,26 @@ const numOfValue = (x: Value): number => {
   }
 };
 
-const evalLit = (lit: Lit): Value => {
+const evalLit = (env: Scope, lit: Lit): Value => {
   switch (lit.tag) {
     case "LNum":
       return { tag: "VNum", value: lit.value };
     case "LBool":
       return { tag: "VBool", value: lit.value };
+    case "LStr":
+      return { tag: "VStr", value: lit.value };
+    case "LArr":
+      return { 
+        tag: "VArr", 
+        value: lit.value.map(elem => evalExpr(env, elem)),
+      };
   }
 };
 
 const evalExpr = (env: Scope, expr: Expr): Value => {
   switch (expr.tag) {
     case "Lit":
-      return evalLit(expr.value);
+      return evalLit(env, expr.value);
     case "Var": {
       const { name } = expr;
       const result = env.get(name);

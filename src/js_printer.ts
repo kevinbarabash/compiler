@@ -20,6 +20,10 @@ export const printJs = (e: Expr): string => {
           return String(lit.value);
         case "LBool":
           return String(lit.value);
+        case "LStr":
+          return `"${lit.value}"`; // TODO: escape special characters
+        case "LArr":
+          return `[${lit.value.map(printJs).join(", ")}]`;
       }
     }
     case "Var":

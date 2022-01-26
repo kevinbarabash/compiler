@@ -8,6 +8,7 @@
 - JSX
 - async/await
 - comments
+- unicode support
 
 ## Interop
 - externals

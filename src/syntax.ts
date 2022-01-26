@@ -14,3 +14,5 @@ export type Lit =
   // TODO: replace LNum with LInt and LFloat
   | { tag: "LNum"; value: number }
   | { tag: "LBool"; value: boolean }
+  | { tag: "LStr"; value: string }
+  | { tag: "LArr"; value: Expr[] }

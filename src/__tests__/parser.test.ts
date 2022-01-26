@@ -24,7 +24,6 @@ expect.extend({
         };
       }
     } catch (error) {
-      console.log(error);
       return {
         pass: false,
         message: () => `Expected ${received} to parse`,
@@ -42,10 +41,13 @@ describe("parse", () => {
     ["true"],
     ["false"],
     [`"hello, world"`],
+    ["[1, 2, 3]"],
     [`"\\"\\r\\t\\n"`],
     ["1 + 2 + 3"],
     ["1 * 2 * 3"],
     ["1 + 2 * 3"],
+    ["() => 1"],
+    ["(() => 1)()"],
     ["(x) => x + 1"],
     ["(x) => (y) => x + y"],
     ["(x) => {let foo = 5; foo}"],

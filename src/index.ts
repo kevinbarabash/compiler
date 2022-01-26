@@ -25,3 +25,7 @@ console.log(evaluate(expr3));
 console.log(`src:\n${print(expr3)}\n`);
 console.log(`js:\n${printJs(expr3)}\n`);
 console.log(`js eval'd: ${eval(printJs(expr3))}`);
+
+const expr4 = parse("(() => 5)()");
+console.log(util.inspect(expr4, options));
+console.log(evaluate(expr4));
