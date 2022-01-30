@@ -28,6 +28,9 @@
 - explicity type annotations
 - type declarations
 - polymorphic types
+- exception tracking
+  - if an expression throws then we don't bother type checking
+  - figure out a way to mark functions as sometimes throwing or always throwing
 
 ## Ecosystem
 - syntax highligher for VSCode

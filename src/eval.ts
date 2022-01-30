@@ -72,7 +72,7 @@ const evalExpr = (env: Scope, expr: Expr): Value => {
     }
     case "Lam": {
       const { params, body } = expr;
-      return { tag: "VClosure", params, body, env };
+      return { tag: "VClosure", params: params.map(param => param.name), body, env };
     }
     case "App": {
       const { func, args } = expr;

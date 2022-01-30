@@ -67,10 +67,13 @@ body
   | expr {% id %}
 
 params
-  ->params _ %comma _ identifier {% data => [...data[0], data[4]] %}
-  | identifier {% data => [data[0]] %}
+  ->params _ %comma _ param {% data => [...data[0], data[4]] %}
+  | param {% data => [data[0]] %}
 
-sum  
+# TODO: parse more complex types
+param -> identifier %colon identifier {% data => ({name: data[0], type: data[2]}) %}
+
+sum
   ->sum _ (%plus | %minus) _ prod {% 
     ([left, , op, , right]) => 
       ({tag: "Prim", op: opNames[op], args: [left, right]}) %}

@@ -41,7 +41,8 @@ export const print = (e: Expr): string => {
         line = line.body;
       }
       stmts.push(`${print(line)}`);
-      return `(${e.params.join(", ")}) => {\n${stmts.join("\n")}\n}`;
+      const params = e.params.map(({name, type}) => `${name}:${type}`);
+      return `(${params.join(", ")}) => {\n${stmts.join("\n")}\n}`;
     case "App": {
       const func = print(e.func);
       const args = e.args.map(print);

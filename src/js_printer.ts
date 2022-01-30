@@ -35,6 +35,7 @@ export const printJs = (e: Expr): string => {
       // which variables have been defined within a particular scope.
       // This will allow us to know whether we need to create a unique
       // name for a variable or if it's fine to rely on JS shadowing.
+      const params = e.params.map(param => param.name);
 
       // If body is a `Let` we'll need to convert the linked list to an array
       // and make sure the last line does a return.
@@ -47,9 +48,9 @@ export const printJs = (e: Expr): string => {
           line = line.body;
         }
         stmts.push(`return ${printJs(line)};`);
-        return `(${e.params.join(", ")}) => {\n${stmts.join("\n")}\n}`;
+        return `(${params.join(", ")}) => {\n${stmts.join("\n")}\n}`;
       } else {
-        return `(${e.params.join(", ")}) => ${printJs(e.body)}`;
+        return `(${params.join(", ")}) => ${printJs(e.body)}`;
       }
     case "App": {
       const func = printJs(e.func);
