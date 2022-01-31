@@ -21,6 +21,7 @@
   },
   "scripts": {
     "build": "tsc --build",
-    "watch": "tsc --build --watch"
+    "watch": "tsc --build --watch",
+    "test": "jest"
   }
 }
