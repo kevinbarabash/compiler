@@ -2,15 +2,8 @@
 // - variables that being used are defined and in-scope
 // - variables are the correct type for the function call being made
 import { Stack, Map } from "immutable";
-import { parse } from "./parser";
 
-import type { Expr } from "./syntax";
-
-const expr3 = parse(`
-((x:number, y:number, z:number) => {
-  let sum = x + y + q
-  sum
-})(1, 2, 3)`);
+import type { Expr, Program } from "./syntax";
 
 type Scope = Map<string, Type>;
 
@@ -60,7 +53,29 @@ const typesMap: Record<string, Type> = {
 // cause the check to fail.
 const equal = <T>(a: T, b: T): boolean => JSON.stringify(a) === JSON.stringify(b);
 
-export const check = (expr: Expr, context: Context): Type => {
+export const check = (prog: Program) => {
+  const scope = Map<string, Type>();
+  let context: Context = {scopes: Stack.of(scope)};
+  for (const child of prog.body) {
+    switch (child.tag) {
+      case "Decl": {
+        const type = checkExpr(child.value, context);
+        const newScope = context.scopes.peek() ?? scope;
+        context = {
+          scopes: Stack.of(newScope.set(child.name, type)),
+        };
+        break;
+      }
+      default: {
+        console.log(context.scopes.peek()?.toJS());
+        // TODO: verify that top-level expressions have the type unit, i.e. ()
+        checkExpr(child, context);
+      }
+    }
+  }
+}
+
+const checkExpr = (expr: Expr, context: Context): Type => {
   // whenever we see a 'let', we add (or overwrite) an entry to the top scope
   // whenever we enter a 'lam', we create a new top scope and all
   //   entries for all of the variables
@@ -77,7 +92,7 @@ export const check = (expr: Expr, context: Context): Type => {
     case "Let": {
       // The variable introduced by `let` won't be in scope for the expression
       // being assigned to it.
-      const valueType = check(expr.value, context);
+      const valueType = checkExpr(expr.value, context);
       const scope = context.scopes.peek();
       if (!scope) {
         throw new Error("no scope available in current context");
@@ -93,7 +108,7 @@ export const check = (expr: Expr, context: Context): Type => {
       // the stuff that comes after the `in`.
       // Maybe we should rename `body` to `inBody` so that that's a bit clearer.
       // TODO: check if the variable declared is unused in the body.
-      check(expr.body, newContext);
+      checkExpr(expr.body, newContext);
 
       return valueType;
     }
@@ -129,7 +144,7 @@ export const check = (expr: Expr, context: Context): Type => {
       // The type of the body is the same as the return type.
       // TODO: if the lambda has an annotated return type, check
       // that it matches the value of the body expression.
-      const retType = check(expr.body, newContext);
+      const retType = checkExpr(expr.body, newContext);
 
       // TODO: check if any of the params are unused in the body
       const paramsTypes = expr.params.map(param => {
@@ -151,7 +166,7 @@ export const check = (expr: Expr, context: Context): Type => {
 
       // Check that what we're trying to apply is actually a lambda
       // TODO: rename `func` to `lam`
-      const funcType = check(expr.func, context);
+      const funcType = checkExpr(expr.func, context);
       if (funcType.tag !== "TLam") {
         throw new Error("Cannot apply non-lambda expression");
       }
@@ -159,7 +174,7 @@ export const check = (expr: Expr, context: Context): Type => {
       // Check that the number of args match the number of params
       // TODO: handle partial application
       // TODO: rename `args` to `params` since that's more accurate
-      const argTypes = expr.args.map((arg) => check(arg, context));
+      const argTypes = expr.args.map((arg) => checkExpr(arg, context));
       if (funcType.args.length !== argTypes.length) {
         console.log(`funcType.args.length = ${funcType.args.length}`);
         console.log(`argTypes.length = ${argTypes.length}`);
@@ -192,7 +207,7 @@ export const check = (expr: Expr, context: Context): Type => {
         case "LStr": return tString;
         // TODO: look at the values in the array so that we can infer the type
         case "LArr": {
-          const types = lit.value.map(elem => check(elem, context));
+          const types = lit.value.map(elem => checkExpr(elem, context));
           // TODO: unify all of the types in types to determine if this
           // is a valid array literal.  If there's strings and numbers
           // in it together then that's a no-go.

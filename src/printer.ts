@@ -1,4 +1,4 @@
-import { Expr } from "./syntax";
+import { Expr, Program } from "./syntax";
 
 const operators = {
   Add :'+',
@@ -7,9 +7,19 @@ const operators = {
   Div :'/',
 }
 
+export const print = (p: Program): string => {
+  return p.body.map((value) => {
+    if (value.tag === "Decl") {
+      return `let ${value.name} = ${printExpr(value.value)}`;
+    } else {
+      return printExpr(value);
+    }
+  }).join("\n");
+}
+
 // TODO: define rules for pretty printing, e.g. when to add line breaks and such
-// TODO: add roundtrip tests that show we can print(parse(str)) === str
-export const print = (e: Expr): string => {
+// TODO: add roundtrip tests that show we can printExpr(parse(str)) === str
+export const printExpr = (e: Expr): string => {
   switch (e.tag) {
     case "Lit": {
       const { value: lit } = e;
@@ -21,7 +31,7 @@ export const print = (e: Expr): string => {
         case "LStr":
           return `"${lit.value}"`; // TODO: escape special characters
         case "LArr":
-          return `[${lit.value.map(print).join(", ")}]`;
+          return `[${lit.value.map(printExpr).join(", ")}]`;
       }
     }
     case "Var":
@@ -33,30 +43,34 @@ export const print = (e: Expr): string => {
       // which variables have been defined within a particular scope.
       // This will allow us to know whether we need to create a unique
       // name for a variable or if it's fine to rely on JS shadowing.
-      // return `(${e.params.join(", ")}) => ${print(e.body)}`;
+      // return `(${e.params.join(", ")}) => ${printExpr(e.body)}`;
       const stmts = [];
       let line: Expr = e.body;
       while (line.tag === "Let") {
-        stmts.push(`let ${line.name} = ${print(line.value)}`);
+        stmts.push(`let ${line.name} = ${printExpr(line.value)}`);
         line = line.body;
       }
-      stmts.push(`${print(line)}`);
+      stmts.push(`${printExpr(line)}`);
       const params = e.params.map(({name, type}) => `${name}:${type}`);
-      return `(${params.join(", ")}) => {\n${stmts.join("\n")}\n}`;
+      if (stmts.length > 1) {
+        return `(${params.join(", ")}) => {\n${stmts.join("\n")}\n}`;
+      } else {
+        return `(${params.join(", ")}) => ${stmts[0]}`;
+      }
     case "App": {
-      const func = print(e.func);
-      const args = e.args.map(print);
+      const func = printExpr(e.func);
+      const args = e.args.map(printExpr);
       return `(${func})(${args.join(", ")})`;
     }
     case "Prim": {
       // TODO: handle precedence
-      return `${print(e.args[0])} ${operators[e.op]} ${print(e.args[1])}`;
+      return `${printExpr(e.args[0])} ${operators[e.op]} ${printExpr(e.args[1])}`;
     }
     case "Let":
       // TODO: create unique names if `e.name` is shadowed in the same scope.
       // When we create a unique name, we need to have a mapping from the original
-      // name to the unique one so that we can print out the unique one whenever
+      // name to the unique one so that we can printExpr out the unique one whenever
       // we run into a `Var` in the body
-      return `let ${e.name} = ${print(e.value)}\n${print(e.body)}`;
+      return `let ${e.name} = ${printExpr(e.value)}\n${printExpr(e.body)}`;
   }
 };

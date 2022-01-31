@@ -1,4 +1,4 @@
-import { Expr } from "./syntax";
+import { Expr, Program } from "./syntax";
 
 const operators = {
   Add :'+',
@@ -7,11 +7,21 @@ const operators = {
   Div :'/',
 }
 
+export const printJs = (p: Program): string => {
+  return p.body.map((value) => {
+    if (value.tag === "Decl") {
+      return `const ${value.name} = ${printJsExpr(value.value)}`;
+    } else {
+      return printJsExpr(value);
+    }
+  }).join("\n");
+}
+
 // TODO: include a context object that tracks the level of indentation and
 // possibly other things
 // TODO: define rules for pretty printing, e.g. when to add line breaks and such
 // TODO: add roundtrip tests that show we can print(parse(str)) === str
-export const printJs = (e: Expr): string => {
+const printJsExpr = (e: Expr): string => {
   switch (e.tag) {
     case "Lit": {
       const { value: lit } = e;
@@ -23,7 +33,7 @@ export const printJs = (e: Expr): string => {
         case "LStr":
           return `"${lit.value}"`; // TODO: escape special characters
         case "LArr":
-          return `[${lit.value.map(printJs).join(", ")}]`;
+          return `[${lit.value.map(printJsExpr).join(", ")}]`;
       }
     }
     case "Var":
@@ -44,22 +54,22 @@ export const printJs = (e: Expr): string => {
         const stmts = [];
         let line: Expr = e.body;
         while (line.tag === "Let") {
-          stmts.push(`let ${line.name} = ${printJs(line.value)};`);
+          stmts.push(`let ${line.name} = ${printJsExpr(line.value)};`);
           line = line.body;
         }
-        stmts.push(`return ${printJs(line)};`);
+        stmts.push(`return ${printJsExpr(line)};`);
         return `(${params.join(", ")}) => {\n${stmts.join("\n")}\n}`;
       } else {
-        return `(${params.join(", ")}) => ${printJs(e.body)}`;
+        return `(${params.join(", ")}) => ${printJsExpr(e.body)}`;
       }
     case "App": {
-      const func = printJs(e.func);
-      const args = e.args.map(printJs);
+      const func = printJsExpr(e.func);
+      const args = e.args.map(printJsExpr);
       return `(${func})(${args.join(", ")})`;
     }
     case "Prim": {
       // TODO: handle precedence
-      return `${printJs(e.args[0])} ${operators[e.op]} ${printJs(e.args[1])}`;
+      return `${printJsExpr(e.args[0])} ${operators[e.op]} ${printJsExpr(e.args[1])}`;
     }
     case "Let":
       // TODO: create unique names if `e.name` is shadowed in the same scope.

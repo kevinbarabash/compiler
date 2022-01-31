@@ -1,6 +1,18 @@
-// TODO: write some evaluation tests
+import { evaluate, print } from '../eval';
+import { parse } from '../parser'
 
 describe('evaluate', () => {
-  test.todo('((x, y, z) => x + y + z)(1, 2, 3)');
-  test.todo('((x, y, z) => x + y + z)(1)(2)(3)');
+  test.each([
+    ['((x:number, y:number, z:number) => x + y + z)(1, 2, 3)', '6'],
+    // TODO: implement partial application
+    // ['((x:number, y:number, z:number) => x + y + z)(1)(2)(3)', '6'],
+  ])('%s = %s', (source, expected) => {
+    const prog = parse(source + ';');
+    const value = evaluate(prog);
+    if (!value) {
+      throw new Error("program did not return a value");
+    }
+    const actual = print(value);
+    expect(actual).toEqual(expected);
+  })
 });

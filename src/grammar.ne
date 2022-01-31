@@ -52,7 +52,20 @@ const lexer = moo.compile({
 @lexer lexer
 
 input
-  -> _ expr _ {% data => data[1] %}
+  -> _ program _ {% data => data[1] %}
+
+program
+  -> _ (decl | stmt):+ {% data => {
+    // The capture group introduces an additional [] wrapper
+    return {tag: "Program", body: data[1].map(x => x[0]) };
+  } %}
+
+decl
+  ->%let _ identifier _ %equal _ expr _ (%semi | %nl) {%
+      data => ({tag: "Decl", name: data[2], value: data[6]}) %}
+
+# This rule ensures that (x => y => z => x + y + z)(1)(2)(3) is parsed correctly
+stmt -> expr _ (%semi | %nl) {% data => data[0] %}
 
 expr
   ->%lparen params:? %rparen _ %arrow _ %lbrace _ body _ %rbrace {%
@@ -64,7 +77,7 @@ expr
 body
   ->%let _ identifier _ %equal _ expr _ (%semi | %nl) _ body {%
       data => ({tag: "Let", name: data[2], value: data[6], body: data[10]}) %}
-  | expr {% id %}
+  | expr %semi:? {% data => data[0] %}
 
 params
   ->params _ %comma _ param {% data => [...data[0], data[4]] %}
