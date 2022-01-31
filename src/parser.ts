@@ -2,9 +2,9 @@ import * as nearley from "nearley";
 import type {Token} from "moo";
 
 import {grammar} from "./grammar"
-import type { Expr } from "./syntax";
+import type { Program } from "./syntax";
 
-export const parse = (input: string): Expr => {
+export const parse = (input: string): Program => {
   const parser = new nearley.Parser(grammar);
   try {
     parser.feed(input);

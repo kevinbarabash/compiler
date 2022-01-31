@@ -1,6 +1,6 @@
 import { Map } from "immutable";
 
-import { Expr, Lit } from "./syntax";
+import { Expr, Lit, Program } from "./syntax";
 
 type Scope = Map<string, Value>;
 
@@ -10,6 +10,16 @@ type Value =
   | { tag: "VStr"; value: string }
   | { tag: "VArr"; value: Value[] }
   | { tag: "VClosure"; params: readonly string[]; body: Expr; env: Scope };
+
+export const print = (value: Value): string => {
+  switch (value.tag) {
+    case "VNum": return String(value.value);
+    case "VBool": return String(value.value);
+    case "VStr": return String(value.value);
+    case "VArr": return `[${value.value.map(print).join(", ")}]`;
+    case "VClosure": return "<<closure>>";
+  }
+}
 
 const apply = (x: Value, args: readonly Value[]): Value => {
   switch (x.tag) {
@@ -107,4 +117,21 @@ const evalExpr = (env: Scope, expr: Expr): Value => {
   }
 };
 
-export const evaluate = (expr: Expr): Value => evalExpr(empty, expr);
+export const evaluate = (expr: Program): Value | void => {
+  let env = Map<string, Value>();
+  let result = undefined;
+  for (const child of expr.body) {
+    switch (child.tag) {
+      case "Decl": {
+        const { name, value, } = child;
+        let evaledValue = evalExpr(env, value);
+        env = env.set(name, evaledValue);
+        break;
+      }
+      default: {
+        result = evalExpr(env, child);
+      }
+    }
+  }
+  return result;
+};

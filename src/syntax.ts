@@ -1,6 +1,7 @@
-export type BinOp = "Add" | "Sub" | "Mul" | "Div";
+export type Program = { tag: "Program", body: (Expr | Decl)[] };
 
-// TODO: add support for let-in
+export type Decl = { tag: "Decl", name: string; value: Expr; };
+
 export type Expr =
   | { tag: "Var"; name: string }
   | { tag: "Lit"; value: Lit }
@@ -18,3 +19,5 @@ export type Lit =
   | { tag: "LArr"; value: Expr[] };
 
 export type Param = { tag: "Param"; name: string; type: string };
+
+export type BinOp = "Add" | "Sub" | "Mul" | "Div";
