@@ -79,3 +79,27 @@ TODO
 check(bottom-up): ...
 infer(top-down): Given e is of type σ_1 and σ_1 is a subtype
 of σ_2 then e also satisfies σ_2.
+
+
+## Unification
+
+Start with assumptions of the types that a variable might be, e.g. a param type
+might be `any` to being with and then later we spot that it's being used with a `+`
+which means that for that use we can assume the variable is a `number`.
+
+Given the two assumptions: `any`, `number`, can we find a type that satisfies both,
+i.e. a type that is a subtype of both.  In this case `number` works.  One could say
+that `5` is subtype of both.
+
+Instead of using a the top type `any` at the start, for params we can assume them
+to have the constraint of `forall a` to start with.  These kinds of qualifications
+act as filters on the inferred types.  If the paramter isn't used at all in the 
+funciton the it stays as `forall a`.  If the param is used as a string in one place
+and a number in another place, we'll be unable unify those types.
+
+If we have a number of returns from a function, e.g. `0`, a number resulting from
+addition, and a call to the function itself we need a way to unify these.  The last
+return type can be modelled as a fix point.  In this case the unifiying type is
+`number`.
+
+https://www.cs.cornell.edu/courses/cs3110/2011sp/Lectures/lec26-type-inference/type-inference.htm
