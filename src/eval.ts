@@ -2,14 +2,18 @@ import { Map } from "immutable";
 
 import { Expr, Lit, Program } from "./syntax";
 
+// TODO: we need a context similar to checker.ts' Context which contains
+// a stack of scopes so that we can implement proper variable shadowing
+// when programmatically evaluating things.
 type Scope = Map<string, Value>;
 
-type Value =
-  | { tag: "VNum"; value: number }
-  | { tag: "VBool"; value: boolean }
-  | { tag: "VStr"; value: string }
-  | { tag: "VArr"; value: Value[] }
-  | { tag: "VClosure"; params: readonly string[]; body: Expr; env: Scope };
+type VNum = { tag: "VNum"; value: number };
+type VBool = { tag: "VBool"; value: boolean };
+type VStr = { tag: "VStr"; value: string };
+type VArr = { tag: "VArr"; value: Value[] };
+type VClosure = { tag: "VClosure"; params: readonly string[]; body: Expr; env: Scope };
+
+type Value = VNum | VBool | VStr | VArr | VClosure;
 
 export const print = (value: Value): string => {
   switch (value.tag) {
@@ -21,24 +25,27 @@ export const print = (value: Value): string => {
   }
 }
 
-const apply = (x: Value, args: readonly Value[]): Value => {
-  switch (x.tag) {
-    case "VClosure": {
-      const { params, body, env } = x;
-      // TODO:
-      // - assert that params.length >= args.length
-      // - if params.length > args.length then we need to return an updated
-      //   closure with params.length - args.length number of params
-      const newEnv = env.withMutations((env) => {
-        params.forEach((param, index) => {
-          env.set(param, args[index]);
-        });
-      });
-      return evalExpr(newEnv, body);
-    }
-    default:
-      throw new Error("tried to apply a non-closure value");
+const apply = (closure: VClosure, args: readonly Value[]): Value => {
+  const { params, body, env } = closure;
+  const newEnv = env.withMutations((env) => {
+    params.forEach((param, index) => {
+      env.set(param, args[index]);
+    });
+  });
+
+  // Check if we should partially apply the lambda (closure).
+  if (args.length < params.length) {
+    // Return a new closure with the applied args now appearing
+    // in newEnv instead of in the arg list.
+    return {
+      tag: "VClosure",
+      params: params.slice(args.length), // remaining params
+      body: body, // use the same function body
+      env: newEnv,
+    };
   }
+
+  return evalExpr(newEnv, body);
 };
 
 export const empty = Map<string, Value>();
@@ -86,8 +93,13 @@ const evalExpr = (env: Scope, expr: Expr): Value => {
     }
     case "App": {
       const { func, args } = expr;
+      const evaledFunc = evalExpr(env, func);
+      if (evaledFunc.tag !== "VClosure"){
+        throw new Error("tried to apply a non-closure value");
+      }
       const evaledArgs = args.map((arg) => evalExpr(env, arg));
-      return apply(evalExpr(env, func), evaledArgs);
+
+      return apply(evaledFunc, evaledArgs);
     }
     case "Prim": {
       const { op, args } = expr;

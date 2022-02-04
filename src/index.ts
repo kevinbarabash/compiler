@@ -3,7 +3,7 @@ import util from 'util'
 import { evaluate } from './eval'
 import { parse } from './parser'
 import { print } from './printer'
-import { printJs } from './js_printer'
+import { printJs } from './codegen'
 import { check } from './checker';
 
 const options = { showHidden: false, depth: null, colors: true };
