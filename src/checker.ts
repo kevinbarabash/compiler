@@ -67,7 +67,6 @@ export const check = (prog: Program) => {
         break;
       }
       default: {
-        console.log(context.scopes.peek()?.toJS());
         // TODO: verify that top-level expressions have the type unit, i.e. ()
         checkExpr(child, context);
       }
@@ -172,17 +171,34 @@ const checkExpr = (expr: Expr, context: Context): Type => {
       }
 
       // Check that the number of args match the number of params
-      // TODO: handle partial application
+
+
+      /**
+       * TODO: handle partial application (DO THIS NEXT)
+       */
+       
       // TODO: rename `args` to `params` since that's more accurate
       const argTypes = expr.args.map((arg) => checkExpr(arg, context));
-      if (funcType.args.length !== argTypes.length) {
-        console.log(`funcType.args.length = ${funcType.args.length}`);
-        console.log(`argTypes.length = ${argTypes.length}`);
-        throw new Error("The number of args doesn't match required number")
+
+      // Partial application
+      if (argTypes.length < funcType.args.length) {
+        // Checks that types of args and params match.
+        for (let i = 0; i < argTypes.length; i++) {
+          if (!equal(argTypes[i], funcType.args[i])) {
+            throw new Error(`Incorrect type for arg #${i}`);
+          }
+        }
+        // Return a new lamba with that takes the remaining params.
+        return {
+          tag: "TLam",
+          args: funcType.args.slice(argTypes.length),
+          ret: funcType.ret,
+        };
       }
 
-      // Check that the type of each arg matches the type of each param
-      for (let i = 0; i < argTypes.length; i++) {
+      // Complete application
+      // Checks the types of args and params match.  Ignores excess params.
+      for (let i = 0; i < funcType.args.length; i++) {
         if (!equal(argTypes[i], funcType.args[i])) {
           throw new Error(`Incorrect type for arg #${i}`);
         }

@@ -98,3 +98,4 @@ be applied from left to right with now gaps in between.
 - classes and OOP: Are the following constraints sufficient?
   - disallowing instances to change their type
   - treating object literals and class instances as non-fungible
+- default function parameters

@@ -4,8 +4,7 @@ import { parse } from '../parser'
 describe('evaluate', () => {
   test.each([
     ['((x:number, y:number, z:number) => x + y + z)(1, 2, 3)', '6'],
-    // TODO: implement partial application
-    // ['((x:number, y:number, z:number) => x + y + z)(1)(2)(3)', '6'],
+    ['((x:number, y:number, z:number) => x + y + z)(1)(2)(3)', '6'],
   ])('%s = %s', (source, expected) => {
     const prog = parse(source + ';');
     const value = evaluate(prog);
