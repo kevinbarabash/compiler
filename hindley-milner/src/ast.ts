@@ -32,6 +32,60 @@ export class Identifier {
     }
 }
 
+export class Int {
+    value: number;
+
+    constructor(value: number) {
+        this.value = value;
+    }
+
+    toString(): string {
+        return this.value.toString();
+    }
+}
+
+export class Bool {
+    value: boolean;
+
+    constructor(value: boolean) {
+        this.value = value;
+    }
+
+    toString(): string {
+        return this.value.toString();
+    }
+}
+
+export class Arr {
+    // The AST allows for array literals to contain a mix of values.
+    // TODO: How will type inference handle a mix of values?
+    // - option 1: determine a type that encompases all types in the mix
+    // - option 2: disallow the mix unless we specify a type for the array
+    //             in the source, then check that this type works given the
+    //             values in the array
+    values: Expression[];
+
+    constructor(values: Expression[]) {
+        this.values = values;
+    }
+
+    toString(): string {
+        return `[${this.values.map(v => v.toString()).join(", ")}]`;
+    }
+}
+
+export class Literal {
+    value: Int | Bool | Arr;
+
+    constructor(value: Int | Bool | Arr) {
+        this.value = value;
+    }
+
+    toString(): string {
+        return this.value.toString();
+    }
+}
+
 // TODO: update to support n-ary args
 export class Apply {
     fn: Expression;
@@ -82,4 +136,4 @@ export class Letrec {
     }
 }
 
-export type Expression = Lambda | Identifier | Apply | Let | Letrec;
+export type Expression = Lambda | Identifier | Apply | Let | Letrec | Literal;
