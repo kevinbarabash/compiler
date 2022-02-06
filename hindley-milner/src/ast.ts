@@ -6,17 +6,17 @@
 
 // TODO: update to support n-ary params
 export class Lambda {
-    v: string;
+    params: string[];
     body: Expression;
 
-    constructor(v: string, body: Expression) {
-        this.v = v;
+    constructor(params: string[] | string, body: Expression) {
+        this.params = Array.isArray(params) ? params : [params];
         this.body = body;
     }
 
     toString(): string {
-        const {v, body} = this;
-        return `(fn ${v} => ${body})`;
+        const {params, body} = this;
+        return `(fn ${params.map(p => p.toString()).join(" ")} => ${body})`;
     }
 }
 
@@ -35,16 +35,16 @@ export class Identifier {
 // TODO: update to support n-ary args
 export class Apply {
     fn: Expression;
-    arg: Expression;
+    args: Expression[];
 
-    constructor(fn: Expression, arg: Expression) {
+    constructor(fn: Expression, args: Expression[] | Expression) {
         this.fn = fn;
-        this.arg = arg;
+        this.args = Array.isArray(args) ? args : [args];
     }
 
     toString(): string {
-        const {fn, arg} = this;
-        return `(${fn} ${arg})`;
+        const {fn, args} = this;
+        return `(${fn} ${args.map(a => a.toString()).join(" ")})`;
     }
 }
 

@@ -48,9 +48,9 @@ export class TypeVariable {
  */
 export class TypeOperator {
   name: string;
-  types: any[];
+  types: Type[];
 
-  constructor(name: string, types: any[]) {
+  constructor(name: string, types: Type[]) {
     this.name = name;
     this.types = types;
   }
@@ -75,8 +75,14 @@ export class TypeOperator {
  * A binary type constructor which builds function types
  */
 export class TFunction extends TypeOperator {
-  constructor(fromType: Type, toType: Type) {
-    super("->", [fromType, toType]);
+  constructor(fromType: Type[], toType: Type) {
+    super("->", [...fromType, toType]);
+  }
+
+  toString(): string {
+    const argTypes = this.types.slice(0, -1);
+    const retType = this.types[this.types.length - 1];
+    return `(${argTypes.map(a => a.toString()).join(" ")} -> ${retType})`;
   }
 }
 

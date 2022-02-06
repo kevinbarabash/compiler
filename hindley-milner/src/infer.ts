@@ -3,7 +3,7 @@
  */
 import assert from "assert";
 
-import { Identifier, Apply, Lambda, Let, Letrec } from "./ast";
+import { Identifier, Apply, Lambda, Let, Letrec, Expression } from "./ast";
 import { TypeVariable, TFunction, TInteger, TypeOperator, Type, equal } from "./types";
 import { InferenceError, ParseError } from "./errors";
 import { zip } from "./util";
@@ -20,7 +20,7 @@ import { zip } from "./util";
  * @param env The type environment is a mapping of expression identifier names
  *     to type assignments.
  *     to type assignments.
- * @param non_Generic A set of non-generic variables, or None
+ * @param nonGeneric A set of non-generic variables, or None
  * @returns The computed type of the expression.
  * @throws
  *     InferenceError: The type of the expression could not be inferred, for example
@@ -28,7 +28,7 @@ import { zip } from "./util";
  *     ParseError: The abstract syntax tree rooted at node could not be parsed
  */
 export const analyze = (
-  node: any,
+  node: Expression,
   env: Map<string, Type>,
   nonGeneric?: Set<TypeVariable>
 ): Type => {
@@ -40,18 +40,52 @@ export const analyze = (
     return getType(node.name, env, nonGeneric);
   } else if (node instanceof Apply) {
     const funcType = analyze(node.fn, env, nonGeneric);
-    const argType = analyze(node.arg, env, nonGeneric);
+    const argTypes = node.args.map(arg => analyze(arg, env, nonGeneric));
     const resultType = new TypeVariable();
-    unify(new TFunction(argType, resultType), funcType);
+
+    // Check if funcType is a lambda
+    if (funcType instanceof TypeOperator && funcType.name === "->") {
+      const paramTypes = funcType.types.slice(0, -1);
+      const returnType = funcType.types[funcType.types.length - 1];
+
+      // Partial Application
+      if (argTypes.length < paramTypes.length) {
+        // Create a new function type...
+        const appFuncType = new TFunction(
+          // ...that takes the same number of params as args being applied...
+          paramTypes.slice(0, argTypes.length),
+          // ...and returns a new function that accepts the remaining params.
+          new TFunction(paramTypes.slice(argTypes.length), returnType),
+        );
+
+        unify(new TFunction(argTypes, resultType), appFuncType);
+        return resultType;
+      }
+
+      // If there are more args than params...
+      if (argTypes.length > paramTypes.length) {
+        // ...ignore the extra ones.
+        const truncatedArgTypes = argTypes.slice(0, paramTypes.length);
+
+        unify(new TFunction(truncatedArgTypes, resultType), funcType);
+        return resultType;
+      }
+    }
+
+    unify(new TFunction(argTypes, resultType), funcType);
     return resultType;
   } else if (node instanceof Lambda) {
-    const argType = new TypeVariable();
     const newEnv = new Map(env);
-    newEnv.set(node.v, argType);
     const newNonGeneric = new Set(nonGeneric);
-    newNonGeneric.add(argType);
+    const argTypes: TypeVariable[] = [];
+    for (const param of node.params) {
+      const argType = new TypeVariable();
+      newEnv.set(param, argType);
+      newNonGeneric.add(argType);
+      argTypes.push(argType);
+    }
     const resultType = analyze(node.body, newEnv, newNonGeneric);
-    return new TFunction(argType, resultType);
+    return new TFunction(argTypes, resultType);
   } else if (node instanceof Let) {
     const defnType = analyze(node.defn, env, nonGeneric);
     const newEnv = new Map(env);
