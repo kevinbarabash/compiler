@@ -26,3 +26,11 @@ Learning example based on https://github.com/rob-smallshire/hindley-milner-pytho
   - https://gist.github.com/yelouafi/57825fdd223e5337ba0cd2b6ed757f53
   - https://overreacted.io/algebraic-effects-for-the-rest-of-us/
   - https://www.microsoft.com/en-us/research/wp-content/uploads/2016/08/algeff-tr-2016-v3.pdf
+- higher kinded types are like Apply at the type-level, e.g. f a -> f b
+  - class Functor f where 
+    fmap :: (a -> b) -> f a -> f b
+  - `fmap` takes a function and a value wrapped in a functor, unwraps the
+    value, applies the function, and rewraps it for us.
+  - use schemes to represent contraints on higher kinded types
+  - `pure` wraps data in given applicative (in PureScript)
+  - e.g. `pure x = Just x` in the case of the Maybe applicative

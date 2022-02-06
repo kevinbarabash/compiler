@@ -47,6 +47,8 @@ export class TypeVariable {
 /**
  * An n-ary type constructor which builds a new type from old
  */
+// TODO: rename to TypeConstructor or TCon so that it fits better
+// with common terminology
 export class TypeOperator {
   name: string;
   types: Type[];
@@ -90,7 +92,16 @@ export class TFunction extends TypeOperator {
 // Basic types are constructed with a nullary type constructor
 export const TInteger = new TypeOperator("int", []);  // Basic integer
 export const TBool = new TypeOperator("bool", []);  // Basic bool
+export const TAny = new TypeOperator("any", []);  // top type (all types are subtype of this)
+export const TNever = new TypeOperator("never", []);  // bottom type
 
+// TODO: literal types and union (sum) types
+
+// Right now all TypeOperators have an explicit name, but eventually
+// we'd like to support TypeOperators where the name can instead by
+// parameterized by another TypeOperator, e.g.
+// Functor f => (a -> b) -> f a -> f b.
+// TODO: model this as a Scheme, see http://dev.stephendiehl.com/fun/006_hindley_milner.html
 export type Type = TypeVariable | TypeOperator;
 
 export const equal = (t1: Type, t2: Type): boolean => {

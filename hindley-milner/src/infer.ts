@@ -3,8 +3,27 @@
  */
 import assert from "assert";
 
-import { Identifier, Apply, Lambda, Let, Letrec, Expression } from "./ast";
-import { TypeVariable, TFunction, TInteger, TypeOperator, Type, equal } from "./types";
+import {
+  Identifier,
+  Apply,
+  Lambda,
+  Let,
+  Letrec,
+  Expression,
+  Literal,
+  Int,
+  Bool,
+  Arr,
+} from "./ast";
+import {
+  TypeVariable,
+  TFunction,
+  TInteger,
+  TypeOperator,
+  Type,
+  equal,
+  TBool,
+} from "./types";
 import { InferenceError, ParseError } from "./errors";
 import { zip } from "./util";
 
@@ -37,10 +56,12 @@ export const analyze = (
   }
 
   if (node instanceof Identifier) {
-    return getType(node.name, env, nonGeneric);
+    return getTypeForIdentifier(node.name, env, nonGeneric);
+  } else if (node instanceof Literal) {
+    return getTypeForLiteral(node);
   } else if (node instanceof Apply) {
     const funcType = analyze(node.fn, env, nonGeneric);
-    const argTypes = node.args.map(arg => analyze(arg, env, nonGeneric));
+    const argTypes = node.args.map((arg) => analyze(arg, env, nonGeneric));
     const resultType = new TypeVariable();
 
     // Check if funcType is a lambda
@@ -55,7 +76,7 @@ export const analyze = (
           // ...that takes the same number of params as args being applied...
           paramTypes.slice(0, argTypes.length),
           // ...and returns a new function that accepts the remaining params.
-          new TFunction(paramTypes.slice(argTypes.length), returnType),
+          new TFunction(paramTypes.slice(argTypes.length), returnType)
         );
 
         unify(new TFunction(argTypes, resultType), appFuncType);
@@ -112,18 +133,43 @@ export const analyze = (
  * @param {Set} nonGeneric A set of non-generic TypeVariables
  * @returns {Type}
  */
-const getType = (
+const getTypeForIdentifier = (
   name: string,
   env: Map<string, Type>,
   nonGeneric: Set<TypeVariable>
 ): Type => {
   if (env.has(name)) {
     return fresh(env.get(name) as Type, nonGeneric);
-  } else if (isIntegerLiteral(name)) {
-    return TInteger;
-  } else {
-    throw new ParseError(`Undefined symbol ${name}`);
   }
+
+  throw new ParseError(`Undefined symbol ${name}`);
+};
+
+const getTypeForLiteral = (literal: Literal): Type => {
+  if (literal.value instanceof Int) {
+    // TODO: return a literal type, e.g. if the value is 5 then we'd like
+    // to return TIntegerLiteral with a value of 5.  This is a subtype of
+    // TInteger.
+    return TInteger;
+  }
+  if (literal.value instanceof Bool) {
+    return TBool;
+  }
+
+  // When determining the type of an array literal with values on it,
+  // compute the types of each element.  If we get back a bunch of
+  // TIntegerLiterals, then the type would be TypeOperator("[]", TInteger).
+  // We need a way to map between literal types and their corresponding
+  // minimal containing type.
+
+  // If we have a function like map: a[] -> a[] and we pass in an array
+  // literal with type [5, 10], at that point we need to fine the least
+  // general super type that allows for type unification.  In this case
+  // it would int[].
+
+  // Most of the time we want to maintain the literal type's value unless
+  // unification requires something more general.
+  throw new ParseError(`TODO: handle array literals`);
 };
 
 /**
@@ -175,6 +221,7 @@ const unify = (t1: Type, t2: Type) => {
       if (occursInType(a, b)) {
         throw new InferenceError("recursive unification");
       }
+      // TODO: is this where we should enforce polymorphic constraints?
       a.instance = b;
     }
   } else if (a instanceof TypeOperator && b instanceof TypeVariable) {
@@ -199,13 +246,14 @@ const unify = (t1: Type, t2: Type) => {
  * a type operator; i.e. it will skip instantiated variables, and will
  * actually prune them from expressions to remove long chains of instantiated
  * variables.
- * 
+ *
  * @param {Type} t the type to be pruned
  * @returns an uninstantiated TypeVariable or a TypeOperator
  */
 const prune = (t: Type): Type => {
   if (t instanceof TypeVariable) {
     if (t.instance != null) {
+      // TODO: is this where we should enforce polymorphic constraints?
       t.instance = prune(t.instance);
       return t.instance;
     }
@@ -248,21 +296,11 @@ const occursInType = (v: Type, type2: Type): boolean => {
 
 /**
  * Checks whether a types variable occurs in any other types.
- *     
+ *
  * @param t the TypeVariable to be tested for
  * @param types the sequence of types in which to search
  * @returns `true` if `t` occurs in any of types, otherwise `false`
  */
 const occursIn = (t: Type, types: Type[]): boolean => {
   return types.some((t2) => occursInType(t, t2));
-};
-
-/**
- * Checks whether name is an integer literal string.
- *
- * @param name the identifier to check
- * @returns `true` if `name` is an integer literal, otherwise `false`
- */
-const isIntegerLiteral = (name: string): boolean => {
-  return !Number.isNaN(parseInt(name, 10));
 };

@@ -64,6 +64,13 @@ doesn't.
 
 TODO: fill this out
 
+### enums
+
+Enums can be either a subtype of strings or a subtype of numbers (depending on
+what values are used to define them).  This means that if there's a function that
+takes a string we can pass and enum to it.  This could be useful in printing out
+enums (or using them from a select dropdown).
+
 ### refs
 
 What about `ref`s?  We can't just pass a `ref<5>` to a function excepting

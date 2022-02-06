@@ -1,9 +1,19 @@
-import { Identifier, Apply, Lambda, Let, Letrec } from "../ast";
+import {
+  Identifier,
+  Apply,
+  Lambda,
+  Let,
+  Letrec,
+  Literal,
+  Int,
+  Bool,
+} from "../ast";
 import {
   TypeVariable,
   TFunction,
   TInteger,
   TBool,
+  TAny,
   TypeOperator,
   Type,
 } from "../types";
@@ -15,29 +25,34 @@ describe("#analyze", () => {
   beforeEach(() => {
     // reset static variables between test cases
     TypeVariable.nextVariableId = 0;
-    TypeVariable.nextVariableName = 'a';
+    TypeVariable.nextVariableName = "a";
 
     const var1 = new TypeVariable();
     const var2 = new TypeVariable();
     const pair_type = new TypeOperator("*", [var1, var2]);
-  
-    const var3 = new TypeVariable();
 
     my_env.clear();
 
+    // pair is curried
     my_env.set("pair", new TFunction([var1], new TFunction([var2], pair_type)));
-    my_env.set("true", TBool);
+    // tuple2 is the uncurried equivalent
+    my_env.set("tuple2", new TFunction([var1, var2], pair_type));
+
     my_env.set(
       "cond",
-      new TFunction([TBool], new TFunction([var3], new TFunction([var3], var3)))
+      new TFunction([TBool], new TFunction([var1], new TFunction([var1], var1)))
     );
     my_env.set("zero", new TFunction([TInteger], TBool));
     my_env.set("pred", new TFunction([TInteger], TInteger));
+
     my_env.set(
       "times",
       new TFunction([TInteger], new TFunction([TInteger], TInteger))
     );
     my_env.set("add", new TFunction([TInteger, TInteger], TInteger));
+
+    // returns an empty array
+    my_env.set("empty", new TFunction([], new TypeOperator("[]", [TAny])));
   });
 
   describe("basic hindley-milner", () => {
@@ -53,7 +68,7 @@ describe("#analyze", () => {
                 new Identifier("cond"), // cond (zero n)
                 new Apply(new Identifier("zero"), new Identifier("n"))
               ),
-              new Identifier("1")
+              new Literal(new Int(1))
             ),
             new Apply( // times n
               new Apply(new Identifier("times"), new Identifier("n")),
@@ -64,7 +79,7 @@ describe("#analyze", () => {
             )
           )
         ), // in
-        new Apply(new Identifier("factorial"), new Identifier("5"))
+        new Apply(new Identifier("factorial"), new Literal(new Int(5)))
       );
 
       const t = analyze(ast, my_env);
@@ -81,9 +96,9 @@ describe("#analyze", () => {
         new Apply(
           new Apply(
             new Identifier("pair"),
-            new Apply(new Identifier("x"), new Identifier("3"))
+            new Apply(new Identifier("x"), new Literal(new Int(3)))
           ),
-          new Apply(new Identifier("x"), new Identifier("true"))
+          new Apply(new Identifier("x"), new Literal(new Bool(true)))
         )
       );
 
@@ -97,9 +112,9 @@ describe("#analyze", () => {
       const ast = new Apply(
         new Apply(
           new Identifier("pair"),
-          new Apply(new Identifier("f"), new Identifier("4"))
+          new Apply(new Identifier("f"), new Literal(new Int(4)))
         ),
-        new Apply(new Identifier("f"), new Identifier("true"))
+        new Apply(new Identifier("f"), new Literal(new Bool(true)))
       );
 
       expect(ast.toString()).toEqual("((pair (f 4)) (f true))");
@@ -112,9 +127,9 @@ describe("#analyze", () => {
       const pair = new Apply(
         new Apply(
           new Identifier("pair"),
-          new Apply(new Identifier("f"), new Identifier("4"))
+          new Apply(new Identifier("f"), new Literal(new Int(4)))
         ),
-        new Apply(new Identifier("f"), new Identifier("true"))
+        new Apply(new Identifier("f"), new Literal(new Bool(true)))
       );
       const ast = new Let("f", new Lambda("x", new Identifier("x")), pair);
 
@@ -143,7 +158,7 @@ describe("#analyze", () => {
       // the result of g(g) is an int is g always returns 5
       const ast = new Let(
         "g",
-        new Lambda("f", new Identifier("5")),
+        new Lambda("f", new Literal(new Int(5))),
         new Apply(new Identifier("g"), new Identifier("g"))
       );
 
@@ -162,9 +177,9 @@ describe("#analyze", () => {
           new Apply(
             new Apply(
               new Identifier("pair"),
-              new Apply(new Identifier("f"), new Identifier("3"))
+              new Apply(new Identifier("f"), new Literal(new Int(3)))
             ),
-            new Apply(new Identifier("f"), new Identifier("true"))
+            new Apply(new Identifier("f"), new Literal(new Bool(true)))
           )
         )
       );
@@ -253,7 +268,7 @@ describe("#analyze", () => {
 
     // partial application
     test("add 5", () => {
-      const ast = new Apply(new Identifier("add"), [new Identifier("5")]);
+      const ast = new Apply(new Identifier("add"), [new Literal(new Int(5))]);
 
       const t = analyze(ast, my_env);
 
@@ -268,7 +283,7 @@ describe("#analyze", () => {
         new Apply(new Identifier("add"), [
           new Identifier("x"),
           new Identifier("y"),
-          new Identifier("0"),
+          new Literal(new Int(0)),
         ])
       );
 
@@ -276,6 +291,59 @@ describe("#analyze", () => {
 
       expect(ast.toString()).toEqual("(fn x y => (add x y 0))");
       expect(t.toString()).toEqual("(int int -> int)");
+    });
+
+    test("(tuple2 (tuple2 5 10) (tuple2 true false))", () => {
+      const ast = new Apply(new Identifier("tuple2"), [
+        new Apply(new Identifier("tuple2"), [
+          new Literal(new Int(5)),
+          new Literal(new Int(10)),
+        ]),
+        new Apply(new Identifier("tuple2"), [
+          new Literal(new Bool(true)),
+          new Literal(new Bool(false)),
+        ]),
+      ]);
+
+      const t = analyze(ast, my_env);
+
+      expect(ast.toString()).toEqual(
+        "(tuple2 (tuple2 5 10) (tuple2 true false))"
+      );
+      expect(t.toString()).toEqual("((int * int) * (bool * bool))");
+    });
+
+    test("(tuple2 (tuple2 a b) (tuple2 c d))", () => {
+      const ast = new Lambda(
+        ["a", "b", "c", "d"],
+        new Apply(new Identifier("tuple2"), [
+          new Apply(new Identifier("tuple2"), [
+            new Identifier("a"),
+            new Identifier("b"),
+          ]),
+          new Apply(new Identifier("tuple2"), [
+            new Identifier("c"),
+            new Identifier("d"),
+          ]),
+        ])
+      );
+
+      const t = analyze(ast, my_env);
+
+      expect(ast.toString()).toEqual(
+        "(fn a b c d => (tuple2 (tuple2 a b) (tuple2 c d)))"
+      );
+      expect(t.toString()).toEqual("(a b c d -> ((a * b) * (c * d)))");
+    });
+
+    // apply with no args
+    test("(empty ())", () => {
+      const ast = new Apply(new Identifier("empty"), []);
+
+      const t = analyze(ast, my_env);
+
+      expect(ast.toString()).toEqual("(empty )");
+      expect(t.toString()).toEqual("[] any");
     });
   });
 });
