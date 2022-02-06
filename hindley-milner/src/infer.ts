@@ -20,7 +20,7 @@ import { zip } from "./util";
  * @param env The type environment is a mapping of expression identifier names
  *     to type assignments.
  *     to type assignments.
- * @param non_Generic A set of non-generic variables, or None
+ * @param nonGeneric A set of non-generic variables, or None
  * @returns The computed type of the expression.
  * @throws
  *     InferenceError: The type of the expression could not be inferred, for example
