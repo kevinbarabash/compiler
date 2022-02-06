@@ -10,27 +10,35 @@ import {
 import { analyze } from "../infer";
 
 describe("#analyze", () => {
-  const var1 = new TypeVariable();
-  const var2 = new TypeVariable();
-  const pair_type = new TypeOperator("*", [var1, var2]);
-
-  const var3 = new TypeVariable();
-
   const my_env = new Map<string, Type>();
 
-  my_env.set("pair", new TFunction([var1], new TFunction([var2], pair_type)));
-  my_env.set("true", TBool);
-  my_env.set(
-    "cond",
-    new TFunction([TBool], new TFunction([var3], new TFunction([var3], var3)))
-  );
-  my_env.set("zero", new TFunction([TInteger], TBool));
-  my_env.set("pred", new TFunction([TInteger], TInteger));
-  my_env.set(
-    "times",
-    new TFunction([TInteger], new TFunction([TInteger], TInteger))
-  );
-  my_env.set("add", new TFunction([TInteger, TInteger], TInteger));
+  beforeEach(() => {
+    // reset static variables between test cases
+    TypeVariable.nextVariableId = 0;
+    TypeVariable.nextVariableName = 'a';
+
+    const var1 = new TypeVariable();
+    const var2 = new TypeVariable();
+    const pair_type = new TypeOperator("*", [var1, var2]);
+  
+    const var3 = new TypeVariable();
+
+    my_env.clear();
+
+    my_env.set("pair", new TFunction([var1], new TFunction([var2], pair_type)));
+    my_env.set("true", TBool);
+    my_env.set(
+      "cond",
+      new TFunction([TBool], new TFunction([var3], new TFunction([var3], var3)))
+    );
+    my_env.set("zero", new TFunction([TInteger], TBool));
+    my_env.set("pred", new TFunction([TInteger], TInteger));
+    my_env.set(
+      "times",
+      new TFunction([TInteger], new TFunction([TInteger], TInteger))
+    );
+    my_env.set("add", new TFunction([TInteger, TInteger], TInteger));
+  });
 
   describe("basic hindley-milner", () => {
     test("factorial", () => {
@@ -189,7 +197,26 @@ describe("#analyze", () => {
       expect(ast.toString()).toEqual(
         "(fn f => (fn g => (fn arg => (g (f arg)))))"
       );
-      expect(t.toString()).toEqual("((b -> c) -> ((c -> d) -> (b -> d)))");
+      expect(t.toString()).toEqual("((a -> b) -> ((b -> c) -> (a -> c)))");
+    });
+
+    test("(fn x => x)", () => {
+      const ast = new Lambda("x", new Identifier("x"));
+
+      const t = analyze(ast, my_env);
+
+      expect(ast.toString()).toEqual("(fn x => x)");
+      expect(t.toString()).toEqual("(a -> a)");
+    });
+
+    test("analyze() doesn't reuse type variables across calls", () => {
+      const ast1 = new Lambda("x", new Identifier("x"));
+      const t1 = analyze(ast1, my_env);
+      const ast2 = new Lambda("x", new Identifier("x"));
+      const t2 = analyze(ast2, my_env);
+
+      expect(t1.toString()).toEqual("(a -> a)");
+      expect(t2.toString()).toEqual("(b -> b)");
     });
   });
 
@@ -206,7 +233,7 @@ describe("#analyze", () => {
       const t = analyze(ast, my_env);
 
       expect(ast.toString()).toEqual("(fn x y => ((pair x) y))");
-      expect(t.toString()).toEqual("(e f -> (e * f))");
+      expect(t.toString()).toEqual("(a b -> (a * b))");
     });
 
     test("fn x y => add x y", () => {

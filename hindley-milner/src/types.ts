@@ -14,7 +14,7 @@ export class TypeVariable {
   static nextVariableName = 'a';
 
   id: number;
-  instance: any;
+  instance: Type | null;
   __name: string | null;
 
   constructor() {
@@ -24,6 +24,7 @@ export class TypeVariable {
     this.__name = null;
   }
 
+  // NOTE: we only increment nextVariableName if a type variable's name is used.
   get name(): string {
     if (this.__name == null) {
       this.__name = TypeVariable.nextVariableName;
@@ -98,6 +99,9 @@ export const equal = (t1: Type, t2: Type): boolean => {
       zip(t1.types, t2.types).every((value) => equal(...value));
   }
   if (t1 instanceof TypeVariable && t2 instanceof TypeVariable) {
+    // We only need to check the `id` to see if they're the same.
+    // The `__name` field is only used if the type variable ends
+    // up being used in the inferred type.
     return t1.id === t2.id;
   }
   return false;

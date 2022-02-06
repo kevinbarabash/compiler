@@ -129,7 +129,7 @@ const getType = (
 /**
  * Makes a copy of a type expression.
  * The type t is copied. The the generic variables are duplicated and the
- * non_generic variables are shared.
+ * nonGeneric variables are shared.
  *
  * @param {Type} t a type to be copied
  * @param {Set} nonGeneric a set of non-generic TypeVariable
