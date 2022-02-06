@@ -9,12 +9,12 @@ import {
   Bool,
 } from "../ast";
 import {
-  TypeVariable,
+  TVar,
   TFunction,
   TInteger,
   TBool,
   TAny,
-  TypeOperator,
+  TCon,
   Type,
 } from "../types";
 import { analyze } from "../infer";
@@ -24,12 +24,12 @@ describe("#analyze", () => {
 
   beforeEach(() => {
     // reset static variables between test cases
-    TypeVariable.nextVariableId = 0;
-    TypeVariable.nextVariableName = "a";
+    TVar.nextVariableId = 0;
+    TVar.nextVariableName = "a";
 
-    const var1 = new TypeVariable();
-    const var2 = new TypeVariable();
-    const pair_type = new TypeOperator("*", [var1, var2]);
+    const var1 = new TVar();
+    const var2 = new TVar();
+    const pair_type = new TCon("*", [var1, var2]);
 
     my_env.clear();
 
@@ -52,7 +52,7 @@ describe("#analyze", () => {
     my_env.set("add", new TFunction([TInteger, TInteger], TInteger));
 
     // returns an empty array
-    my_env.set("empty", new TFunction([], new TypeOperator("[]", [TAny])));
+    my_env.set("empty", new TFunction([], new TCon("[]", [TAny])));
   });
 
   describe("basic hindley-milner", () => {

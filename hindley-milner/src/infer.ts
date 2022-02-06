@@ -16,10 +16,10 @@ import {
   Arr,
 } from "./ast";
 import {
-  TypeVariable,
+  TVar,
   TFunction,
   TInteger,
-  TypeOperator,
+  TCon,
   Type,
   equal,
   TBool,
@@ -49,7 +49,7 @@ import { zip } from "./util";
 export const analyze = (
   node: Expression,
   env: Map<string, Type>,
-  nonGeneric?: Set<TypeVariable>
+  nonGeneric?: Set<TVar>
 ): Type => {
   if (nonGeneric == null) {
     nonGeneric = new Set();
@@ -62,10 +62,10 @@ export const analyze = (
   } else if (node instanceof Apply) {
     const funcType = analyze(node.fn, env, nonGeneric);
     const argTypes = node.args.map((arg) => analyze(arg, env, nonGeneric));
-    const resultType = new TypeVariable();
+    const resultType = new TVar();
 
     // Check if funcType is a lambda
-    if (funcType instanceof TypeOperator && funcType.name === "->") {
+    if (funcType instanceof TCon && funcType.name === "->") {
       const paramTypes = funcType.types.slice(0, -1);
       const returnType = funcType.types[funcType.types.length - 1];
 
@@ -98,9 +98,9 @@ export const analyze = (
   } else if (node instanceof Lambda) {
     const newEnv = new Map(env);
     const newNonGeneric = new Set(nonGeneric);
-    const argTypes: TypeVariable[] = [];
+    const argTypes: TVar[] = [];
     for (const param of node.params) {
-      const argType = new TypeVariable();
+      const argType = new TVar();
       newEnv.set(param, argType);
       newNonGeneric.add(argType);
       argTypes.push(argType);
@@ -113,7 +113,7 @@ export const analyze = (
     newEnv.set(node.v, defnType);
     return analyze(node.body, newEnv, nonGeneric);
   } else if (node instanceof Letrec) {
-    const newType = new TypeVariable();
+    const newType = new TVar();
     const newEnv = new Map(env);
     newEnv.set(node.v, newType);
     const newNonGeneric = new Set(nonGeneric);
@@ -136,7 +136,7 @@ export const analyze = (
 const getTypeForIdentifier = (
   name: string,
   env: Map<string, Type>,
-  nonGeneric: Set<TypeVariable>
+  nonGeneric: Set<TVar>
 ): Type => {
   if (env.has(name)) {
     return fresh(env.get(name) as Type, nonGeneric);
@@ -181,22 +181,22 @@ const getTypeForLiteral = (literal: Literal): Type => {
  * @param {Set} nonGeneric a set of non-generic TypeVariable
  * @returns the copied type expression
  */
-const fresh = (t: Type, nonGeneric: Set<TypeVariable>): Type => {
-  const mappings = new Map<TypeVariable, TypeVariable>();
+const fresh = (t: Type, nonGeneric: Set<TVar>): Type => {
+  const mappings = new Map<TVar, TVar>();
 
   const freshRec = (tp: Type): Type => {
     const p = prune(tp);
-    if (p instanceof TypeVariable) {
+    if (p instanceof TVar) {
       if (isGeneric(p, nonGeneric)) {
         if (!mappings.has(p)) {
-          mappings.set(p, new TypeVariable());
+          mappings.set(p, new TVar());
         }
-        return mappings.get(p) as TypeVariable;
+        return mappings.get(p) as TVar;
       } else {
         return p;
       }
-    } else if (p instanceof TypeOperator) {
-      return new TypeOperator(p.name, p.types.map(freshRec));
+    } else if (p instanceof TCon) {
+      return new TCon(p.name, p.types.map(freshRec));
     }
     throw new Error("freshRec should never get here");
   };
@@ -216,7 +216,7 @@ const fresh = (t: Type, nonGeneric: Set<TypeVariable>): Type => {
 const unify = (t1: Type, t2: Type) => {
   const a = prune(t1);
   const b = prune(t2);
-  if (a instanceof TypeVariable) {
+  if (a instanceof TVar) {
     if (!equal(a, b)) {
       if (occursInType(a, b)) {
         throw new InferenceError("recursive unification");
@@ -224,9 +224,9 @@ const unify = (t1: Type, t2: Type) => {
       // TODO: is this where we should enforce polymorphic constraints?
       a.instance = b;
     }
-  } else if (a instanceof TypeOperator && b instanceof TypeVariable) {
+  } else if (a instanceof TCon && b instanceof TVar) {
     unify(b, a);
-  } else if (a instanceof TypeOperator && b instanceof TypeOperator) {
+  } else if (a instanceof TCon && b instanceof TCon) {
     if (a.name != b.name || a.types.length != b.types.length) {
       throw new InferenceError(`Type mismatch: ${a} != ${b}`);
     }
@@ -251,7 +251,7 @@ const unify = (t1: Type, t2: Type) => {
  * @returns an uninstantiated TypeVariable or a TypeOperator
  */
 const prune = (t: Type): Type => {
-  if (t instanceof TypeVariable) {
+  if (t instanceof TVar) {
     if (t.instance != null) {
       // TODO: is this where we should enforce polymorphic constraints?
       t.instance = prune(t.instance);
@@ -268,11 +268,11 @@ const prune = (t: Type): Type => {
  * non-generic.
  * Note: Must be called with v pre-pruned
  *
- * @param {TypeVariable} v the TypeVariable to be tested for genericity
+ * @param {TVar} v the TypeVariable to be tested for genericity
  * @param {Set} nonGeneric a set of non-generic TypeVariables
  * @returns `true` if `v` is a generic variable, otherwise `false`
  */
-const isGeneric = (v: TypeVariable, nonGeneric: Set<TypeVariable>): boolean => {
+const isGeneric = (v: TVar, nonGeneric: Set<TVar>): boolean => {
   return !occursIn(v, [...nonGeneric]);
 };
 
@@ -288,7 +288,7 @@ const occursInType = (v: Type, type2: Type): boolean => {
   const prunedType2 = prune(type2);
   if (equal(prunedType2, v)) {
     return true;
-  } else if (prunedType2 instanceof TypeOperator) {
+  } else if (prunedType2 instanceof TCon) {
     return occursIn(v, prunedType2.types);
   }
   return false;
