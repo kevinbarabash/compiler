@@ -16,6 +16,7 @@ import {
   TAny,
   TCon,
   Type,
+  TLit,
 } from "../types";
 import { analyze } from "../infer";
 
@@ -49,6 +50,8 @@ describe("#analyze", () => {
       "times",
       new TFunction([TInteger], new TFunction([TInteger], TInteger))
     );
+    // TODO: figure out how to implement constrained generics, e.g.
+    // const foo: <T: number | string>(T, T) => T
     my_env.set("add", new TFunction([TInteger, TInteger], TInteger));
 
     // returns an empty array
@@ -104,7 +107,7 @@ describe("#analyze", () => {
 
       expect(ast.toString()).toEqual("(fn x => ((pair (x 3)) (x true)))");
       expect(() => analyze(ast, my_env)).toThrowErrorMatchingInlineSnapshot(
-        `"Type mismatch: bool != int"`
+        `"Type mismatch: true != 3"`
       );
     });
 
@@ -165,7 +168,7 @@ describe("#analyze", () => {
       const t = analyze(ast, my_env);
 
       expect(ast.toString()).toEqual("(let g = (fn f => 5) in (g g))");
-      expect(t.toString()).toEqual("int");
+      expect(t.toString()).toEqual("5");
     });
 
     test("(fn g => (let f = (fn x => g) in ((pair (f 3)) (f true))))", () => {
@@ -267,6 +270,8 @@ describe("#analyze", () => {
     });
 
     // partial application
+    // This also tests that integer literals can be accepted wherever an
+    // integer is expect.
     test("add 5", () => {
       const ast = new Apply(new Identifier("add"), [new Literal(new Int(5))]);
 
@@ -345,5 +350,143 @@ describe("#analyze", () => {
       expect(ast.toString()).toEqual("(empty )");
       expect(t.toString()).toEqual("[] any");
     });
+  });
+
+  describe("sub-typing", () => {
+    // Using sub-typing to infer x's param is an int (3 ∈ TInteger, 5 ∈ TInteger)
+    test("fn x => (pair(x(3) (x(5))) : ((int -> a) -> (a * a))", () => {
+      const ast = new Lambda(
+        "x",
+        new Apply(
+          new Apply(
+            new Identifier("pair"),
+            new Apply(new Identifier("x"), new Literal(new Int(3)))
+          ),
+          new Apply(new Identifier("x"), new Literal(new Int(5)))
+        )
+      );
+
+      const t = analyze(ast, my_env);
+
+      expect(ast.toString()).toEqual("(fn x => ((pair (x 3)) (x 5)))");
+      expect(t.toString()).toEqual("((int -> a) -> (a * a))");
+    });
+
+    // Using sub-typing to infer x's param is a boolean (true | false)
+    test("fn x => (pair(x(false) (x(true))) : ((bool -> a) -> (a * a))", () => {
+      const ast = new Lambda(
+        "x",
+        new Apply(
+          new Apply(
+            new Identifier("pair"),
+            new Apply(new Identifier("x"), new Literal(new Bool(false)))
+          ),
+          new Apply(new Identifier("x"), new Literal(new Bool(true)))
+        )
+      );
+
+      const t = analyze(ast, my_env);
+
+      expect(ast.toString()).toEqual("(fn x => ((pair (x false)) (x true)))");
+      expect(t.toString()).toEqual("((bool -> a) -> (a * a))");
+    });
+
+    // Doesn't widen type construtors
+    // add : int -> int
+    test("(add 3 true) fails", () => {
+      const ast = new Apply(new Identifier("add"), [
+        new Literal(new Int(3)),
+        new Literal(new Bool(true)),
+      ]);
+
+      expect(() => analyze(ast, my_env)).toThrowErrorMatchingInlineSnapshot(
+        `"Type mismatch: bool != int"`
+      );
+    });
+
+    // Doesn't widen frozen type literals
+    // foo5 : 5 -> int
+    test("let _ = (foo5 10) in foo5", () => {
+      const lit5 = new Literal(new Int(5));
+      const fiveToInt = new TFunction([new TLit(lit5)], TInteger);
+      my_env.set("foo5", fiveToInt);
+
+      // After we've finished analyzing the type, we'll need to update
+      // the type of `foo5` in my_env to essential lock it down to prevent
+      // additional widening of types.
+
+      // expect(ast1.toString()).toEqual("foo5");
+      // expect(t1.toString()).toEqual("(5 -> int)");
+
+      // **TODO**: create a function that recursive freeze types
+      if (fiveToInt instanceof TCon) {
+        fiveToInt.types.forEach((t) => {
+          if (t instanceof TLit) {
+            t.frozen = true;
+          }
+        });
+      }
+
+      const ast2 = new Let(
+        "_",
+        new Apply(new Identifier("foo5"), [new Literal(new Int(10))]),
+        new Identifier("foo5")
+      );
+
+      const t2 = analyze(ast2, my_env);
+
+      expect(ast2.toString()).toEqual("(let _ = (foo5 10) in foo5)");
+      expect(t2.toString()).toEqual("(5 -> int)");
+    });
+
+    test("(int -> int)(true) should fail", () => {
+      const intToInt = new TFunction([TInteger], TInteger);
+      my_env.set("foo", intToInt);
+
+      const ast = new Apply(new Identifier("foo"), [
+        new Literal(new Bool(true)),
+      ]);
+
+      expect(() => analyze(ast, my_env)).toThrowErrorMatchingInlineSnapshot(
+        `"Type mismatch: bool != int"`
+      );
+    });
+
+    // Infers literal return types
+    test("(fn x => 5) : a -> 5", () => {
+      const ast = new Lambda(["x"], new Literal(new Int(5)));
+
+      const t = analyze(ast, my_env);
+
+      expect(t.toString()).toEqual("(a -> 5)");
+    });
+
+    // Doesn't expand the return type when calling a function
+    test("(let five = (fn x => 5) in (let sum = (add (five true) 10) in five)) : a -> 5", () => {
+      const ast = new Let(
+        "five",
+        new Lambda(["x"], new Literal(new Int(5))),
+        new Let(
+          "sum",
+          new Apply(new Identifier("add"), [
+            new Apply(new Identifier("five"), [new Literal(new Bool(true))]),
+            new Literal(new Int(10)),
+          ]),
+          new Identifier("five")
+        )
+      );
+
+      const t = analyze(ast, my_env);
+
+      expect(ast.toString()).toEqual(
+        "(let five = (fn x => 5) in (let sum = (add (five true) 10) in five))"
+      );
+      expect(t.toString()).toEqual("(a -> 5)");
+    });
+
+    // function sub-typing
+    // if foo accepts a callback of `(a, int) -> b` and then we pass it a function
+    // of type `(a) -> b` then it should accept it
+    test.todo("function sub-typing");
   });
 });

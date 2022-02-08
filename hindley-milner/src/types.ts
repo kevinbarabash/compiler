@@ -2,6 +2,7 @@
  * Types and type constructors
  */
 import {zip} from "./util";
+import {Literal} from "./ast";
 
 /**
  * A type variable standing for an arbitrary type.
@@ -41,6 +42,34 @@ export class TVar {
     } else {
       return this.name;
     }
+  }
+}
+
+export class TLit {
+  value: Literal;
+  // A type literal can be widened to a type constructor, e.g.
+  // `5` can be widened to `int`.
+  // Once the type system supports union types we'll be able
+  // to widen type constructors as.  As example if inference
+  // tells us a function needs to accept `int` or `string` then
+  // either of those types may need to be widened to `int | string`.
+  // There may even be cases in which a type ends up being widened
+  // numerous times.
+  widening: Type | null;
+  frozen: boolean;
+
+  constructor(value: Literal) {
+    this.value = value;
+
+    this.widening = null;
+    this.frozen = false;
+  }
+
+  toString(): string {
+    if (this.widening) {
+      return this.widening.toString();
+    }
+    return this.value.toString();
   }
 }
 
@@ -100,7 +129,7 @@ export const TNever = new TCon("never", []);  // bottom type
 // parameterized by another TypeOperator, e.g.
 // Functor f => (a -> b) -> f a -> f b.
 // TODO: model this as a Scheme, see http://dev.stephendiehl.com/fun/006_hindley_milner.html
-export type Type = TVar | TCon;
+export type Type = TVar | TCon | TLit;
 
 export const equal = (t1: Type, t2: Type): boolean => {
   if (t1 instanceof TCon && t2 instanceof TCon) {
@@ -112,6 +141,10 @@ export const equal = (t1: Type, t2: Type): boolean => {
     // The `__name` field is only used if the type variable ends
     // up being used in the inferred type.
     return t1.id === t2.id;
+  }
+  if (t1 instanceof TLit && t2 instanceof TLit) {
+    // NOTE: This never gets called, should it?
+    return t1.value === t2.value;
   }
   return false;
 }

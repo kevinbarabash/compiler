@@ -19,6 +19,7 @@ import {
   TVar,
   TFunction,
   TInteger,
+  TLit,
   TCon,
   Type,
   equal,
@@ -146,30 +147,23 @@ const getTypeForIdentifier = (
 };
 
 const getTypeForLiteral = (literal: Literal): Type => {
-  if (literal.value instanceof Int) {
-    // TODO: return a literal type, e.g. if the value is 5 then we'd like
-    // to return TIntegerLiteral with a value of 5.  This is a subtype of
-    // TInteger.
-    return TInteger;
+  if (literal instanceof Arr) {
+    // When determining the type of an array literal with values on it,
+    // compute the types of each element.  If we get back a bunch of
+    // TIntegerLiterals, then the type would be TypeOperator("[]", TInteger).
+    // We need a way to map between literal types and their corresponding
+    // minimal containing type.
+
+    // If we have a function like map: a[] -> a[] and we pass in an array
+    // literal with type [5, 10], at that point we need to fine the least
+    // general super type that allows for type unification.  In this case
+    // it would int[].
+
+    // Most of the time we want to maintain the literal type's value unless
+    // unification requires something more general.
+    throw new ParseError(`getTypeForLiteral doesn't handle array literals yet`);
   }
-  if (literal.value instanceof Bool) {
-    return TBool;
-  }
-
-  // When determining the type of an array literal with values on it,
-  // compute the types of each element.  If we get back a bunch of
-  // TIntegerLiterals, then the type would be TypeOperator("[]", TInteger).
-  // We need a way to map between literal types and their corresponding
-  // minimal containing type.
-
-  // If we have a function like map: a[] -> a[] and we pass in an array
-  // literal with type [5, 10], at that point we need to fine the least
-  // general super type that allows for type unification.  In this case
-  // it would int[].
-
-  // Most of the time we want to maintain the literal type's value unless
-  // unification requires something more general.
-  throw new ParseError(`TODO: handle array literals`);
+  return new TLit(literal);
 };
 
 /**
@@ -197,6 +191,8 @@ const fresh = (t: Type, nonGeneric: Set<TVar>): Type => {
       }
     } else if (p instanceof TCon) {
       return new TCon(p.name, p.types.map(freshRec));
+    } else if (p instanceof TLit) {
+      return p;
     }
     throw new Error("freshRec should never get here");
   };
@@ -225,17 +221,71 @@ const unify = (t1: Type, t2: Type) => {
       a.instance = b;
     }
   } else if (a instanceof TCon && b instanceof TVar) {
+    // We reverse the order here so that the previous `if` block can
+    // handle `b` being a `TVar`.
+
+    // Is type unification actually symmetric?  We may want to introduce
+    // behavior in the future that treats l-values and r-values different.
     unify(b, a);
   } else if (a instanceof TCon && b instanceof TCon) {
     if (a.name != b.name || a.types.length != b.types.length) {
+      // When should we expand `int` to `int | bool`?
       throw new InferenceError(`Type mismatch: ${a} != ${b}`);
     }
     for (const [p, q] of zip(a.types, b.types)) {
       unify(p, q);
     }
+  } else if (a instanceof TLit && b instanceof TLit) {
+    // This could be more succinct if we were using a disjoint union instead
+    // of instanceof and classes.
+    if (a.value.value instanceof Int && b.value.value instanceof Int) {
+      if (!equal(a, b)) {
+        maybeWidenTypes(a, b);
+      }
+    } else if (a.value.value instanceof Bool && b.value.value instanceof Bool) {
+      if (!equal(a, b)) {
+        maybeWidenTypes(a, b);
+      }
+    } else {
+      throw new InferenceError(`Type mismatch: ${a} != ${b}`);
+    }
+  } else if (a instanceof TLit) {
+    // TODO: figure out if there's any situations in which we don't want to 
+    // expand a literal type to its super type?
+
+    // Try to unify `b` with `a`'s immediate super type.
+    unify(getSuperType(a), b);
+  } else if (b instanceof TLit) {
+    // Try to unify `a` with `b`'s immediate super type.
+    unify(a, getSuperType(b));
   } else {
     assert.ok(0, "Not unified");
   }
+};
+
+// Are there any situations when only one of the types we're trying to unify
+// needs widening?
+const maybeWidenTypes = (a: TLit, b: TLit) => {
+  if (!a.frozen && !b.frozen) {
+    // TODO: check the existing value of `widening` in case it needs
+    // be widened further.
+
+    // Once we have union types then the widening here should widen
+    // the literals to the union of the two literals instead of using
+    // the immediate super type.
+    a.widening = getSuperType(a);
+    b.widening = getSuperType(b);
+  }
+}
+
+const getSuperType = (t: TLit): TCon => {
+  if (t.value.value instanceof Int) {
+    return TInteger;
+  }
+  if (t.value.value instanceof Bool) {
+    return TBool;
+  }
+  throw new Error(`No super type defined for ${t}`);
 };
 
 /**
