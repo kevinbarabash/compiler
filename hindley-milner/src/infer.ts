@@ -220,10 +220,10 @@ const unify = (t1: Type, t2: Type) => {
       // TODO: is this where we should enforce polymorphic constraints?
       a.instance = b;
     }
-  } else if (a instanceof TCon && b instanceof TVar) {
+  } else if (b instanceof TVar) {
     // We reverse the order here so that the previous `if` block can
     // handle `b` being a `TVar`.
-
+    //
     // Is type unification actually symmetric?  We may want to introduce
     // behavior in the future that treats l-values and r-values different.
     unify(b, a);
@@ -247,24 +247,52 @@ const unify = (t1: Type, t2: Type) => {
         maybeWidenTypes(a, b);
       }
     } else {
+      // No common super type
       throw new InferenceError(`Type mismatch: ${a} != ${b}`);
     }
   } else if (a instanceof TLit) {
-    // TODO: figure out if there's any situations in which we don't want to 
-    // expand a literal type to its super type?
-
-    // Try to unify `b` with `a`'s immediate super type.
-    unify(getSuperType(a), b);
+    if (!isSubtype(a, b)) {
+      throw new InferenceError(`Type mismatch: ${a} is not a subtype of ${b}`);
+    }
   } else if (b instanceof TLit) {
-    // Try to unify `a` with `b`'s immediate super type.
-    unify(a, getSuperType(b));
+    if (!isSubtype(b, a)) {
+      throw new InferenceError(`Type mismatch: ${b} is not a subtype of ${a}`);
+    }
   } else {
     assert.ok(0, "Not unified");
   }
 };
 
+/**
+ * Returns true if `a` is a subtype of `b`.
+ * 
+ * @param {TLit} a
+ * @param {Type} b 
+ * @returns {boolean}
+ */
+const isSubtype = (a: TLit, b: Type): boolean => {
+  if (a.value.value instanceof Int && equal(b, TInteger)) {
+    return true;
+  }
+  if (a.value.value instanceof Bool && equal(b, TBool)) {
+    return true;
+  }
+  return false;
+}
+
 // Are there any situations when only one of the types we're trying to unify
 // needs widening?
+/**
+ * If neither `a` or `b` are frozen, it will get the immediate super
+ * type of the literal and assign it to the .widening property of each.
+ * This property indicates that a type literal has been widened to
+ * another type.  For now this can only be a type constructor (TCon), but
+ * in the future it could also be a union of type literals or other types.
+ * 
+ * @param {TLit} a 
+ * @param {TLit} b 
+ * @throws {InferenceError} if either `a` or `b` is frozen
+ */
 const maybeWidenTypes = (a: TLit, b: TLit) => {
   if (!a.frozen && !b.frozen) {
     // TODO: check the existing value of `widening` in case it needs
@@ -275,6 +303,11 @@ const maybeWidenTypes = (a: TLit, b: TLit) => {
     // the immediate super type.
     a.widening = getSuperType(a);
     b.widening = getSuperType(b);
+  } else {
+    // TODO: this will need to be subtype check once we have union types
+    if (!equal(a, b)) {
+      throw new InferenceError(`Type mismatch: ${a} != ${b}`);
+    }
   }
 }
 

@@ -9,6 +9,7 @@ import {
   Bool,
 } from "../ast";
 import {
+  freezeType,
   TVar,
   TFunction,
   TInteger,
@@ -141,7 +142,7 @@ describe("#analyze", () => {
       expect(ast.toString()).toEqual(
         "(let f = (fn x => x) in ((pair (f 4)) (f true)))"
       );
-      expect(t.toString()).toEqual("(int * bool)");
+      expect(t.toString()).toEqual("(4 * true)");
     });
 
     test("(fn f => (f f))", () => {
@@ -315,7 +316,7 @@ describe("#analyze", () => {
       expect(ast.toString()).toEqual(
         "(tuple2 (tuple2 5 10) (tuple2 true false))"
       );
-      expect(t.toString()).toEqual("((int * int) * (bool * bool))");
+      expect(t.toString()).toEqual("((5 * 10) * (true * false))");
     });
 
     test("(tuple2 (tuple2 a b) (tuple2 c d))", () => {
@@ -400,43 +401,33 @@ describe("#analyze", () => {
       ]);
 
       expect(() => analyze(ast, my_env)).toThrowErrorMatchingInlineSnapshot(
-        `"Type mismatch: bool != int"`
+        `"Type mismatch: true is not a subtype of int"`
       );
     });
 
-    // Doesn't widen frozen type literals
-    // foo5 : 5 -> int
+    // Doesn't widen frozen type literals for functions already typed
+    // Here we try to pass `10` to a function that only accepts `5`
     test("let _ = (foo5 10) in foo5", () => {
       const lit5 = new Literal(new Int(5));
       const fiveToInt = new TFunction([new TLit(lit5)], TInteger);
       my_env.set("foo5", fiveToInt);
 
-      // After we've finished analyzing the type, we'll need to update
-      // the type of `foo5` in my_env to essential lock it down to prevent
-      // additional widening of types.
+      // Once the type of `foo5` has been defined, we need to freeze
+      // it to prevent widening of any of its types.  If we try to
+      // widen a frozen type during unification, a error will be thrown.
+      freezeType(fiveToInt);
 
-      // expect(ast1.toString()).toEqual("foo5");
-      // expect(t1.toString()).toEqual("(5 -> int)");
-
-      // **TODO**: create a function that recursive freeze types
-      if (fiveToInt instanceof TCon) {
-        fiveToInt.types.forEach((t) => {
-          if (t instanceof TLit) {
-            t.frozen = true;
-          }
-        });
-      }
-
-      const ast2 = new Let(
+      const ast = new Let(
         "_",
         new Apply(new Identifier("foo5"), [new Literal(new Int(10))]),
         new Identifier("foo5")
       );
 
-      const t2 = analyze(ast2, my_env);
+      expect(ast.toString()).toEqual("(let _ = (foo5 10) in foo5)");
 
-      expect(ast2.toString()).toEqual("(let _ = (foo5 10) in foo5)");
-      expect(t2.toString()).toEqual("(5 -> int)");
+      expect(() => analyze(ast, my_env)).toThrowErrorMatchingInlineSnapshot(
+        `"Type mismatch: 10 != 5"`
+      );
     });
 
     test("(int -> int)(true) should fail", () => {
@@ -448,7 +439,7 @@ describe("#analyze", () => {
       ]);
 
       expect(() => analyze(ast, my_env)).toThrowErrorMatchingInlineSnapshot(
-        `"Type mismatch: bool != int"`
+        `"Type mismatch: true is not a subtype of int"`
       );
     });
 
@@ -488,5 +479,11 @@ describe("#analyze", () => {
     // if foo accepts a callback of `(a, int) -> b` and then we pass it a function
     // of type `(a) -> b` then it should accept it
     test.todo("function sub-typing");
+
+    // Adapt the following example:
+    // a : boolean
+    // b : int
+    // test("fn x => (pair(x(a) (x(b))) : ((int | boolean -> a) -> (a * a))", () => {
+    test.todo("widening of `int` and `bool` to `int | bool`");
   });
 });

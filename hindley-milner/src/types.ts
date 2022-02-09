@@ -79,10 +79,12 @@ export class TLit {
 export class TCon {
   name: string;
   types: Type[];
+  frozen: boolean;
 
   constructor(name: string, types: Type[]) {
     this.name = name;
     this.types = types;
+    this.frozen = false;
   }
 
   toString(): string {
@@ -147,4 +149,15 @@ export const equal = (t1: Type, t2: Type): boolean => {
     return t1.value === t2.value;
   }
   return false;
+}
+
+export const freezeType = (t: Type) => {
+  if (t instanceof TCon) {
+    if (!t.frozen) {
+      t.frozen = true;
+      t.types.forEach(freezeType);
+    }
+  } else if (t instanceof TLit) {
+    t.frozen = true;
+  }
 }

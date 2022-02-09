@@ -59,6 +59,8 @@ operations on them:
   types that are representable by the type system?  Does support "complement" offer
   anything beyond a fancy way of representing set difference?
 
+How does subtyping fit into this? (especially with objects/records)
+
 ### primitives
 
 - a type literal is a subtype for type it's contained within, e.g.
