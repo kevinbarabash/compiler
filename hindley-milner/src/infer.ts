@@ -2,6 +2,7 @@
  * Type inference machinery
  */
 import assert from "assert";
+import {Map, Set} from "immutable";
 
 import {
   Identifier,
@@ -53,7 +54,7 @@ export const analyze = (
   nonGeneric?: Set<TVar>
 ): Type => {
   if (nonGeneric == null) {
-    nonGeneric = new Set();
+    nonGeneric = Set();
   }
 
   if (node instanceof Identifier) {
@@ -97,8 +98,8 @@ export const analyze = (
     unify(new TFunction(argTypes, resultType), funcType);
     return resultType;
   } else if (node instanceof Lambda) {
-    const newEnv = new Map(env);
-    const newNonGeneric = new Set(nonGeneric);
+    const newEnv = env.asMutable();
+    const newNonGeneric = nonGeneric.asMutable();
     const argTypes: TVar[] = [];
     for (const param of node.params) {
       const argType = new TVar();
@@ -106,19 +107,17 @@ export const analyze = (
       newNonGeneric.add(argType);
       argTypes.push(argType);
     }
-    const resultType = analyze(node.body, newEnv, newNonGeneric);
+    const resultType = analyze(
+      node.body, newEnv.asImmutable(), newNonGeneric.asImmutable());
     return new TFunction(argTypes, resultType);
   } else if (node instanceof Let) {
     const defnType = analyze(node.defn, env, nonGeneric);
-    const newEnv = new Map(env);
-    newEnv.set(node.v, defnType);
+    const newEnv = env.set(node.v, defnType);
     return analyze(node.body, newEnv, nonGeneric);
   } else if (node instanceof Letrec) {
     const newType = new TVar();
-    const newEnv = new Map(env);
-    newEnv.set(node.v, newType);
-    const newNonGeneric = new Set(nonGeneric);
-    newNonGeneric.add(newType);
+    const newEnv = env.set(node.v, newType);
+    const newNonGeneric = nonGeneric.add(newType);
     const defnType = analyze(node.defn, newEnv, newNonGeneric);
     unify(newType, defnType);
     return analyze(node.body, newEnv, nonGeneric);
@@ -176,14 +175,14 @@ const getTypeForLiteral = (literal: Literal): Type => {
  * @returns the copied type expression
  */
 const fresh = (t: Type, nonGeneric: Set<TVar>): Type => {
-  const mappings = new Map<TVar, TVar>();
+  let mappings = Map<TVar, TVar>();
 
   const freshRec = (tp: Type): Type => {
     const p = prune(tp);
     if (p instanceof TVar) {
       if (isGeneric(p, nonGeneric)) {
         if (!mappings.has(p)) {
-          mappings.set(p, new TVar());
+          mappings = mappings.set(p, new TVar());
         }
         return mappings.get(p) as TVar;
       } else {

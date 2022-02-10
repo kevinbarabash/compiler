@@ -1,3 +1,5 @@
+import { Map } from "immutable";
+
 import {
   Identifier,
   Apply,
@@ -22,7 +24,7 @@ import {
 import { analyze } from "../infer";
 
 describe("#analyze", () => {
-  const my_env = new Map<string, Type>();
+  let my_env = Map<string, Type>();
 
   beforeEach(() => {
     // reset static variables between test cases
@@ -33,30 +35,24 @@ describe("#analyze", () => {
     const var2 = new TVar();
     const pair_type = new TCon("*", [var1, var2]);
 
-    my_env.clear();
-
-    // pair is curried
-    my_env.set("pair", new TFunction([var1], new TFunction([var2], pair_type)));
-    // tuple2 is the uncurried equivalent
-    my_env.set("tuple2", new TFunction([var1, var2], pair_type));
-
-    my_env.set(
-      "cond",
-      new TFunction([TBool], new TFunction([var1], new TFunction([var1], var1)))
-    );
-    my_env.set("zero", new TFunction([TInteger], TBool));
-    my_env.set("pred", new TFunction([TInteger], TInteger));
-
-    my_env.set(
-      "times",
-      new TFunction([TInteger], new TFunction([TInteger], TInteger))
-    );
-    // TODO: figure out how to implement constrained generics, e.g.
-    // const foo: <T: number | string>(T, T) => T
-    my_env.set("add", new TFunction([TInteger, TInteger], TInteger));
-
-    // returns an empty array
-    my_env.set("empty", new TFunction([], new TCon("[]", [TAny])));
+    my_env = Map({
+      // pair is curried
+      pair: new TFunction([var1], new TFunction([var2], pair_type)),
+      // tuple2 is the uncurried equivalent
+      tuple2: new TFunction([var1, var2], pair_type),
+      cond: new TFunction(
+        [TBool],
+        new TFunction([var1], new TFunction([var1], var1))
+      ),
+      zero: new TFunction([TInteger], TBool),
+      pred: new TFunction([TInteger], TInteger),
+      times: new TFunction([TInteger], new TFunction([TInteger], TInteger)),
+      // TODO: figure out how to implement constrained generics, e.g.
+      // const foo: <T: number | string>(T, T) => T
+      add: new TFunction([TInteger, TInteger], TInteger),
+      // returns an empty array
+      empty: new TFunction([], new TCon("[]", [TAny])),
+    });
   });
 
   describe("basic hindley-milner", () => {
@@ -410,7 +406,7 @@ describe("#analyze", () => {
     test("let _ = (foo5 10) in foo5", () => {
       const lit5 = new Literal(new Int(5));
       const fiveToInt = new TFunction([new TLit(lit5)], TInteger);
-      my_env.set("foo5", fiveToInt);
+      my_env = my_env.set("foo5", fiveToInt);
 
       // Once the type of `foo5` has been defined, we need to freeze
       // it to prevent widening of any of its types.  If we try to
@@ -432,7 +428,7 @@ describe("#analyze", () => {
 
     test("(int -> int)(true) should fail", () => {
       const intToInt = new TFunction([TInteger], TInteger);
-      my_env.set("foo", intToInt);
+      my_env = my_env.set("foo", intToInt);
 
       const ast = new Apply(new Identifier("foo"), [
         new Literal(new Bool(true)),
