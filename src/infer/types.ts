@@ -18,51 +18,54 @@
 //   must be an instance of a given type class.
 
 export type LBool = {
-  t: 'LBool';
+  t: "LBool";
   value: boolean;
 };
 
 export type LNum = {
-  t: 'LNum';
+  t: "LNum";
   value: number;
 };
 
 export type LStr = {
-  t: 'LStr';
+  t: "LStr";
   value: string;
 };
 
 export type Literal = LBool | LNum | LStr;
 
 export type TLiteral = {
-  t: 'TLit';
+  t: "TLit";
   // should we share types for literals with the syntax tree?
   literal: Literal;
 };
 
+// TODO: constraints on type variables
 export type TVar = {
-  t: 'TVar';
+  t: "TVar";
   id: number;
 };
 
-// can we use this for tuples as well?
+// TODO: default + optional type args
 export type TCon = {
-  t: 'TCon';
+  t: "TCon";
   name: string; // how do we disambiguate across files?
-  typeArgs: readonly Type[]; // how do we enforce that Promise<> only takes a single type arg?
-  // if the argTypes in TFunction are named, we could also make the type args here
-  // named as well
+  typeArgs: readonly Type[]; 
+  // TODO:
+  // - how do we enforce that Array<> and Promise<> only take a single type arg?
+  // - if the argTypes in TFunction are named, we could also make the type args here
+  //   named as well
 };
 
 export type TParam = {
-  t: 'TParam';
+  t: "TParam";
   name: string;
   type: Type;
   optional: boolean;
 };
 
 export type TFun = {
-  t: 'TFun';
+  t: "TFun";
   // TODO: support optional params, this needs to be done during parsing, since
   // argTypes can reference param types of the Lambda or arg types of the Apply.
   paramTypes: readonly TParam[]; // we could make these named
@@ -70,26 +73,40 @@ export type TFun = {
 };
 
 export type TRec = {
-  t: 'TRec';
+  t: "TRec";
   // if properties was an object, we could look up each property by
   // its name.
   properties: readonly TProp[];
 };
 
 export type TProp = {
-  t: 'TProp';
+  t: "TProp";
   name: string; // could we also use TLiteral here as well?
   type: Type;
   optional: boolean; // this is equivalent to `T | undefined`
 };
 
-export type TUnion = {
-  t: 'TUnion',
-  types: readonly Type[],
+export type TTuple = {
+  t: "TTuple";
+  types: readonly Type[];
 };
 
-export type Type = TLiteral | TVar | TCon | TFun | TRec | TUnion;
+export type TUnion = {
+  t: "TUnion";
+  types: readonly Type[];
+};
+
+export type Type = 
+  | TLiteral  // 5, false, "hello"
+  | TVar      // a, b, etc.
+  | TCon      // Array<number>, Promise<a>
+  | TFun      // (number, string) => boolean
+  | TRec      // {x: number, y?: string}
+  | TTuple    // [number, string]
+  | TUnion;   // number | string
 
 // TODO:
+// - add `.frozen` property to each type so that we can't prevent widening
+//   after a top-level declaration's type has been inferred.
 // - do we need to differentiate between records and objects or
 //   arrays and tuples to support https://github.com/tc39/proposal-record-tuple?

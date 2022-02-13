@@ -113,13 +113,40 @@ export const isSubtypeOf = (x: t.Type, y: t.Type): boolean => {
           return equal(y, builtins.tString);
       }
     }
+    case "TCon": {
+      if (y.t === "TCon") {
+        return (
+          x.name === y.name &&
+          y.typeArgs.every((yTypeArg) =>
+            x.typeArgs.every((xTypeArg) => isSubtypeOf(xTypeArg, yTypeArg))
+          )
+        );
+      }
+      return false;
+    }
     case "TRec": {
       if (y.t === "TRec") {
-        return y.properties.every((yProp) => {
-          return x.properties.find((xProp) => {
-            return isSubtypeOf(getPropType(xProp), getPropType(yProp));
-          });
-        });
+        return y.properties.every((yProp) =>
+          x.properties.find((xProp) =>
+            isSubtypeOf(getPropType(xProp), getPropType(yProp))
+          )
+        );
+      }
+      return false;
+    }
+    case "TTuple": {
+      if (y.t === "TTuple") {
+        return (
+          // do we want to allow x to be shorter if the elements at the end
+          // of y are T | undefined?
+          x.types.length === y.types.length &&
+          y.types.every((yElem) =>
+            x.types.find((xElem) => isSubtypeOf(xElem, yElem))
+          )
+        );
+      }
+      if (y.t === "TCon" && y.name === "Array") {
+        return x.types.every((xElem) => isSubtypeOf(xElem, y.typeArgs[0]));
       }
       return false;
     }

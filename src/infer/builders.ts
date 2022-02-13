@@ -55,6 +55,10 @@ export const tParam = (
   return { t: "TParam", name, type, optional };
 };
 
+export const tTuple = (...types: readonly t.Type[]): t.TTuple => {
+  return { t: "TTuple", types };
+};
+
 export const tUnion = (...types: readonly t.Type[]): t.TUnion => {
   return { t: "TUnion", types };
 };

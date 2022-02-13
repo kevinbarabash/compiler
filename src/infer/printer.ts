@@ -48,6 +48,9 @@ export const print = (t: Type): string => {
         );
         return `{ ${properties.join(', ')} }`;
       }
+      case 'TTuple': {
+        return `[${t.types.map(_print).join(', ')}]`;
+      }
       case 'TUnion': {
         const types = t.types.map((t) =>
           t.t === 'TFun' ? `(${_print(t)})` : _print(t)

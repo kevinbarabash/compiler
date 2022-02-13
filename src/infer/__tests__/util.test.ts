@@ -211,6 +211,14 @@ describe("equal", () => {
     });
   });
 
+  describe("type constructors", () => {
+    test("same", () => {
+      const t1 = b.tCon("Array", [builtins.tNumber]);
+      const t2 = b.tCon("Array", [builtins.tNumber]);
+      expect(equal(t1, t2)).toBe(true);
+    });
+  });
+
   test("different type of type", () => {
     const t1 = builtins.tNumber;
     const t2 = b.tFun([], builtins.tNumber);
@@ -344,6 +352,37 @@ describe("isSubtypeOf", () => {
     });
   });
 
+  describe("tuple type", () => {
+    test("same", () => {
+      const t1 = b.tTuple(builtins.tNumber, builtins.tString);
+      const t2 = b.tTuple(builtins.tNumber, builtins.tString);
+
+      const result = isSubtypeOf(t1, t2);
+
+      expect(result).toBe(true);
+    });
+
+    test("each elem is a subtype", () => {
+      // [5, "hello"] is a subtype of [number, string]
+      const t1 = b.tTuple(b.tLit(b.lNum(5)), b.tLit(b.lStr("hello")));
+      const t2 = b.tTuple(builtins.tNumber, builtins.tString);
+
+      const result = isSubtypeOf(t1, t2);
+
+      expect(result).toBe(true);
+    });
+
+    test("each elem is a subtype Array's type argument", () => {
+      // [5, 10] is a subtype of Array<number>
+      const t1 = b.tTuple(b.tLit(b.lNum(5)), b.tLit(b.lNum(10)));
+      const t2 = b.tCon("Array", [builtins.tNumber]);
+
+      const result = isSubtypeOf(t1, t2);
+
+      expect(result).toBe(true);
+    });
+  });
+
   describe("function sub-typing", () => {
     test("same", () => {
       const f1 = b.tFun(
@@ -470,13 +509,41 @@ describe("isSubtypeOf", () => {
       const result = isSubtypeOf(f1, f2);
       expect(result).toBe(true);
     });
+
+    // `(string) => undefined` should be a subtype of
+    // `((string) => undefined) | ((number) => undefined)`
+    // This should be helpful in implementing function overloading
+    test.todo("union of functions");
   });
 
-  describe("type var", () => {
+  describe("type variable", () => {
     test("subtype of itself", () => {
       let t = b.tVar();
 
       expect(isSubtypeOf(t, t)).toBe(true);
+    });
+  });
+
+  describe("type constructor", () => {
+    test("subtype if type args are subtypes", () => {
+      let c1 = b.tCon("Array", [b.tLit(b.lNum(5))]);
+      let c2 = b.tCon("Array", [builtins.tNumber]);
+
+      expect(isSubtypeOf(c1, c2)).toBe(true);
+    });
+
+    test("not a subtype if type args are not subtypes", () => {
+      let c1 = b.tCon("Array", [builtins.tString]);
+      let c2 = b.tCon("Array", [builtins.tNumber]);
+
+      expect(isSubtypeOf(c1, c2)).toBe(false);
+    });
+
+    test("not a subtype if type if different number of type args", () => {
+      let c1 = b.tCon("Array", [builtins.tNumber]);
+      let c2 = b.tCon("Array", [builtins.tNumber, builtins.tString]);
+
+      expect(isSubtypeOf(c1, c2)).toBe(false);
     });
   });
 });

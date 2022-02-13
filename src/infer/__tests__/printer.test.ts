@@ -82,6 +82,17 @@ describe("print", () => {
     });
   });
 
+  describe("TTuple", () => {
+    test('[5, true, "hello"]', () => {
+      const ast = b.tTuple(
+        b.tLit(b.lNum(5)),
+        b.tLit(b.lBool(true)),
+        b.tLit(b.lStr("hello"))
+      );
+      expect(print(ast)).toEqual('[5, true, "hello"]');
+    });
+  });
+
   describe("TUnion", () => {
     test("true | false", () => {
       const ast = b.tUnion(b.tLit(b.lBool(true)), b.tLit(b.lBool(false)));
