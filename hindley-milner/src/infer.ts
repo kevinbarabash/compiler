@@ -84,15 +84,6 @@ export const analyze = (
         unify(new TFunction(argTypes, resultType), appFuncType);
         return resultType;
       }
-
-      // If there are more args than params...
-      if (argTypes.length > paramTypes.length) {
-        // ...ignore the extra ones.
-        const truncatedArgTypes = argTypes.slice(0, paramTypes.length);
-
-        unify(new TFunction(truncatedArgTypes, resultType), funcType);
-        return resultType;
-      }
     }
 
     unify(new TFunction(argTypes, resultType), funcType);
@@ -227,6 +218,25 @@ const unify = (t1: Type, t2: Type) => {
     // behavior in the future that treats l-values and r-values different.
     unify(b, a);
   } else if (a instanceof TCon && b instanceof TCon) {
+    // Function types are handled specially in order to support functional
+    // subtyping.  If more args are applied than a function has params for
+    // the extra args are ignored.
+    // 
+    // TODO: we need to only allow subtyping in certain directions
+    // in order to support this we need a link back from the type node
+    // to the syntax node so that we can include a directionality check.
+    if (a.name === "->" && b.name === "->") {
+      const aParamTypes = a.types.slice(0, -1);
+      const bParamTypes = b.types.slice(0, -1);
+      const aReturnType = a.types[a.types.length - 1];
+      const bReturnType = b.types[b.types.length - 1];
+      
+      for (const [p, q] of zip(aParamTypes, bParamTypes)) {
+        unify(p, q);
+      }
+      unify(aReturnType, bReturnType);
+      return;
+    }
     if (a.name != b.name || a.types.length != b.types.length) {
       // When should we expand `int` to `int | bool`?
       throw new InferenceError(`Type mismatch: ${a} != ${b}`);

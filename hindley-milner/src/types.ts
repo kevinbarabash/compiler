@@ -16,7 +16,7 @@ export class TVar {
 
   id: number;
   instance: Type | null;
-  __name: string | null;
+  __name: string | null; // only used when printing the types out
 
   constructor() {
     this.id = TVar.nextVariableId++;
@@ -25,22 +25,19 @@ export class TVar {
     this.__name = null;
   }
 
-  // NOTE: we only increment nextVariableName if a type variable's name is used.
-  get name(): string {
-    if (this.__name == null) {
-      this.__name = TVar.nextVariableName;
-      TVar.nextVariableName = String.fromCharCode(
-        TVar.nextVariableName.charCodeAt(0) + 1
-      )
-    }
-    return this.__name;
-  }
-
   toString(): string {
     if (this.instance != null) {
       return this.instance.toString();
     } else {
-      return this.name;
+      // TODO: Eventually, we can have an `id` to `name` map
+      if (this.__name == null) {
+        this.__name = TVar.nextVariableName;
+        TVar.nextVariableName = String.fromCharCode(
+          TVar.nextVariableName.charCodeAt(0) + 1
+        )
+      }
+
+      return this.__name;
     }
   }
 }
@@ -132,6 +129,20 @@ export const TNever = new TCon("never", []);  // bottom type
 // Functor f => (a -> b) -> f a -> f b.
 // TODO: model this as a Scheme, see http://dev.stephendiehl.com/fun/006_hindley_milner.html
 export type Type = TVar | TCon | TLit;
+
+// Union types
+// - when should two types be considered the same for the purposes
+//   of only storing unique types in the set of elements that defines
+//   the union?
+// 
+// The `equal` function below is used durin type inference.  In this
+// situation we may need to differentiate a -> a from b -> b in order
+// to indicate the params passed to these two functions do not need to
+// be the same type.
+//
+// In the context of a union type containing a function with type a -> a
+// represents any function that returns the same type it was passed (of
+// which there may be many concrete subtypes).
 
 export const equal = (t1: Type, t2: Type): boolean => {
   if (t1 instanceof TCon && t2 instanceof TCon) {

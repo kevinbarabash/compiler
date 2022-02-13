@@ -471,10 +471,70 @@ describe("#analyze", () => {
       expect(t.toString()).toEqual("(a -> 5)");
     });
 
+    test("function callback", () => {
+      const a = new TVar();
+      const b = new TVar();
+      const callback = new TFunction([a, TInteger], b);
+      const mapFn = new TFunction([callback], b);
+      my_env = my_env.set("map", mapFn);
+
+      const ast = new Apply(
+        new Identifier("map"),
+        new Lambda(["elem", "index"], new Identifier("elem"))
+      );
+
+      const t = analyze(ast, my_env);
+
+      expect(ast.toString()).toEqual("(map (fn elem index => elem))");
+      expect(t.toString()).toEqual("a");
+    });
+
     // function sub-typing
     // if foo accepts a callback of `(a, int) -> b` and then we pass it a function
-    // of type `(a) -> b` then it should accept it
-    test.todo("function sub-typing");
+    // of type `(a) -> b` then it should accept it.
+    test("function callback with sub-typing", () => {
+      const a = new TVar();
+      const b = new TVar();
+      const callback = new TFunction([a, TInteger], b);
+      const mapFn = new TFunction([callback], b);
+      my_env = my_env.set("map", mapFn);
+
+      const ast = new Apply(
+        new Identifier("map"),
+        new Lambda(["elem"], new Identifier("elem"))
+      );
+
+      const t = analyze(ast, my_env);
+
+      expect(ast.toString()).toEqual("(map (fn elem => elem))");
+      expect(t.toString()).toEqual("a");
+    });
+
+    // TODO: make this case error
+    test("function callback with extra params", () => {
+      const a = new TVar();
+      const b = new TVar();
+      const callback = new TFunction([a, TInteger], b);
+      const mapFn = new TFunction([callback], b);
+      my_env = my_env.set("map", mapFn);
+
+      const ast = new Apply(
+        new Identifier("map"),
+        new Lambda(["elem", "index", "array"], new Identifier("elem"))
+      );
+
+      const t = analyze(ast, my_env);
+
+      expect(ast.toString()).toEqual("(map (fn elem index array => elem))");
+      // This is incorrect.  In fact the type doesn't provide a way to
+      // decide what the type should be since "map" could be passing more
+      // args than expected or just the right amount and the result of these
+      // two actions will be different.  In the first case we'd get back "a"
+      // and in the second case we'd get back "a[] -> a".  Since this is
+      // undecideable, we should prevent passing a callback with too many
+      // params.
+      expect(t.toString()).toEqual("a");
+    });
 
     // Adapt the following example:
     // a : boolean
