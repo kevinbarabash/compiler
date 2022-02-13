@@ -1,0 +1,64 @@
+import * as t from "./types";
+import { getId } from "./core";
+
+export const lBool = (value: boolean): t.LBool => {
+  return { t: "LBool", value };
+};
+
+export const lNum = (value: number): t.LNum => {
+  return { t: "LNum", value };
+};
+
+export const lStr = (value: string): t.LStr => {
+  return { t: "LStr", value };
+};
+
+export const tLit = (literal: t.Literal): t.TLiteral => {
+  return { t: "TLit", literal };
+};
+
+export const tVar = (): t.TVar => {
+  return { t: "TVar", id: getId() };
+};
+
+export const tCon = (
+  name: string,
+  typeArgs: readonly t.Type[] = []
+): t.TCon => {
+  return { t: "TCon", name, typeArgs };
+};
+
+export const tFun = (
+  paramTypes: readonly t.TParam[],
+  retType: t.Type
+): t.TFun => {
+  return { t: "TFun", paramTypes, retType };
+};
+
+export const tRec = (...properties: readonly t.TProp[]): t.TRec => {
+  return { t: "TRec", properties };
+};
+
+export const tProp = (
+  name: string,
+  type: t.Type,
+  optional = false // TODO: make this an enum instead
+): t.TProp => {
+  return { t: "TProp", name, type, optional };
+};
+
+export const tParam = (
+  name: string,
+  type: t.Type,
+  optional = false
+): t.TParam => {
+  return { t: "TParam", name, type, optional };
+};
+
+export const tTuple = (...types: readonly t.Type[]): t.TTuple => {
+  return { t: "TTuple", types };
+};
+
+export const tUnion = (...types: readonly t.Type[]): t.TUnion => {
+  return { t: "TUnion", types };
+};
