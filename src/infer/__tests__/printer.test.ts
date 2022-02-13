@@ -4,22 +4,22 @@ import { print } from "../printer";
 describe("print", () => {
   describe("TLit", () => {
     test("true", () => {
-      const ast = b.tLit(b.lBool(true));
+      const ast = b.tBool(true);
       expect(print(ast)).toEqual("true");
     });
 
     test("false", () => {
-      const ast = b.tLit(b.lBool(false));
+      const ast = b.tBool(false);
       expect(print(ast)).toEqual("false");
     });
 
     test("5", () => {
-      const ast = b.tLit(b.lNum(5));
+      const ast = b.tNum(5);
       expect(print(ast)).toEqual("5");
     });
 
     test('"hello"', () => {
-      const ast = b.tLit(b.lStr("hello"));
+      const ast = b.tStr("hello");
       expect(print(ast)).toEqual('"hello"');
     });
   });
@@ -84,18 +84,14 @@ describe("print", () => {
 
   describe("TTuple", () => {
     test('[5, true, "hello"]', () => {
-      const ast = b.tTuple(
-        b.tLit(b.lNum(5)),
-        b.tLit(b.lBool(true)),
-        b.tLit(b.lStr("hello"))
-      );
+      const ast = b.tTuple(b.tNum(5), b.tBool(true), b.tStr("hello"));
       expect(print(ast)).toEqual('[5, true, "hello"]');
     });
   });
 
   describe("TUnion", () => {
     test("true | false", () => {
-      const ast = b.tUnion(b.tLit(b.lBool(true)), b.tLit(b.lBool(false)));
+      const ast = b.tUnion(b.tBool(true), b.tBool(false));
       expect(print(ast)).toEqual("true | false");
     });
 

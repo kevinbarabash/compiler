@@ -5,29 +5,29 @@ import { print } from "../printer";
 
 describe("equal", () => {
   test("string literals", () => {
-    const x = b.tLit(b.lStr("hello"));
-    const y = b.tLit(b.lStr("hello"));
+    const x = b.tStr("hello");
+    const y = b.tStr("hello");
     expect(equal(x, y)).toBe(true);
 
-    const z = b.tLit(b.lStr("goodbye"));
+    const z = b.tStr("goodbye");
     expect(equal(x, z)).toBe(false);
   });
 
   test("number literals", () => {
-    const x = b.tLit(b.lNum(5));
-    const y = b.tLit(b.lNum(5));
+    const x = b.tNum(5);
+    const y = b.tNum(5);
     expect(equal(x, y)).toBe(true);
 
-    const z = b.tLit(b.lNum(10));
+    const z = b.tNum(10);
     expect(equal(x, z)).toBe(false);
   });
 
   test("boolean literals", () => {
-    const x = b.tLit(b.lBool(false));
-    const y = b.tLit(b.lBool(false));
+    const x = b.tBool(false);
+    const y = b.tBool(false);
     expect(equal(x, y)).toBe(true);
 
-    const z = b.tLit(b.lBool(true));
+    const z = b.tBool(true);
     expect(equal(x, z)).toBe(false);
   });
 
@@ -46,7 +46,7 @@ describe("equal", () => {
     });
 
     test("foo<5>", () => {
-      const a = b.tLit(b.lNum(5));
+      const a = b.tNum(5);
       const x = b.tCon("foo", [a]);
       const y = b.tCon("foo", [a]);
       expect(equal(x, y)).toBe(true);
@@ -213,8 +213,8 @@ describe("equal", () => {
 
   describe("type constructors", () => {
     test("same", () => {
-      const t1 = b.tCon("Array", [builtins.tNumber]);
-      const t2 = b.tCon("Array", [builtins.tNumber]);
+      const t1 = b.tCon("Foo", [builtins.tNumber]);
+      const t2 = b.tCon("Foo", [builtins.tNumber]);
       expect(equal(t1, t2)).toBe(true);
     });
   });
@@ -229,59 +229,59 @@ describe("equal", () => {
 describe("isSubtypeOf", () => {
   describe("literal subtyping", () => {
     test("5 is a subtype of itself", () => {
-      const result = isSubtypeOf(b.tLit(b.lNum(5)), b.tLit(b.lNum(5)));
+      const result = isSubtypeOf(b.tNum(5), b.tNum(5));
       expect(result).toBe(true);
     });
 
     test("5 is a subtype of number", () => {
-      const result = isSubtypeOf(b.tLit(b.lNum(5)), builtins.tNumber);
+      const result = isSubtypeOf(b.tNum(5), builtins.tNumber);
       expect(result).toBe(true);
     });
 
     test("5 is not a subtype of string", () => {
-      const result = isSubtypeOf(b.tLit(b.lNum(5)), builtins.tString);
+      const result = isSubtypeOf(b.tNum(5), builtins.tString);
       expect(result).toBe(false);
     });
 
     test("true is a subtype of boolean", () => {
-      const result = isSubtypeOf(b.tLit(b.lBool(true)), builtins.tBoolean);
+      const result = isSubtypeOf(b.tBool(true), builtins.tBoolean);
       expect(result).toBe(true);
     });
 
     test("false is a subtype of boolean", () => {
-      const result = isSubtypeOf(b.tLit(b.lBool(false)), builtins.tBoolean);
+      const result = isSubtypeOf(b.tBool(false), builtins.tBoolean);
       expect(result).toBe(true);
     });
 
     test("'hello' is a subtype of string", () => {
-      const result = isSubtypeOf(b.tLit(b.lStr("hello")), builtins.tString);
+      const result = isSubtypeOf(b.tStr("hello"), builtins.tString);
       expect(result).toBe(true);
     });
 
     test("5 is a subtype of 5 | 10", () => {
-      const t1 = b.tLit(b.lNum(5));
-      const t2 = b.tUnion(b.tLit(b.lNum(5)), b.tLit(b.lNum(10)));
+      const t1 = b.tNum(5);
+      const t2 = b.tUnion(b.tNum(5), b.tNum(10));
       const result = isSubtypeOf(t1, t2);
       expect(result).toBe(true);
     });
 
     test("5 | 10 is a subtype of 5 | 10", () => {
-      const t1 = b.tUnion(b.tLit(b.lNum(5)), b.tLit(b.lNum(10)));
-      const t2 = b.tUnion(b.tLit(b.lNum(5)), b.tLit(b.lNum(10)));
+      const t1 = b.tUnion(b.tNum(5), b.tNum(10));
+      const t2 = b.tUnion(b.tNum(5), b.tNum(10));
       const result = isSubtypeOf(t1, t2);
       expect(result).toBe(true);
     });
 
     test("5 is a subtype of number | string", () => {
-      const t1 = b.tLit(b.lNum(5));
+      const t1 = b.tNum(5);
       const t2 = b.tUnion(builtins.tNumber, builtins.tString);
       const result = isSubtypeOf(t1, t2);
       expect(result).toBe(true);
     });
 
     test("5 is not a subtype of 0 | 1", () => {
-      const t1 = b.tLit(b.lNum(5));
-      const t2 = b.tUnion(b.tLit(b.lNum(0)), b.tLit(b.lNum(1)));
+      const t1 = b.tNum(5);
+      const t2 = b.tUnion(b.tNum(0), b.tNum(1));
       const result = isSubtypeOf(t1, t2);
       expect(result).toBe(false);
     });
@@ -364,7 +364,7 @@ describe("isSubtypeOf", () => {
 
     test("each elem is a subtype", () => {
       // [5, "hello"] is a subtype of [number, string]
-      const t1 = b.tTuple(b.tLit(b.lNum(5)), b.tLit(b.lStr("hello")));
+      const t1 = b.tTuple(b.tNum(5), b.tStr("hello"));
       const t2 = b.tTuple(builtins.tNumber, builtins.tString);
 
       const result = isSubtypeOf(t1, t2);
@@ -374,8 +374,8 @@ describe("isSubtypeOf", () => {
 
     test("each elem is a subtype Array's type argument", () => {
       // [5, 10] is a subtype of Array<number>
-      const t1 = b.tTuple(b.tLit(b.lNum(5)), b.tLit(b.lNum(10)));
-      const t2 = b.tCon("Array", [builtins.tNumber]);
+      const t1 = b.tTuple(b.tNum(5), b.tNum(10));
+      const t2 = builtins.tArray(builtins.tNumber);
 
       const result = isSubtypeOf(t1, t2);
 
@@ -434,7 +434,7 @@ describe("isSubtypeOf", () => {
       );
       // f2 = (x: 5, y: string) => boolean
       const f2 = b.tFun(
-        [b.tParam("", b.tLit(b.lNum(5))), b.tParam("", builtins.tString)],
+        [b.tParam("", b.tNum(5)), b.tParam("", builtins.tString)],
         builtins.tBoolean
       );
 
@@ -447,7 +447,7 @@ describe("isSubtypeOf", () => {
     test("is not a subtype if arg type is a subtype", () => {
       // f1 = (x: 5, y: string) => boolean
       const f1 = b.tFun(
-        [b.tParam("", b.tLit(b.lNum(5))), b.tParam("", builtins.tString)],
+        [b.tParam("", b.tNum(5)), b.tParam("", builtins.tString)],
         builtins.tBoolean
       );
       // f2 = (x: number, y: string) => boolean
@@ -526,22 +526,22 @@ describe("isSubtypeOf", () => {
 
   describe("type constructor", () => {
     test("subtype if type args are subtypes", () => {
-      let c1 = b.tCon("Array", [b.tLit(b.lNum(5))]);
-      let c2 = b.tCon("Array", [builtins.tNumber]);
+      let c1 = b.tCon("Foo", [b.tNum(5)]);
+      let c2 = b.tCon("Foo", [builtins.tNumber]);
 
       expect(isSubtypeOf(c1, c2)).toBe(true);
     });
 
     test("not a subtype if type args are not subtypes", () => {
-      let c1 = b.tCon("Array", [builtins.tString]);
-      let c2 = b.tCon("Array", [builtins.tNumber]);
+      let c1 = b.tCon("Foo", [builtins.tString]);
+      let c2 = b.tCon("Foo", [builtins.tNumber]);
 
       expect(isSubtypeOf(c1, c2)).toBe(false);
     });
 
     test("not a subtype if type if different number of type args", () => {
-      let c1 = b.tCon("Array", [builtins.tNumber]);
-      let c2 = b.tCon("Array", [builtins.tNumber, builtins.tString]);
+      let c1 = b.tCon("Foo", [builtins.tNumber]);
+      let c2 = b.tCon("Foo", [builtins.tNumber, builtins.tString]);
 
       expect(isSubtypeOf(c1, c2)).toBe(false);
     });
@@ -550,7 +550,7 @@ describe("isSubtypeOf", () => {
 
 describe("flatten", () => {
   test("3 | 5 | number -> number", () => {
-    const t = b.tUnion(b.tLit(b.lNum(3)), b.tLit(b.lNum(5)), builtins.tNumber);
+    const t = b.tUnion(b.tNum(3), b.tNum(5), builtins.tNumber);
 
     const result = flatten(t);
 
@@ -558,10 +558,7 @@ describe("flatten", () => {
   });
 
   test("5 | (10 | number) -> number", () => {
-    const t = b.tUnion(
-      b.tLit(b.lNum(5)),
-      b.tUnion(b.tLit(b.lNum(5)), builtins.tNumber)
-    );
+    const t = b.tUnion(b.tNum(5), b.tUnion(b.tNum(5), builtins.tNumber));
 
     const result = flatten(t);
 

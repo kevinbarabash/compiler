@@ -1,20 +1,32 @@
 import * as t from "./types";
 import { getId } from "./core";
 
-export const lBool = (value: boolean): t.LBool => {
+const lBool = (value: boolean): t.LBool => {
   return { t: "LBool", value };
 };
 
-export const lNum = (value: number): t.LNum => {
+const lNum = (value: number): t.LNum => {
   return { t: "LNum", value };
 };
 
-export const lStr = (value: string): t.LStr => {
+const lStr = (value: string): t.LStr => {
   return { t: "LStr", value };
 };
 
-export const tLit = (literal: t.Literal): t.TLiteral => {
+const tLit = (literal: t.Literal): t.TLiteral => {
   return { t: "TLit", literal };
+};
+
+export const tBool = (value: boolean): t.TLiteral => {
+  return tLit(lBool(value));
+};
+
+export const tNum = (value: number): t.TLiteral => {
+  return tLit(lNum(value));
+};
+
+export const tStr = (value: string): t.TLiteral => {
+  return tLit(lStr(value));
 };
 
 export const tVar = (): t.TVar => {
