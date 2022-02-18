@@ -1,13 +1,13 @@
 import * as b from "../builders";
 import * as builtins from "../builtins";
 import { print } from "../printer";
-import { apply, unify, Constraint, Substitution } from "../unify";
+import { applySubst, unify, Constraint, Subst } from "../unify";
 
-const printSubstitutions = (subs: Substitution[]): string[] => {
+const printSubstitutions = (subs: Subst[]): string[] => {
   const varNames = {};
 
   return subs.map(([key, val]) => {
-    const type = apply(subs, val);
+    const type = applySubst(subs, val);
     return `t${key} ≡ ${print(type, varNames, true)}`;
   });
 };
