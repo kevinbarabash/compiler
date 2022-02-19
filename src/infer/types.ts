@@ -34,37 +34,42 @@ export type LStr = {
 
 export type Literal = LBool | LNum | LStr;
 
-export type TLiteral = {
+type TCommon = {
+  frozen?: boolean, // if true, can unify with non-frozen sub-types
+  widened?: Type, // if set, unifyTypes should use this instead
+};
+
+export type TLiteral = TCommon & {
   t: "TLit";
   // should we share types for literals with the syntax tree?
   literal: Literal;
 };
 
 // TODO: constraints on type variables
-export type TVar = {
+export type TVar = TCommon & {
   t: "TVar";
   id: number;
 };
 
 // TODO: default + optional type args
-export type TCon = {
+export type TCon = TCommon& {
   t: "TCon";
   name: string; // how do we disambiguate across files?
-  typeArgs: readonly Type[]; 
+  typeArgs: readonly Type[];
   // TODO:
   // - how do we enforce that Array<> and Promise<> only take a single type arg?
   // - if the argTypes in TFunction are named, we could also make the type args here
   //   named as well
 };
 
-export type TParam = {
+export type TParam = TCommon & {
   t: "TParam";
   name: string;
   type: Type;
   optional: boolean;
 };
 
-export type TFun = {
+export type TFun = TCommon & {
   t: "TFun";
   // TODO: support optional params, this needs to be done during parsing, since
   // argTypes can reference param types of the Lambda or arg types of the Apply.
@@ -72,26 +77,26 @@ export type TFun = {
   retType: Type;
 };
 
-export type TRec = {
+export type TRec = TCommon & {
   t: "TRec";
   // if properties was an object, we could look up each property by
   // its name.
   properties: readonly TProp[];
 };
 
-export type TProp = {
+export type TProp = TCommon & {
   t: "TProp";
   name: string; // could we also use TLiteral here as well?
   type: Type;
   optional: boolean; // this is equivalent to `T | undefined`
 };
 
-export type TTuple = {
+export type TTuple = TCommon & {
   t: "TTuple";
   types: readonly Type[];
 };
 
-export type TUnion = {
+export type TUnion = TCommon & {
   t: "TUnion";
   types: readonly Type[];
 };

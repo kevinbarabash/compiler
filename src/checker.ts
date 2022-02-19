@@ -228,7 +228,7 @@ const checkExpr = (expr: Expr, context: Context): Type => {
         case "LStr": return tString;
         // TODO: look at the values in the array so that we can infer the type
         case "LArr": {
-          const types = lit.value.map(elem => checkExpr(elem, context));
+          const types = lit.values.map(elem => checkExpr(elem, context));
           // TODO: unify all of the types in types to determine if this
           // is a valid array literal.  If there's strings and numbers
           // in it together then that's a no-go.

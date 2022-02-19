@@ -1,7 +1,16 @@
 import * as build from "./builders";
 import * as t from "./types";
-import { zip, getParamType, getPropType } from "./util";
+import { zip, getParamType, getPropType, isSubtypeOf } from "./util";
 import { print } from "./printer";
+import { clone, equal, flatten } from "./util";
+
+const printConstraints = (constraints: Constraint[]) => {
+  const varNames = {};
+  const message = constraints.map(([left, right]) => {
+    return `${print(left, varNames, true)} ≡ ${print(right, varNames, true)}`
+  }).join("\n");
+  console.log(message);
+}
 
 // TODO: replace Constraint w/ Constr
 // TODO: use .relation to implement subtyping
@@ -14,17 +23,23 @@ export type Constraint = [t.Type, t.Type];
 export type Subst = [number, t.Type]; // [id, type]
 
 export const unify = (constraints: Constraint[]): Subst[] => {
+  if (process.env.DEBUG) {
+    printConstraints(constraints);
+  }
+
   if (constraints.length === 0) {
     return [];
   }
 
   // TODO: rewrite this without using recursion
-  const [a, b] = constraints[0];
-  const rest = constraints.slice(1);
+  // This is left recursive in order to prioritize definitions
+  // over uses.
+  const [a, b] = constraints[constraints.length - 1];
+  const rest = constraints.slice(0, -1);
   const s2 = unify(rest); // unify constraints from right to left
   const s1 = unifyTypes(applySubst(s2, a), applySubst(s2, b));
 
-  return [...s1, ...s2];
+  return [...s2, ...s1];
 };
 
 // TODO: instead of throwing on the first error, can we capture
@@ -33,9 +48,23 @@ export const unify = (constraints: Constraint[]): Subst[] => {
 // types passed to unify_one must already be applied.
 const unifyTypes = (a: t.Type, b: t.Type): Subst[] => {
   if (a.t === "TVar") {
-    return [[a.id, b]];
+    if (!equal(a, b)) {
+      // TODO: add occurs in check?
+      if (b.t === "TVar") {
+        // Is it safe to just ignore situations where both a and b are TVars?
+        // TODO: copy test cases from hindley-milner directories to ensure that
+        // things are working as expected
+        if (process.env.DEBUG) {
+          console.log("setting one type variable to another");
+          console.log(`a = ${print(a, {}, true)}, b = ${print(b, {}, true)}`);
+        }
+      } else {
+        return [[a.id, b]];
+      }
+    }
+    return [];
   } else if (b.t === "TVar") {
-    return [[b.id, a]];
+    return [[b.id, a]]
   } else if (a.t === "TLit" && b.t === "TLit") {
     return unifyLiteral(a, b);
   } else if (a.t === "TFun" && b.t === "TFun") {
@@ -49,7 +78,34 @@ const unifyTypes = (a: t.Type, b: t.Type): Subst[] => {
   } else if (a.t === "TUnion" && b.t === "TUnion") {
     return unifyUnion(a, b);
   } else {
-    console.log(`a = ${print(a)}, b = ${print(b)}`);
+    if (!a.frozen && b.frozen) {
+      // TODO: move frozen checks into isSubtypeOf()
+      if (isSubtypeOf(a, b)) {
+        if (process.env.DEBUG) {
+          console.log(`${print(a)} is a subtype of ${print(b)}`);
+        }
+        return [];
+      }
+    }
+    if (!b.frozen && a.frozen) {
+      // TODO: move frozen checks into isSubtypeOf()
+      if (isSubtypeOf(b, a)) {
+        if (process.env.DEBUG) {
+          console.log(`${print(b)} is a subtype of ${print(a)}`);
+        }
+        return [];
+      }
+    }
+
+    if (!a.frozen && !b.frozen) {
+      // We have to clone the types we're adding to the union
+      // to avoid having a recursive data structure
+      const union = flatten(build.tUnion(clone(a), clone(b)));
+      a.widened = union;
+      b.widened = union;
+      return [];
+    }
+
     throw new Error(`mismatched types: ${a.t} != ${b.t}`);
   }
 };
@@ -63,6 +119,18 @@ const unifyLiteral = (a: t.TLiteral, b: t.TLiteral): Subst[] => {
   if (aLit.t === "LBool" && bLit.t === "LBool") {
     return [];
   } else if (aLit.t === "LNum" && bLit.t === "LNum") {
+    if (aLit.value !== bLit.value && !a.frozen && !b.frozen) {
+      // TODO: why does widening work for literals, but not for
+      // type constructors?  Maybe it's because we're passing variables
+      // and not literals
+      // We have to clone the types we're adding to the union
+      // to avoid having a recursive data structure
+      const union = flatten(build.tUnion(clone(a), clone(b)));
+      a.widened = union;
+      b.widened = union;
+      // TODO: I think we should be able to widen any type using
+      // this approach as long as the type isn't frozen.
+    }
     return [];
   } else if (aLit.t === "LStr" && bLit.t === "LStr") {
     return [];
@@ -73,6 +141,8 @@ const unifyLiteral = (a: t.TLiteral, b: t.TLiteral): Subst[] => {
 const unifyFun = (a: t.TFun, b: t.TFun): Subst[] => {
   // assume that type generator has already done the appropriate
   // subtyping and partial application checks
+  // WARNING: `getParamType` can return a copy of the original type if 
+  // it has to make it optional.  How do we deal with this?
   const aParamTypes = a.paramTypes.map(getParamType);
   const bParamTypes = b.paramTypes.map(getParamType);
 
@@ -81,11 +151,26 @@ const unifyFun = (a: t.TFun, b: t.TFun): Subst[] => {
     [a.retType, b.retType],
   ];
 
-  return unify(constraints);
+  if (!a.frozen && !b.frozen) {
+    // TODO: pass in copies of the param types with the frozen-ness removed
+    // then update the param types of each function to be copies.
+  }
+
+  const result = unify(constraints);
+
+  return result;
 }
 
 const unifyCon = (a: t.TCon, b: t.TCon): Subst[] => {
   if (a.name !== b.name) {
+    if (!a.frozen && !b.frozen) {
+      // We have to clone the types we're adding to the union
+      // to avoid having a recursive data structure
+      const union = flatten(build.tUnion(clone(a), clone(b)));
+      a.widened = union;
+      b.widened = union;
+      return [];
+    }
     throw new Error(`type constructor mismatch: ${a.name} != ${b.name}`);
   }
   if (a.typeArgs.length !== b.typeArgs.length) {
@@ -140,6 +225,8 @@ const unifyUnion = (a: t.TUnion, b: t.TUnion): Subst[] => {
   return [];
 };
 
+// TODO: how does widening interact with substitution?
+// TODO: add a check to avoid recursive unification and add a test for it
 const substitute = (sub: Subst, type: t.Type): t.Type => {
   switch (type.t) {
     case "TLit":
@@ -160,10 +247,15 @@ const substitute = (sub: Subst, type: t.Type): t.Type => {
         substitute(sub, type.retType)
       );
     case "TCon":
-      return build.tCon(
+      // console.log(`building a TCon with name ${type.name}`);
+      const result = build.tCon(
         type.name,
         type.typeArgs.map((a) => substitute(sub, a))
       );
+      if (type.frozen) {
+        result.frozen = type.frozen;
+      }
+      return result;
     case "TRec":
       return build.tRec(
         ...type.properties.map((p) =>
@@ -178,5 +270,6 @@ const substitute = (sub: Subst, type: t.Type): t.Type => {
 };
 
 export const applySubst = (subs: Subst[], type: t.Type): t.Type => {
-  return subs.reduceRight((prev, curr) => substitute(curr, prev), type);
+  // This is left recursive to match unify which is also left recursive.
+  return subs.reduce((prev, curr) => substitute(curr, prev), type);
 };

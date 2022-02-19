@@ -110,7 +110,7 @@ args
 atom
   ->%lparen expr %rparen {% data => data[1] %}
   | %lbracket args %rbracket {%
-      data => ({tag: "Lit", value: {tag: "LArr", value: data[1]}}) %}
+      data => ({tag: "Lit", value: {tag: "LArr", values: data[1]}}) %}
   | %true {% data => ({tag: "Lit", value: {tag: "LBool", value: true}}) %}
   | %false {% data => ({tag: "Lit", value: {tag: "LBool", value: false}}) %}
   | number {% data => ({tag: "Lit", value: {tag: "LNum", value: data[0]}}) %}

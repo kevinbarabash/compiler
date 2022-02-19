@@ -27,6 +27,14 @@ export const annotate = (e: Expr, env: Environment): AExpr => {
           return { tag: "ALit", value: lit, ann: b.tNum(lit.value) };
         case "LStr":
           return { tag: "ALit", value: lit, ann: b.tStr(lit.value) };
+        case "LArr": {
+          const values = lit.values.map(val => annotate(val, env));
+          return {
+            tag: "ATuple",
+            values: values,
+            ann: b.tTuple(...values.map(typeOf)),
+          };
+        }
       }
       throw new Error("unhandled LArr in annotate");
     }
@@ -54,7 +62,14 @@ export const annotate = (e: Expr, env: Environment): AExpr => {
       newEnv.set(name, boundVarType);
       const body = annotate(e.body, newEnv);
 
-      return { tag: "ALet", name, value, body, ann: typeOf(body), boundVarType };
+      return {
+        tag: "ALet",
+        name,
+        value,
+        body,
+        ann: typeOf(body),
+        boundVarType,
+      };
     }
     case "Lam": {
       const newEnv = new Map(env);
@@ -68,16 +83,24 @@ export const annotate = (e: Expr, env: Environment): AExpr => {
       const body = annotate(e.body, newEnv);
 
       const type = b.tFun(
-        params.map(p => b.tParam(p.name, p.type)),
-        typeOf(body),
+        params.map((p) => b.tParam(p.name, p.type)),
+        typeOf(body)
       );
 
       return { tag: "ALam", params, body, ann: type };
     }
     case "App": {
       const func = annotate(e.func, env);
-      const args = e.args.map(arg => annotate(arg, env));
-      return { tag: "AApp", func, args, ann: b.tVar() };
+      const args = e.args.map((arg) => annotate(arg, env));
+      const funcType = typeOf(func);
+      return {
+        tag: "AApp",
+        func,
+        args,
+        // If we know that funcType is a TFun we can save same work,
+        // by using it's return type instead of having to re-infer it.
+        ann: funcType.t === "TFun" ? funcType.retType : b.tVar(),
+      };
     }
   }
 };
@@ -88,6 +111,8 @@ export const collect = (ae: AExpr): Constraint[] => {
       return []; // no constraints to impose on literals
     case "AVar":
       return []; // single occurence of a variable so no constraint
+    case "ATuple":
+      return []; // there's no internal constraints within a tuple
     case "ALam": {
       switch (ae.ann.t) {
         case "TFun": {
@@ -98,7 +123,7 @@ export const collect = (ae: AExpr): Constraint[] => {
           return [...collect(body), [typeOf(body), retType]];
         }
         default:
-          throw new Error("not a function");
+          throw new Error("expected a function somewhere");
       }
     }
     // TODO: handle partial application
@@ -148,7 +173,7 @@ export type Decl = { tag: "Decl"; name: string; value: AExpr };
 
 export type AExpr =
   | { tag: "AVar"; name: string; ann: t.Type }
-  | { tag: "ALit"; value: Lit; ann: t.Type }
+  | { tag: "ALit"; value: ALit; ann: t.Type }
   | { tag: "AApp"; func: AExpr; args: readonly AExpr[]; ann: t.Type }
   | { tag: "ALam"; params: readonly Param[]; body: AExpr; ann: t.Type }
   | {
@@ -158,14 +183,14 @@ export type AExpr =
       body: AExpr;
       ann: t.Type;
       boundVarType: t.Type;
-    };
+    }
+  | { tag: "ATuple"; values: readonly AExpr[]; ann: t.Type }
 
-export type Lit =
+export type ALit =
   // TODO: replace LNum with LInt and LFloat
   | { tag: "LNum"; value: number }
   | { tag: "LBool"; value: boolean }
   | { tag: "LStr"; value: string }
-  | { tag: "LArr"; value: AExpr[] };
 
 // How do we model variables whose type can be inferred as well as
 // specified if desired?

@@ -14,7 +14,7 @@ export type Lit =
   | { tag: "LNum"; value: number }
   | { tag: "LBool"; value: boolean }
   | { tag: "LStr"; value: string }
-  | { tag: "LArr"; value: Expr[] };
+  | { tag: "LArr"; values: Expr[] };
 
 export type Param = { tag: "Param"; name: string; type: string };
 

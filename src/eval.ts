@@ -10,7 +10,7 @@ type Scope = Map<string, Value>;
 type VNum = { tag: "VNum"; value: number };
 type VBool = { tag: "VBool"; value: boolean };
 type VStr = { tag: "VStr"; value: string };
-type VArr = { tag: "VArr"; value: Value[] };
+type VArr = { tag: "VArr"; values: Value[] };
 type VClosure = { tag: "VClosure"; params: readonly string[]; body: Expr; env: Scope };
 
 type Value = VNum | VBool | VStr | VArr | VClosure;
@@ -20,7 +20,7 @@ export const print = (value: Value): string => {
     case "VNum": return String(value.value);
     case "VBool": return String(value.value);
     case "VStr": return String(value.value);
-    case "VArr": return `[${value.value.map(print).join(", ")}]`;
+    case "VArr": return `[${value.values.map(print).join(", ")}]`;
     case "VClosure": return "<<closure>>";
   }
 }
@@ -70,7 +70,7 @@ const evalLit = (env: Scope, lit: Lit): Value => {
     case "LArr":
       return { 
         tag: "VArr", 
-        value: lit.value.map(elem => evalExpr(env, elem)),
+        values: lit.values.map(elem => evalExpr(env, elem)),
       };
   }
 };

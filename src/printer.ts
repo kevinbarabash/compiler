@@ -31,7 +31,7 @@ export const printExpr = (e: Expr): string => {
         case "LStr":
           return `"${lit.value}"`; // TODO: escape special characters
         case "LArr":
-          return `[${lit.value.map(printExpr).join(", ")}]`;
+          return `[${lit.values.map(printExpr).join(", ")}]`;
       }
     }
     case "Var":

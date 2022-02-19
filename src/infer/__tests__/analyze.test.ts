@@ -36,7 +36,7 @@ describe("annotate", () => {
     const constraints = collect(annotatedAst);
     const substitutions = unify(constraints);
     const result = printSubstitutions(substitutions);
-    expect(result).toEqual(["t0 ≡ 5", "t2 ≡ 5", "t1 ≡ (arg0: 5) => 5"]);
+    expect(result).toEqual(["t1 ≡ (x: 5) => 5", "t0 ≡ 5", "t2 ≡ 5"]);
   });
 
   test("((x) => x)(5)", () => {
@@ -55,6 +55,6 @@ describe("annotate", () => {
     const constraints = collect(annotatedAst);
     const substitutions = unify(constraints);
     const result = printSubstitutions(substitutions);
-    expect(result).toEqual(["t3 ≡ 5", "t4 ≡ 5"]);
+    expect(result).toEqual(["t3 ≡ 5"]);
   });
 });
