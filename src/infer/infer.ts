@@ -34,8 +34,10 @@ export const infer = (ast: Expr, env?: Map<string, t.Type>): t.Type => {
   const constraints = collect(annAst).filter(([a, b]) => !equal(a, b));
   try {
     const subs = unify(constraints);
-    printSubstitutions(subs);
-    console.log(JSON.stringify(annAst.ann, null, 2));
+    if (process.env.DEBUG) {
+      printSubstitutions(subs);
+      console.log(JSON.stringify(annAst.ann, null, 2));
+    }
     // TODO: iterate over the whole annAst and update the type annotations in the tree
     return applySubst(subs, annAst.ann);
   } catch (e) {

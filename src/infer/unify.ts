@@ -1,6 +1,6 @@
 import * as build from "./builders";
 import * as t from "./types";
-import { zip, getParamType, getPropType } from "./util";
+import { zip, getParamType, getPropType, isSubtypeOf } from "./util";
 import { print } from "./printer";
 import { equal } from "./util";
 
@@ -23,7 +23,9 @@ export type Constraint = [t.Type, t.Type];
 export type Subst = [number, t.Type]; // [id, type]
 
 export const unify = (constraints: Constraint[]): Subst[] => {
-  printConstraints(constraints);
+  if (process.env.DEBUG) {
+    printConstraints(constraints);
+  }
 
   if (constraints.length === 0) {
     return [];
@@ -46,9 +48,6 @@ export const unify = (constraints: Constraint[]): Subst[] => {
 // types passed to unify_one must already be applied.
 const unifyTypes = (a: t.Type, b: t.Type): Subst[] => {
   if (a.t === "TVar") {
-    if (b.t === "TVar") {
-      console.log(`a === b`);
-    }
     if (!equal(a, b)) {
       return [[a.id, b]];
     }
@@ -69,13 +68,11 @@ const unifyTypes = (a: t.Type, b: t.Type): Subst[] => {
     return unifyUnion(a, b);
   } else {
     if (b.frozen && !a.frozen) {
-      // TODO: do an actual subtype check
-      if (b.t === "TCon" && a.t === "TLit") {
+      // TODO: move frozen checks into isSubtypeOf()
+      if (isSubtypeOf(a, b)) {
         return [];
       }
     }
-    console.log("a = ", a);
-    console.log("b = ", b);
     throw new Error(`mismatched types: ${a.t} != ${b.t}`);
   }
 };
@@ -106,9 +103,6 @@ const unifyFun = (a: t.TFun, b: t.TFun): Subst[] => {
     ...zip(aParamTypes, bParamTypes),
     [a.retType, b.retType],
   ];
-
-  console.log("--- unifyFun constraints ---");
-  printConstraints(constraints);
 
   return unify(constraints);
 }

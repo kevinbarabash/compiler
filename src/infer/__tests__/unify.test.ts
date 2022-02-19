@@ -42,9 +42,9 @@ Array [
   "t1 ≡ (arg0: number) => boolean",
   "t5 ≡ number",
   "t4 ≡ boolean",
-  "t3 ≡ number",
   "t6 ≡ number",
   "t7 ≡ number",
+  "t3 ≡ number",
   "t2 ≡ (arg0: (arg0: number) => boolean) => number",
 ]
 `);
