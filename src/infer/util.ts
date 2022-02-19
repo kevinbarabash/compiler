@@ -14,9 +14,11 @@ export const flatten = (union: t.TUnion): t.Type => {
     }
     return [t];
   });
+  // TODO: remove duplicates
+  // TODO: rewrite this using immutable.js so we're not so memory inefficient
   const uniqueTypes: t.Type[] = [];
   types.forEach((t, i) => {
-    const remainingTypes = types.slice(i + 1);
+    const remainingTypes = [...types.slice(0, i), ...types.slice(i + 1)];
     if (!remainingTypes.some((rt) => isSubtypeOf(t, rt))) {
       uniqueTypes.push(t);
     }

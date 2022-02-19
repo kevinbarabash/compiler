@@ -33,7 +33,7 @@ export const infer = (ast: Expr, env?: Map<string, t.Type>): AExpr => {
   // We filter collected contraints to remove trivial constraints where.
   const constraints = collect(annAst).filter(([a, b]) => !equal(a, b));
   try {
-    const subs = unify(constraints);
+    const subs = unify(constraints);  
     if (process.env.DEBUG) {
       printSubstitutions(subs);
       console.log(JSON.stringify(annAst.ann, null, 2));

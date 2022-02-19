@@ -27,6 +27,14 @@ export const annotate = (e: Expr, env: Environment): AExpr => {
           return { tag: "ALit", value: lit, ann: b.tNum(lit.value) };
         case "LStr":
           return { tag: "ALit", value: lit, ann: b.tStr(lit.value) };
+        case "LArr": {
+          const values = lit.values.map(val => annotate(val, env));
+          return {
+            tag: "ATuple",
+            values: values,
+            ann: b.tTuple(...values.map(typeOf)),
+          };
+        }
       }
       throw new Error("unhandled LArr in annotate");
     }
@@ -103,6 +111,8 @@ export const collect = (ae: AExpr): Constraint[] => {
       return []; // no constraints to impose on literals
     case "AVar":
       return []; // single occurence of a variable so no constraint
+    case "ATuple":
+      return []; // there's no internal constraints within a tuple
     case "ALam": {
       switch (ae.ann.t) {
         case "TFun": {
@@ -113,7 +123,7 @@ export const collect = (ae: AExpr): Constraint[] => {
           return [...collect(body), [typeOf(body), retType]];
         }
         default:
-          throw new Error("not a function");
+          throw new Error("expected a function somewhere");
       }
     }
     // TODO: handle partial application
@@ -163,7 +173,7 @@ export type Decl = { tag: "Decl"; name: string; value: AExpr };
 
 export type AExpr =
   | { tag: "AVar"; name: string; ann: t.Type }
-  | { tag: "ALit"; value: Lit; ann: t.Type }
+  | { tag: "ALit"; value: ALit; ann: t.Type }
   | { tag: "AApp"; func: AExpr; args: readonly AExpr[]; ann: t.Type }
   | { tag: "ALam"; params: readonly Param[]; body: AExpr; ann: t.Type }
   | {
@@ -173,14 +183,14 @@ export type AExpr =
       body: AExpr;
       ann: t.Type;
       boundVarType: t.Type;
-    };
+    }
+  | { tag: "ATuple"; values: readonly AExpr[]; ann: t.Type }
 
-export type Lit =
+export type ALit =
   // TODO: replace LNum with LInt and LFloat
   | { tag: "LNum"; value: number }
   | { tag: "LBool"; value: boolean }
   | { tag: "LStr"; value: string }
-  | { tag: "LArr"; value: AExpr[] };
 
 // How do we model variables whose type can be inferred as well as
 // specified if desired?
