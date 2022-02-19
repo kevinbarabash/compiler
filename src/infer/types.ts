@@ -34,7 +34,10 @@ export type LStr = {
 
 export type Literal = LBool | LNum | LStr;
 
-type TCommon = {frozen?: boolean};
+type TCommon = {
+  frozen?: boolean, // if true, can unify with non-frozen sub-types
+  widened?: Type, // if set, unifyTypes should use this instead
+};
 
 export type TLiteral = TCommon & {
   t: "TLit";

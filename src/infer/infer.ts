@@ -28,7 +28,7 @@ const printSubstitutions = (subs: Subst[]) => {
   console.log(message);
 };
 
-export const infer = (ast: Expr, env?: Map<string, t.Type>): t.Type => {
+export const infer = (ast: Expr, env?: Map<string, t.Type>): AExpr => {
   const annAst = annotate(ast, env || new Map());
   // We filter collected contraints to remove trivial constraints where.
   const constraints = collect(annAst).filter(([a, b]) => !equal(a, b));
@@ -38,10 +38,39 @@ export const infer = (ast: Expr, env?: Map<string, t.Type>): t.Type => {
       printSubstitutions(subs);
       console.log(JSON.stringify(annAst.ann, null, 2));
     }
-    // TODO: iterate over the whole annAst and update the type annotations in the tree
-    return applySubst(subs, annAst.ann);
+    // Updates types in annAst by mutating it
+    applySubstToAExpr(subs, annAst);
+    return annAst;
   } catch (e) {
     printConstraints(constraints);
     throw e;
+  }
+};
+
+// NOTE: this mutates the AExpr that's passed in
+const applySubstToAExpr = (subs: Subst[], ae: AExpr) => {
+  ae.ann = applySubst(subs, ae.ann);
+  switch (ae.tag) {
+    case "AApp": {
+      ae.args.map(arg => applySubstToAExpr(subs, arg));
+      applySubstToAExpr(subs, ae.func);
+      break;
+    }
+    case "ALam": {
+      // ae.params.map(param => applySubstToAExpr(subs, param.type));
+      applySubstToAExpr(subs, ae.body);
+      break;
+    }
+    case "ALet": {
+      applySubstToAExpr(subs, ae.value);
+      applySubstToAExpr(subs, ae.body);
+      break;
+    }
+    case "ALit": {
+      break;
+    }
+    case "AVar": {
+      break;
+    }
   }
 };

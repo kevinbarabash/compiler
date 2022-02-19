@@ -2,7 +2,7 @@ import * as build from "./builders";
 import * as t from "./types";
 import { zip, getParamType, getPropType, isSubtypeOf } from "./util";
 import { print } from "./printer";
-import { equal } from "./util";
+import { clone, equal } from "./util";
 
 const printConstraints = (constraints: Constraint[]) => {
   const varNames = {};
@@ -47,6 +47,8 @@ export const unify = (constraints: Constraint[]): Subst[] => {
 
 // types passed to unify_one must already be applied.
 const unifyTypes = (a: t.Type, b: t.Type): Subst[] => {
+  a = a.widened || a;
+  b = b.widened || b;
   if (a.t === "TVar") {
     if (!equal(a, b)) {
       return [[a.id, b]];
@@ -67,9 +69,15 @@ const unifyTypes = (a: t.Type, b: t.Type): Subst[] => {
   } else if (a.t === "TUnion" && b.t === "TUnion") {
     return unifyUnion(a, b);
   } else {
-    if (b.frozen && !a.frozen) {
+    if (!a.frozen && b.frozen) {
       // TODO: move frozen checks into isSubtypeOf()
       if (isSubtypeOf(a, b)) {
+        return [];
+      }
+    }
+    if (!b.frozen && a.frozen) {
+      // TODO: move frozen checks into isSubtypeOf()
+      if (isSubtypeOf(b, a)) {
         return [];
       }
     }
@@ -86,6 +94,14 @@ const unifyLiteral = (a: t.TLiteral, b: t.TLiteral): Subst[] => {
   if (aLit.t === "LBool" && bLit.t === "LBool") {
     return [];
   } else if (aLit.t === "LNum" && bLit.t === "LNum") {
+    if (aLit.value !== bLit.value) {
+      // TODO: flatten this tuple type
+      // We have to clone the types we're adding to the union
+      // to avoid having a recursive data structure
+      const union = build.tUnion(clone(a), clone(b));
+      a.widened = union;
+      b.widened = union;
+    }
     return [];
   } else if (aLit.t === "LStr" && bLit.t === "LStr") {
     return [];
@@ -163,6 +179,7 @@ const unifyUnion = (a: t.TUnion, b: t.TUnion): Subst[] => {
   return [];
 };
 
+// TODO: add a check to avoid recursive unification and add a test for it
 const substitute = (sub: Subst, type: t.Type): t.Type => {
   switch (type.t) {
     case "TLit":

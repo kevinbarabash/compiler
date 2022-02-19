@@ -220,3 +220,5 @@ export const zip = <T>(xs: readonly T[], ys: readonly T[]): [T, T][] => {
   }
   return result;
 };
+
+export const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x));
