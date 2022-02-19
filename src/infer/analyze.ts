@@ -54,7 +54,14 @@ export const annotate = (e: Expr, env: Environment): AExpr => {
       newEnv.set(name, boundVarType);
       const body = annotate(e.body, newEnv);
 
-      return { tag: "ALet", name, value, body, ann: typeOf(body), boundVarType };
+      return {
+        tag: "ALet",
+        name,
+        value,
+        body,
+        ann: typeOf(body),
+        boundVarType,
+      };
     }
     case "Lam": {
       const newEnv = new Map(env);
@@ -68,16 +75,24 @@ export const annotate = (e: Expr, env: Environment): AExpr => {
       const body = annotate(e.body, newEnv);
 
       const type = b.tFun(
-        params.map(p => b.tParam(p.name, p.type)),
-        typeOf(body),
+        params.map((p) => b.tParam(p.name, p.type)),
+        typeOf(body)
       );
 
       return { tag: "ALam", params, body, ann: type };
     }
     case "App": {
       const func = annotate(e.func, env);
-      const args = e.args.map(arg => annotate(arg, env));
-      return { tag: "AApp", func, args, ann: b.tVar() };
+      const args = e.args.map((arg) => annotate(arg, env));
+      const funcType = typeOf(func);
+      return {
+        tag: "AApp",
+        func,
+        args,
+        // If we know that funcType is a TFun we can save same work,
+        // by using it's return type instead of having to re-infer it.
+        ann: funcType.t === "TFun" ? funcType.retType : b.tVar(),
+      };
     }
   }
 };

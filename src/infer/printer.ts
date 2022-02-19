@@ -39,9 +39,10 @@ export const print = (
       }
       case "TCon": {
         const typeArgs = t.typeArgs.map(_print);
+        const name = t.frozen ? `${t.name}(frozen)` : t.name;
         return typeArgs.length > 0
-          ? `${t.name}<${typeArgs.join(", ")}>`
-          : t.name;
+          ? `${name}<${typeArgs.join(", ")}>`
+          : name;
       }
       case "TFun": {
         const paramTypes = t.paramTypes.map((p, i) => {

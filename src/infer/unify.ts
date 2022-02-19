@@ -2,6 +2,15 @@ import * as build from "./builders";
 import * as t from "./types";
 import { zip, getParamType, getPropType } from "./util";
 import { print } from "./printer";
+import { equal } from "./util";
+
+const printConstraints = (constraints: Constraint[]) => {
+  const varNames = {};
+  const message = constraints.map(([left, right]) => {
+    return `${print(left, varNames, true)} ≡ ${print(right, varNames, true)}`
+  }).join("\n");
+  console.log(message);
+}
 
 // TODO: replace Constraint w/ Constr
 // TODO: use .relation to implement subtyping
@@ -14,17 +23,21 @@ export type Constraint = [t.Type, t.Type];
 export type Subst = [number, t.Type]; // [id, type]
 
 export const unify = (constraints: Constraint[]): Subst[] => {
+  printConstraints(constraints);
+
   if (constraints.length === 0) {
     return [];
   }
 
   // TODO: rewrite this without using recursion
-  const [a, b] = constraints[0];
-  const rest = constraints.slice(1);
+  // This is left recursive in order to prioritize definitions
+  // over uses.
+  const [a, b] = constraints[constraints.length - 1];
+  const rest = constraints.slice(0, -1);
   const s2 = unify(rest); // unify constraints from right to left
   const s1 = unifyTypes(applySubst(s2, a), applySubst(s2, b));
 
-  return [...s1, ...s2];
+  return [...s2, ...s1];
 };
 
 // TODO: instead of throwing on the first error, can we capture
@@ -33,9 +46,15 @@ export const unify = (constraints: Constraint[]): Subst[] => {
 // types passed to unify_one must already be applied.
 const unifyTypes = (a: t.Type, b: t.Type): Subst[] => {
   if (a.t === "TVar") {
-    return [[a.id, b]];
+    if (b.t === "TVar") {
+      console.log(`a === b`);
+    }
+    if (!equal(a, b)) {
+      return [[a.id, b]];
+    }
+    return [];
   } else if (b.t === "TVar") {
-    return [[b.id, a]];
+    return [[b.id, a]]
   } else if (a.t === "TLit" && b.t === "TLit") {
     return unifyLiteral(a, b);
   } else if (a.t === "TFun" && b.t === "TFun") {
@@ -49,7 +68,14 @@ const unifyTypes = (a: t.Type, b: t.Type): Subst[] => {
   } else if (a.t === "TUnion" && b.t === "TUnion") {
     return unifyUnion(a, b);
   } else {
-    console.log(`a = ${print(a)}, b = ${print(b)}`);
+    if (b.frozen && !a.frozen) {
+      // TODO: do an actual subtype check
+      if (b.t === "TCon" && a.t === "TLit") {
+        return [];
+      }
+    }
+    console.log("a = ", a);
+    console.log("b = ", b);
     throw new Error(`mismatched types: ${a.t} != ${b.t}`);
   }
 };
@@ -80,6 +106,9 @@ const unifyFun = (a: t.TFun, b: t.TFun): Subst[] => {
     ...zip(aParamTypes, bParamTypes),
     [a.retType, b.retType],
   ];
+
+  console.log("--- unifyFun constraints ---");
+  printConstraints(constraints);
 
   return unify(constraints);
 }
@@ -160,10 +189,15 @@ const substitute = (sub: Subst, type: t.Type): t.Type => {
         substitute(sub, type.retType)
       );
     case "TCon":
-      return build.tCon(
+      // console.log(`building a TCon with name ${type.name}`);
+      const result = build.tCon(
         type.name,
         type.typeArgs.map((a) => substitute(sub, a))
       );
+      if (type.frozen) {
+        result.frozen = type.frozen;
+      }
+      return result;
     case "TRec":
       return build.tRec(
         ...type.properties.map((p) =>
@@ -178,5 +212,6 @@ const substitute = (sub: Subst, type: t.Type): t.Type => {
 };
 
 export const applySubst = (subs: Subst[], type: t.Type): t.Type => {
-  return subs.reduceRight((prev, curr) => substitute(curr, prev), type);
+  // This is left recursive to match unify which is also left recursive.
+  return subs.reduce((prev, curr) => substitute(curr, prev), type);
 };
