@@ -93,6 +93,22 @@ const evalExpr = (env: Scope, expr: Expr): Value => {
     }
     case "App": {
       const { func, args } = expr;
+
+      // Apply built-in function
+      // TODO: support "-", "*", and "/"
+      if (func.tag === "Var" && func.name === "+") {
+        const evaledArgs = args.map((arg) => evalExpr(env, arg));
+        if (evaledArgs[0].tag === "VNum" && evaledArgs[1].tag === "VNum") {
+          return {
+            tag: "VNum",
+            value: evaledArgs[0].value + evaledArgs[1].value,
+          };
+        } else {
+          throw new Error("both args must be numbers when adding");
+        }
+      }
+
+      // Apply user defined function
       const evaledFunc = evalExpr(env, func);
       if (evaledFunc.tag !== "VClosure"){
         throw new Error("tried to apply a non-closure value");
@@ -100,23 +116,6 @@ const evalExpr = (env: Scope, expr: Expr): Value => {
       const evaledArgs = args.map((arg) => evalExpr(env, arg));
 
       return apply(evaledFunc, evaledArgs);
-    }
-    case "Prim": {
-      const { op, args } = expr;
-      let evaledArgs = args.map((arg) => evalExpr(env, arg));
-      let x = numOfValue(evaledArgs[0]);
-      let y = numOfValue(evaledArgs[1]);
-
-      switch (op) {
-        case "Add":
-          return { tag: "VNum", value: x + y };
-        case "Sub":
-          return { tag: "VNum", value: x - y };
-        case "Mul":
-          return { tag: "VNum", value: x * y };
-        case "Div":
-          return { tag: "VNum", value: x / y };
-      }
     }
     case "Let": {
       // NOTE: when we implement destructuring we'll need to add

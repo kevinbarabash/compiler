@@ -89,15 +89,13 @@ param -> identifier %colon identifier {% data => ({name: data[0], type: data[2]}
 sum
   ->sum _ (%plus | %minus) _ prod {% 
     ([left, , op, , right]) => 
-      ({tag: "Prim", op: opNames[op], args: [left, right]}) %}
+      ({tag: "App", func: {tag: "Var", name: op[0].value}, args: [left, right]}) %}
   | prod {% id %}
 
 prod
   ->prod _ (%times | %divide) _ fact {%
-    ([left, , op, , right]) => {
-      return ({tag: "Prim", op: opNames[op], args: [left, right]}) 
-    }  
-  %}
+    ([left, , op, , right]) =>
+      ({tag: "App", func: {tag: "Var", name: op[0].value}, args: [left, right]}) %}
   | fact {% id %}
 
 fact
