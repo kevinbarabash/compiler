@@ -1,6 +1,6 @@
 import { Expr } from "../../syntax";
 
-import { annotate, collect } from "../collect";
+import { annotate, collect } from "../analyze";
 import { unify, applySubst, Subst } from "../unify";
 import * as t from "../types";
 import { print } from "../printer";

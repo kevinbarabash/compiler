@@ -54,7 +54,12 @@ const typesMap: Record<string, Type> = {
 const equal = <T>(a: T, b: T): boolean => JSON.stringify(a) === JSON.stringify(b);
 
 export const check = (prog: Program) => {
-  const scope = Map<string, Type>();
+  const scope = Map<string, Type>({
+    "+": { tag: "TLam", args: [tNumber, tNumber], ret: tNumber },
+    "-": { tag: "TLam", args: [tNumber, tNumber], ret: tNumber },
+    "*": { tag: "TLam", args: [tNumber, tNumber], ret: tNumber },
+    "/": { tag: "TLam", args: [tNumber, tNumber], ret: tNumber },
+  });
   let context: Context = {scopes: Stack.of(scope)};
   for (const child of prog.body) {
     switch (child.tag) {
@@ -229,14 +234,6 @@ const checkExpr = (expr: Expr, context: Context): Type => {
           // in it together then that's a no-go.
           return tArray;
         }
-      }
-    }
-    case "Prim": {
-      switch (expr.op) {
-        case "Add": return tNumber;
-        case "Sub": return tNumber;
-        case "Mul": return tNumber;
-        case "Div": return tNumber;
       }
     }
   }

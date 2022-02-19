@@ -7,9 +7,7 @@ export type Expr =
   | { tag: "Lit"; value: Lit }
   | { tag: "App"; func: Expr; args: readonly Expr[] }
   | { tag: "Lam"; params: readonly Param[]; body: Expr }
-  | { tag: "Prim"; op: BinOp; args: readonly Expr[] }
-  // TODO: support destructuring
-  | { tag: "Let"; name: string; value: Expr; body: Expr };
+  | { tag: "Let"; name: string; value: Expr; body: Expr }; // TODO: support destructuring
 
 export type Lit =
   // TODO: replace LNum with LInt and LFloat

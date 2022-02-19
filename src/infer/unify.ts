@@ -1,6 +1,14 @@
 import * as build from "./builders";
 import * as t from "./types";
 import { zip, getParamType, getPropType } from "./util";
+import { print } from "./printer";
+
+// TODO: replace Constraint w/ Constr
+// TODO: use .relation to implement subtyping
+type Constr = {
+  types: [t.Type, t.Type],
+  relation: null | "param,arg" | "arg,param",
+};
 
 export type Constraint = [t.Type, t.Type];
 export type Subst = [number, t.Type]; // [id, type]
@@ -41,6 +49,7 @@ const unifyTypes = (a: t.Type, b: t.Type): Subst[] => {
   } else if (a.t === "TUnion" && b.t === "TUnion") {
     return unifyUnion(a, b);
   } else {
+    console.log(`a = ${print(a)}, b = ${print(b)}`);
     throw new Error(`mismatched types: ${a.t} != ${b.t}`);
   }
 };

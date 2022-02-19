@@ -35,7 +35,14 @@ export const annotate = (e: Expr, env: Environment): AExpr => {
       if (varType) {
         return { tag: "AVar", name: e.name, ann: varType };
       } else {
-        throw new Error("variable not defined");
+        console.log(`e.name = ${e.name}`);
+        console.log(`env = `, env);
+        for (const key of env.keys()) {
+          console.log(`key = ${key}, e.name = ${e.name}, ${key === e.name}`);
+          console.log(typeof key);
+          console.log(typeof e.name);
+        }
+        throw new Error(`variable "${e.name}" not defined`);
       }
     }
     case "Let": {
@@ -71,9 +78,6 @@ export const annotate = (e: Expr, env: Environment): AExpr => {
       const func = annotate(e.func, env);
       const args = e.args.map(arg => annotate(arg, env));
       return { tag: "AApp", func, args, ann: b.tVar() };
-    }
-    case "Prim": {
-      throw new Error("replace Prim with Lam");
     }
   }
 };

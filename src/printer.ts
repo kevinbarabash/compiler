@@ -58,13 +58,10 @@ export const printExpr = (e: Expr): string => {
         return `(${params.join(", ")}) => ${stmts[0]}`;
       }
     case "App": {
+      // TODO: handle precendence for arithmetic operations
       const func = printExpr(e.func);
       const args = e.args.map(printExpr);
       return `(${func})(${args.join(", ")})`;
-    }
-    case "Prim": {
-      // TODO: handle precedence
-      return `${printExpr(e.args[0])} ${operators[e.op]} ${printExpr(e.args[1])}`;
     }
     case "Let":
       // TODO: create unique names if `e.name` is shadowed in the same scope.
