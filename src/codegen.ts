@@ -63,13 +63,14 @@ const printJsExpr = (e: Expr): string => {
         return `(${params.join(", ")}) => ${printJsExpr(e.body)}`;
       }
     case "App": {
+      // Built-in operators
+      // TODO: handle precedence
+      if (e.func.tag === "Var" && ["+", "-", "*", "/"].includes(e.func.name)) {
+        return `(${printJsExpr(e.args[0])} ${e.func.name} ${printJsExpr(e.args[1])})`;
+      }
       const func = printJsExpr(e.func);
       const args = e.args.map(printJsExpr);
       return `(${func})(${args.join(", ")})`;
-    }
-    case "Prim": {
-      // TODO: handle precedence
-      return `${printJsExpr(e.args[0])} ${operators[e.op]} ${printJsExpr(e.args[1])}`;
     }
     case "Let":
       // TODO: create unique names if `e.name` is shadowed in the same scope.
