@@ -43,13 +43,6 @@ export const annotate = (e: Expr, env: Environment): AExpr => {
       if (varType) {
         return { tag: "AVar", name: e.name, ann: varType };
       } else {
-        console.log(`e.name = ${e.name}`);
-        console.log(`env = `, env);
-        for (const key of env.keys()) {
-          console.log(`key = ${key}, e.name = ${e.name}, ${key === e.name}`);
-          console.log(typeof key);
-          console.log(typeof e.name);
-        }
         throw new Error(`variable "${e.name}" not defined`);
       }
     }

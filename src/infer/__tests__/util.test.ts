@@ -40,8 +40,8 @@ describe("equal", () => {
     });
 
     test("foo<number>", () => {
-      const x = b.tCon("foo", [builtins.tNumber]);
-      const y = b.tCon("foo", [builtins.tNumber]);
+      const x = b.tCon("foo", [builtins.tNumber()]);
+      const y = b.tCon("foo", [builtins.tNumber()]);
       expect(equal(x, y)).toBe(true);
     });
 
@@ -53,8 +53,8 @@ describe("equal", () => {
     });
 
     test("foo<number> != foo<string>", () => {
-      const x = b.tCon("foo", [builtins.tNumber]);
-      const y = b.tCon("foo", [builtins.tString]);
+      const x = b.tCon("foo", [builtins.tNumber()]);
+      const y = b.tCon("foo", [builtins.tString()]);
       expect(equal(x, y)).toBe(false);
     });
 
@@ -68,79 +68,88 @@ describe("equal", () => {
 
   describe("function types", () => {
     test("() => number", () => {
-      const f1 = b.tFun([], builtins.tNumber);
-      const f2 = b.tFun([], builtins.tNumber);
+      const f1 = b.tFun([], builtins.tNumber());
+      const f2 = b.tFun([], builtins.tNumber());
       expect(equal(f1, f2)).toBe(true);
     });
 
     test("(number, string) => void", () => {
       const f1 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tString)],
-        builtins.tUndefined
+        [b.tParam("", builtins.tNumber()), b.tParam("", builtins.tString())],
+        builtins.tUndefined()
       );
       const f2 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tString)],
-        builtins.tUndefined
+        [b.tParam("", builtins.tNumber()), b.tParam("", builtins.tString())],
+        builtins.tUndefined()
       );
       expect(equal(f1, f2)).toBe(true);
     });
 
     test("differences in param names are ignored", () => {
       const f1 = b.tFun(
-        [b.tParam("foo", builtins.tNumber), b.tParam("bar", builtins.tString)],
-        builtins.tUndefined
+        [
+          b.tParam("foo", builtins.tNumber()),
+          b.tParam("bar", builtins.tString()),
+        ],
+        builtins.tUndefined()
       );
       const f2 = b.tFun(
-        [b.tParam("x", builtins.tNumber), b.tParam("y", builtins.tString)],
-        builtins.tUndefined
+        [b.tParam("x", builtins.tNumber()), b.tParam("y", builtins.tString())],
+        builtins.tUndefined()
       );
       expect(equal(f1, f2)).toBe(true);
     });
 
     test("different number of params", () => {
       const f1 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tString)],
-        builtins.tUndefined
+        [b.tParam("", builtins.tNumber()), b.tParam("", builtins.tString())],
+        builtins.tUndefined()
       );
-      const f2 = b.tFun([b.tParam("", builtins.tNumber)], builtins.tUndefined);
+      const f2 = b.tFun(
+        [b.tParam("", builtins.tNumber())],
+        builtins.tUndefined()
+      );
       expect(equal(f1, f2)).toBe(false);
     });
 
     test("different return types", () => {
       const f1 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tString)],
-        builtins.tUndefined
+        [b.tParam("", builtins.tNumber()), b.tParam("", builtins.tString())],
+        builtins.tUndefined()
       );
       const f2 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tString)],
-        builtins.tBoolean
+        [b.tParam("", builtins.tNumber()), b.tParam("", builtins.tString())],
+        builtins.tBoolean()
       );
       expect(equal(f1, f2)).toBe(false);
     });
 
     test("different param types", () => {
       const f1 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tString)],
-        builtins.tUndefined
+        [b.tParam("", builtins.tNumber()), b.tParam("", builtins.tString())],
+        builtins.tUndefined()
       );
       const f2 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tBoolean)],
-        builtins.tUndefined
+        [b.tParam("", builtins.tNumber()), b.tParam("", builtins.tBoolean())],
+        builtins.tUndefined()
       );
       expect(equal(f1, f2)).toBe(false);
     });
 
     test("optional params are the same as `T | undefined`", () => {
       const f1 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tString, true)],
-        builtins.tUndefined
+        [
+          b.tParam("", builtins.tNumber()),
+          b.tParam("", builtins.tString(), true),
+        ],
+        builtins.tUndefined()
       );
       const f2 = b.tFun(
         [
-          b.tParam("", builtins.tNumber),
-          b.tParam("", b.tUnion(builtins.tString, builtins.tUndefined)),
+          b.tParam("", builtins.tNumber()),
+          b.tParam("", b.tUnion(builtins.tString(), builtins.tUndefined())),
         ],
-        builtins.tUndefined
+        builtins.tUndefined()
       );
       expect(equal(f1, f2)).toBe(true);
     });
@@ -149,60 +158,60 @@ describe("equal", () => {
   describe("Record types", () => {
     test("same", () => {
       const r1 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("y", builtins.tString, true)
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("y", builtins.tString(), true)
       );
       const r2 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("y", builtins.tString, true)
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("y", builtins.tString(), true)
       );
       expect(equal(r1, r2)).toBe(true);
     });
 
     test("different optionality", () => {
       const r1 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("y", builtins.tString, true)
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("y", builtins.tString(), true)
       );
       const r2 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("y", builtins.tString)
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("y", builtins.tString())
       );
       expect(equal(r1, r2)).toBe(false);
     });
 
     test("different property type", () => {
       const r1 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("y", builtins.tString, true)
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("y", builtins.tString(), true)
       );
       const r2 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("y", builtins.tBoolean, true)
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("y", builtins.tBoolean(), true)
       );
       expect(equal(r1, r2)).toBe(false);
     });
 
     test("different property name", () => {
       const r1 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("y", builtins.tString, true)
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("y", builtins.tString(), true)
       );
       const r2 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("z", builtins.tString, true)
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("z", builtins.tString(), true)
       );
       expect(equal(r1, r2)).toBe(false);
     });
 
     test("optional is the same a `T | undefined`", () => {
       const r1 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("y", b.tUnion(builtins.tString, builtins.tUndefined))
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("y", b.tUnion(builtins.tString(), builtins.tUndefined()))
       );
       const r2 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("y", builtins.tString, true)
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("y", builtins.tString(), true)
       );
       // All tests should test both others to ensure that equal is
       // commutative
@@ -213,15 +222,15 @@ describe("equal", () => {
 
   describe("type constructors", () => {
     test("same", () => {
-      const t1 = b.tCon("Foo", [builtins.tNumber]);
-      const t2 = b.tCon("Foo", [builtins.tNumber]);
+      const t1 = b.tCon("Foo", [builtins.tNumber()]);
+      const t2 = b.tCon("Foo", [builtins.tNumber()]);
       expect(equal(t1, t2)).toBe(true);
     });
   });
 
   test("different type of type", () => {
-    const t1 = builtins.tNumber;
-    const t2 = b.tFun([], builtins.tNumber);
+    const t1 = builtins.tNumber();
+    const t2 = b.tFun([], builtins.tNumber());
     expect(equal(t1, t2)).toBe(false);
   });
 });
@@ -234,27 +243,27 @@ describe("isSubtypeOf", () => {
     });
 
     test("5 is a subtype of number", () => {
-      const result = isSubtypeOf(b.tNum(5), builtins.tNumber);
+      const result = isSubtypeOf(b.tNum(5), builtins.tNumber());
       expect(result).toBe(true);
     });
 
     test("5 is not a subtype of string", () => {
-      const result = isSubtypeOf(b.tNum(5), builtins.tString);
+      const result = isSubtypeOf(b.tNum(5), builtins.tString());
       expect(result).toBe(false);
     });
 
     test("true is a subtype of boolean", () => {
-      const result = isSubtypeOf(b.tBool(true), builtins.tBoolean);
+      const result = isSubtypeOf(b.tBool(true), builtins.tBoolean());
       expect(result).toBe(true);
     });
 
     test("false is a subtype of boolean", () => {
-      const result = isSubtypeOf(b.tBool(false), builtins.tBoolean);
+      const result = isSubtypeOf(b.tBool(false), builtins.tBoolean());
       expect(result).toBe(true);
     });
 
     test("'hello' is a subtype of string", () => {
-      const result = isSubtypeOf(b.tStr("hello"), builtins.tString);
+      const result = isSubtypeOf(b.tStr("hello"), builtins.tString());
       expect(result).toBe(true);
     });
 
@@ -274,7 +283,7 @@ describe("isSubtypeOf", () => {
 
     test("5 is a subtype of number | string", () => {
       const t1 = b.tNum(5);
-      const t2 = b.tUnion(builtins.tNumber, builtins.tString);
+      const t2 = b.tUnion(builtins.tNumber(), builtins.tString());
       const result = isSubtypeOf(t1, t2);
       expect(result).toBe(true);
     });
@@ -290,12 +299,12 @@ describe("isSubtypeOf", () => {
   describe("record subtyping", () => {
     test("same", () => {
       const r1 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("y", builtins.tString, true)
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("y", builtins.tString(), true)
       );
       const r2 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("y", builtins.tString, true)
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("y", builtins.tString(), true)
       );
       const result = isSubtypeOf(r1, r2);
       expect(result).toBe(true);
@@ -303,13 +312,13 @@ describe("isSubtypeOf", () => {
 
     test("the subtype can have extra fields", () => {
       const r1 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("y", builtins.tString, true),
-        b.tProp("z", builtins.tBoolean)
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("y", builtins.tString(), true),
+        b.tProp("z", builtins.tBoolean())
       );
       const r2 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("y", builtins.tString, true)
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("y", builtins.tString(), true)
       );
       const result = isSubtypeOf(r1, r2);
       expect(result).toBe(true);
@@ -317,12 +326,12 @@ describe("isSubtypeOf", () => {
 
     test("optional property isn't a subtype of a non-optional one", () => {
       const r1 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("y", builtins.tString, true)
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("y", builtins.tString(), true)
       );
       const r2 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("y", builtins.tString)
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("y", builtins.tString())
       );
       const result = isSubtypeOf(r1, r2);
       expect(result).toBe(false);
@@ -330,22 +339,22 @@ describe("isSubtypeOf", () => {
 
     test("non-optional property is a subtype of a optional one", () => {
       const r1 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("y", builtins.tString)
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("y", builtins.tString())
       );
       const r2 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("y", builtins.tString, true)
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("y", builtins.tString(), true)
       );
       const result = isSubtypeOf(r1, r2);
       expect(result).toBe(true);
     });
 
     test("the subtype can't have fewer fields", () => {
-      const r1 = b.tRec(b.tProp("x", builtins.tNumber));
+      const r1 = b.tRec(b.tProp("x", builtins.tNumber()));
       const r2 = b.tRec(
-        b.tProp("x", builtins.tNumber),
-        b.tProp("y", builtins.tString, true)
+        b.tProp("x", builtins.tNumber()),
+        b.tProp("y", builtins.tString(), true)
       );
       const result = isSubtypeOf(r1, r2);
       expect(result).toBe(false);
@@ -354,18 +363,18 @@ describe("isSubtypeOf", () => {
 
   describe("tuple type", () => {
     test("same", () => {
-      const t1 = b.tTuple(builtins.tNumber, builtins.tString);
-      const t2 = b.tTuple(builtins.tNumber, builtins.tString);
+      const t1 = b.tTuple(builtins.tNumber(), builtins.tString());
+      const t2 = b.tTuple(builtins.tNumber(), builtins.tString());
 
       const result = isSubtypeOf(t1, t2);
 
       expect(result).toBe(true);
     });
 
-    test("each elem is a subtype", () => {
+    test.only("each elem is a subtype", () => {
       // [5, "hello"] is a subtype of [number, string]
       const t1 = b.tTuple(b.tNum(5), b.tStr("hello"));
-      const t2 = b.tTuple(builtins.tNumber, builtins.tString);
+      const t2 = b.tTuple(builtins.tNumber(), builtins.tString());
 
       const result = isSubtypeOf(t1, t2);
 
@@ -375,7 +384,7 @@ describe("isSubtypeOf", () => {
     test("each elem is a subtype Array's type argument", () => {
       // [5, 10] is a subtype of Array<number>
       const t1 = b.tTuple(b.tNum(5), b.tNum(10));
-      const t2 = builtins.tArray(builtins.tNumber);
+      const t2 = builtins.tArray(builtins.tNumber());
 
       const result = isSubtypeOf(t1, t2);
 
@@ -386,12 +395,12 @@ describe("isSubtypeOf", () => {
   describe("function sub-typing", () => {
     test("same", () => {
       const f1 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tString)],
-        builtins.tBoolean
+        [b.tParam("", builtins.tNumber()), b.tParam("", builtins.tString())],
+        builtins.tBoolean()
       );
       const f2 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tString)],
-        builtins.tBoolean
+        [b.tParam("", builtins.tNumber()), b.tParam("", builtins.tString())],
+        builtins.tBoolean()
       );
 
       const result = isSubtypeOf(f1, f2);
@@ -400,12 +409,12 @@ describe("isSubtypeOf", () => {
 
     test("return type is a subtype", () => {
       const f1 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tString)],
+        [b.tParam("", builtins.tNumber()), b.tParam("", builtins.tString())],
         builtins.tTrue
       );
       const f2 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tString)],
-        builtins.tBoolean
+        [b.tParam("", builtins.tNumber()), b.tParam("", builtins.tString())],
+        builtins.tBoolean()
       );
 
       const result = isSubtypeOf(f1, f2);
@@ -414,11 +423,11 @@ describe("isSubtypeOf", () => {
 
     test("not a subtype if return type is a supertype", () => {
       const f1 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tString)],
-        builtins.tBoolean
+        [b.tParam("", builtins.tNumber()), b.tParam("", builtins.tString())],
+        builtins.tBoolean()
       );
       const f2 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tString)],
+        [b.tParam("", builtins.tNumber()), b.tParam("", builtins.tString())],
         builtins.tTrue
       );
 
@@ -429,13 +438,13 @@ describe("isSubtypeOf", () => {
     test("is a subtype if arg type is a supertype", () => {
       // f1 = (x: number, y: string) => boolean
       const f1 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tString)],
-        builtins.tBoolean
+        [b.tParam("", builtins.tNumber()), b.tParam("", builtins.tString())],
+        builtins.tBoolean()
       );
       // f2 = (x: 5, y: string) => boolean
       const f2 = b.tFun(
-        [b.tParam("", b.tNum(5)), b.tParam("", builtins.tString)],
-        builtins.tBoolean
+        [b.tParam("", b.tNum(5)), b.tParam("", builtins.tString())],
+        builtins.tBoolean()
       );
 
       // f2(5, "hello") is valid and so is f1(5, "hello") because f1 accepts
@@ -447,13 +456,13 @@ describe("isSubtypeOf", () => {
     test("is not a subtype if arg type is a subtype", () => {
       // f1 = (x: 5, y: string) => boolean
       const f1 = b.tFun(
-        [b.tParam("", b.tNum(5)), b.tParam("", builtins.tString)],
-        builtins.tBoolean
+        [b.tParam("", b.tNum(5)), b.tParam("", builtins.tString())],
+        builtins.tBoolean()
       );
       // f2 = (x: number, y: string) => boolean
       const f2 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tString)],
-        builtins.tBoolean
+        [b.tParam("", builtins.tNumber()), b.tParam("", builtins.tString())],
+        builtins.tBoolean()
       );
 
       // f2(10, "hello") is valid, but f1(10, "hello") is not
@@ -462,10 +471,13 @@ describe("isSubtypeOf", () => {
     });
 
     test("having fewer params is a subtype", () => {
-      const f1 = b.tFun([b.tParam("", builtins.tNumber)], builtins.tBoolean);
+      const f1 = b.tFun(
+        [b.tParam("", builtins.tNumber())],
+        builtins.tBoolean()
+      );
       const f2 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tString)],
-        builtins.tBoolean
+        [b.tParam("", builtins.tNumber()), b.tParam("", builtins.tString())],
+        builtins.tBoolean()
       );
 
       const result = isSubtypeOf(f1, f2);
@@ -475,15 +487,15 @@ describe("isSubtypeOf", () => {
     test("having more params is not a subtype", () => {
       const f1 = b.tFun(
         [
-          b.tParam("", builtins.tNumber),
-          b.tParam("", builtins.tString),
-          b.tParam("", builtins.tNumber),
+          b.tParam("", builtins.tNumber()),
+          b.tParam("", builtins.tString()),
+          b.tParam("", builtins.tNumber()),
         ],
-        builtins.tBoolean
+        builtins.tBoolean()
       );
       const f2 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tString)],
-        builtins.tBoolean
+        [b.tParam("", builtins.tNumber()), b.tParam("", builtins.tString())],
+        builtins.tBoolean()
       );
 
       const result = isSubtypeOf(f1, f2);
@@ -495,15 +507,15 @@ describe("isSubtypeOf", () => {
       // extra params.
       const f1 = b.tFun(
         [
-          b.tParam("", builtins.tNumber),
-          b.tParam("", builtins.tString),
-          b.tParam("", builtins.tBoolean, true),
+          b.tParam("", builtins.tNumber()),
+          b.tParam("", builtins.tString()),
+          b.tParam("", builtins.tBoolean(), true),
         ],
-        builtins.tBoolean
+        builtins.tBoolean()
       );
       const f2 = b.tFun(
-        [b.tParam("", builtins.tNumber), b.tParam("", builtins.tString)],
-        builtins.tBoolean
+        [b.tParam("", builtins.tNumber()), b.tParam("", builtins.tString())],
+        builtins.tBoolean()
       );
 
       const result = isSubtypeOf(f1, f2);
@@ -527,21 +539,21 @@ describe("isSubtypeOf", () => {
   describe("type constructor", () => {
     test("subtype if type args are subtypes", () => {
       let c1 = b.tCon("Foo", [b.tNum(5)]);
-      let c2 = b.tCon("Foo", [builtins.tNumber]);
+      let c2 = b.tCon("Foo", [builtins.tNumber()]);
 
       expect(isSubtypeOf(c1, c2)).toBe(true);
     });
 
     test("not a subtype if type args are not subtypes", () => {
-      let c1 = b.tCon("Foo", [builtins.tString]);
-      let c2 = b.tCon("Foo", [builtins.tNumber]);
+      let c1 = b.tCon("Foo", [builtins.tString()]);
+      let c2 = b.tCon("Foo", [builtins.tNumber()]);
 
       expect(isSubtypeOf(c1, c2)).toBe(false);
     });
 
     test("not a subtype if type if different number of type args", () => {
-      let c1 = b.tCon("Foo", [builtins.tNumber]);
-      let c2 = b.tCon("Foo", [builtins.tNumber, builtins.tString]);
+      let c1 = b.tCon("Foo", [builtins.tNumber()]);
+      let c2 = b.tCon("Foo", [builtins.tNumber(), builtins.tString()]);
 
       expect(isSubtypeOf(c1, c2)).toBe(false);
     });
@@ -550,7 +562,7 @@ describe("isSubtypeOf", () => {
 
 describe("flatten", () => {
   test("3 | 5 | number -> number", () => {
-    const t = b.tUnion(b.tNum(3), b.tNum(5), builtins.tNumber);
+    const t = b.tUnion(b.tNum(3), b.tNum(5), builtins.tNumber());
 
     const result = flatten(t);
 
@@ -558,7 +570,7 @@ describe("flatten", () => {
   });
 
   test("number | 5 -> number", () => {
-    const t = b.tUnion(builtins.tNumber, b.tNum(5));
+    const t = b.tUnion(builtins.tNumber(), b.tNum(5));
 
     const result = flatten(t);
 
@@ -566,7 +578,7 @@ describe("flatten", () => {
   });
 
   test("5 | (10 | number) -> number", () => {
-    const t = b.tUnion(b.tNum(5), b.tUnion(b.tNum(5), builtins.tNumber));
+    const t = b.tUnion(b.tNum(5), b.tUnion(b.tNum(5), builtins.tNumber()));
 
     const result = flatten(t);
 

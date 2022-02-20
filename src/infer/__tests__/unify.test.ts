@@ -26,10 +26,10 @@ describe("unify", () => {
 
     let constraints: Constraint[] = [
       [t1, b.tFun([b.tParam("", t5)], t4)], // function call
-      [t5, builtins.tNumber],
-      [t4, builtins.tBoolean],
-      [t6, builtins.tNumber],
-      [t7, builtins.tNumber],
+      [t5, builtins.tNumber()],
+      [t4, builtins.tBoolean()],
+      [t6, builtins.tNumber()],
+      [t7, builtins.tNumber()],
       [t6, t3],
       [t7, t3],
       [t2, b.tFun([b.tParam("", t1)], t3)], // function definition
