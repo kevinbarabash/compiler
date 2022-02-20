@@ -70,11 +70,7 @@ const unifyTypes = (a: t.Type, b: t.Type): Subst[] => {
     }
 
     if (!a.frozen && !b.frozen) {
-      const union = flatten(build.tUnion(a, b));
-      return [
-        [a.id, union],
-        [b.id, union],
-      ];
+      return widen(a, b);
     }
 
     throw new Error(`mismatched types: ${a.t} != ${b.t}`);
