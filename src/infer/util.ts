@@ -29,7 +29,7 @@ export const flatten = (union: t.TUnion): t.Type => {
 
 // TODO: How do report errors if we wrap types like this to do comparisons?
 const makeOptional = (x: t.Type): t.Type => {
-  return flatten(b.tUnion(x, builtins.tUndefined));
+  return flatten(b.tUnion(x, builtins.tUndefined()));
 };
 
 export const getPropType = (x: t.TProp): t.Type =>
@@ -108,11 +108,11 @@ export const isSubtypeOf = (x: t.Type, y: t.Type): boolean => {
       const l = x.literal;
       switch (l.t) {
         case "LBool":
-          return equal(y, builtins.tBoolean);
+          return y.t === "TCon" && y.name === "boolean";
         case "LNum":
-          return equal(y, builtins.tNumber);
+          return y.t === "TCon" && y.name === "number";
         case "LStr":
-          return equal(y, builtins.tString);
+          return y.t === "TCon" && y.name === "string";
       }
     }
     case "TCon": {
@@ -186,7 +186,7 @@ export const isSubtypeOf = (x: t.Type, y: t.Type): boolean => {
           // is a subtype the param).
           const remainingParamTypes = x.paramTypes.slice(y.paramTypes.length);
           const isOptional = (p: t.TParam): boolean =>
-            isSubtypeOf(builtins.tUndefined, getParamType(p));
+            isSubtypeOf(builtins.tUndefined(), getParamType(p));
           if (!remainingParamTypes.every(isOptional)) {
             return false;
           }

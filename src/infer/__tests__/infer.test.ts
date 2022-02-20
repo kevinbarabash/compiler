@@ -28,7 +28,7 @@ describe("infer", () => {
   test("(f:ignore) => {f(5) + 10}", () => {
     const ast = parse("(f:ignore) => {f(5) + 10};");
     const env = new Map<string, t.Type>();
-    const frozenNumber = JSON.parse(JSON.stringify(builtins.tNumber));
+    const frozenNumber = builtins.tNumber();
     frozenNumber.frozen = true;
     env.set(
       "+",
@@ -50,7 +50,7 @@ describe("infer", () => {
   test('(f:ignore) => {let x = f(5) + f(10); "hello"};', () => {
     const ast = parse('(f:ignore) => {let x = f(5) + f(10); "hello"};');
     const env = new Map<string, t.Type>();
-    const frozenNumber = JSON.parse(JSON.stringify(builtins.tNumber));
+    const frozenNumber = builtins.tNumber();
     frozenNumber.frozen = true;
     env.set(
       "+",
@@ -72,7 +72,7 @@ describe("infer", () => {
   test('(f:ignore) => {let x = f(5); let y = f(10); "hello"};', () => {
     const ast = parse('(f:ignore) => {let x = f(5); let y = f(10); "hello"};');
     const env = new Map<string, t.Type>();
-    const frozenNumber = JSON.parse(JSON.stringify(builtins.tNumber));
+    const frozenNumber = builtins.tNumber();
     frozenNumber.frozen = true;
     env.set(
       "+",
@@ -91,7 +91,7 @@ describe("infer", () => {
   test("widening is flattend, i.e. 5 | number -> number", () => {
     const ast = parse('(f:ignore) => {let x = f(foo); let y = f(10); "hello"};');
     const env = new Map<string, t.Type>();
-    const frozenNumber = JSON.parse(JSON.stringify(builtins.tNumber));
+    const frozenNumber = builtins.tNumber();
     frozenNumber.frozen = true;
     env.set(
       "+",
@@ -100,7 +100,7 @@ describe("infer", () => {
         frozenNumber
       )
     );
-    env.set("foo", clone(builtins.tNumber));
+    env.set("foo", builtins.tNumber());
 
     if (ast.body[0].tag !== "Decl") {
       const annAst = infer(ast.body[0], env);
@@ -111,7 +111,7 @@ describe("infer", () => {
   test("widening can create union types with different type constructors", () => {
     const ast = parse('(f:ignore) => {let x = f(foo); let y = f(bar); "hello"};');
     const env = new Map<string, t.Type>();
-    const frozenNumber = JSON.parse(JSON.stringify(builtins.tNumber));
+    const frozenNumber = builtins.tNumber();
     frozenNumber.frozen = true;
     env.set(
       "+",
@@ -126,9 +126,9 @@ describe("infer", () => {
     // NOTE: we must clone these types otherwise they any widening is shared across
     // all uses of tNumber and tBoolean.
     // TODO: change these to be factories instead of singletons
-    const fooType = clone(builtins.tNumber);
+    const fooType = builtins.tNumber();
     // fooType.frozen = true;
-    const barType = clone(builtins.tBoolean);
+    const barType = builtins.tBoolean();
     // barType.frozen = true;
     env.set("foo", fooType);
     env.set("bar", barType);
@@ -142,7 +142,7 @@ describe("infer", () => {
   test.skip("widening can create union types with different type constructors (frozen args)", () => {
     const ast = parse('(f:ignore) => {let x = f(foo); let y = f(bar); "hello"};');
     const env = new Map<string, t.Type>();
-    const frozenNumber = JSON.parse(JSON.stringify(builtins.tNumber));
+    const frozenNumber = builtins.tNumber();
     frozenNumber.frozen = true;
     env.set(
       "+",
@@ -157,9 +157,9 @@ describe("infer", () => {
     // NOTE: we must clone these types otherwise they any widening is shared across
     // all uses of tNumber and tBoolean.
     // TODO: change these to be factories instead of singletons
-    const fooType = clone(builtins.tNumber);
+    const fooType = builtins.tNumber();
     fooType.frozen = true;
-    const barType = clone(builtins.tBoolean);
+    const barType = builtins.tBoolean();
     barType.frozen = true;
     env.set("foo", fooType);
     env.set("bar", barType);
@@ -178,7 +178,7 @@ describe("infer", () => {
     // we can freeze them.  This will signify two things:
     // - their types can't be widened
     // - they accept subtypes as args
-    const frozenNumber = JSON.parse(JSON.stringify(builtins.tNumber));
+    const frozenNumber = builtins.tNumber();
     frozenNumber.frozen = true;
     env.set(
       "+",
@@ -229,7 +229,7 @@ describe("infer", () => {
 
   test("pass a tuple to a function expecting an array", () => {
     const env = new Map<string, t.Type>();
-    const frozenNumber = JSON.parse(JSON.stringify(builtins.tNumber));
+    const frozenNumber = builtins.tNumber();
     frozenNumber.frozen = true;
     const frozenArray = builtins.tArray(frozenNumber);
     frozenArray.frozen = true;
