@@ -135,7 +135,6 @@ describe("infer", () => {
 
     if (ast.body[0].tag !== "Decl") {
       const annAst = infer(ast.body[0], env);
-      // console.log("annAst = ", JSON.stringify(annAst, null, 2));
       expect(print(annAst.ann)).toEqual('(f: (arg0: number | boolean) => a) => "hello"');
     }
   });

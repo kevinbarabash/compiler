@@ -23,10 +23,6 @@ export type Constraint = [t.Type, t.Type];
 export type Subst = [number, t.Type]; // [id, type]
 
 export const unify = (constraints: Constraint[]): Subst[] => {
-  if (process.env.DEBUG) {
-    printConstraints(constraints);
-  }
-
   if (constraints.length === 0) {
     return [];
   }
@@ -58,6 +54,7 @@ const unifyTypes = (a: t.Type, b: t.Type): Subst[] => {
           console.log("setting one type variable to another");
           console.log(`a = ${print(a, {}, true)}, b = ${print(b, {}, true)}`);
         }
+        return [[a.id, b]];
       } else {
         return [[a.id, b]];
       }
@@ -135,6 +132,16 @@ const unifyLiteral = (a: t.TLiteral, b: t.TLiteral): Subst[] => {
   } else if (aLit.t === "LStr" && bLit.t === "LStr") {
     return [];
   }
+  
+  if (!a.frozen && !b.frozen) {
+    // We have to clone the types we're adding to the union
+    // to avoid having a recursive data structure
+    const union = flatten(build.tUnion(clone(a), clone(b)));
+    a.widened = union;
+    b.widened = union;
+    return [];
+  }
+
   throw new Error(`${aLit.t} != ${bLit.t}`);
 }
 
@@ -230,6 +237,10 @@ const unifyUnion = (a: t.TUnion, b: t.TUnion): Subst[] => {
 const substitute = (sub: Subst, type: t.Type): t.Type => {
   switch (type.t) {
     case "TLit":
+      // If type literals had ids as well, we could also do substitutions
+      // of them (and all other types) the same way we do for TVar.
+      // If we ever need the original type, we could create a linked, list
+      // backwards in time across applied substitutions.
       return type;
     case "TVar":
       return type.id === sub[0] ? sub[1] : type;
@@ -240,31 +251,64 @@ const substitute = (sub: Subst, type: t.Type): t.Type => {
     // return a new type where each instance of the type variable sol[0] has
     // been replaced with type sol[1]
     case "TFun":
+      // @ts-expect-error
+      if (type.foobar === "newFuncType") {
+        console.log("newFuncType");
+        console.log(JSON.stringify(sub, null, 2));
+      }
       return build.tFun(
-        type.paramTypes.map((p) =>
-          build.tParam(p.name, substitute(sub, p.type), p.optional)
-        ),
+        type.paramTypes.map((p) => {
+          // TODO: check if there's actually anything to subtitute
+          return build.tParam(p.name, substitute(sub, p.type), p.optional);
+        }),
         substitute(sub, type.retType)
       );
     case "TCon":
       // console.log(`building a TCon with name ${type.name}`);
-      const result = build.tCon(
-        type.name,
-        type.typeArgs.map((a) => substitute(sub, a))
-      );
-      if (type.frozen) {
-        result.frozen = type.frozen;
-      }
-      return result;
+      // const result = build.tCon(
+      //   type.name,
+      //   type.typeArgs.map((a) => substitute(sub, a))
+      // );
+      // if (type.frozen) {
+      //   result.frozen = type.frozen;
+      // }
+      // if (type.widened) {
+      //   result.widened = type.widened;
+      // }
+
+      // If we return the original type, then unifyCon() can update it
+      // later.  If we create a new instance of tCon() here then that
+      // connection is broken.  We could try maintaining the connection
+      // by other means, i.e. having a global context object where all
+      // type annotations have a unique id.  The question then becomes:
+      // how does unifyCon() look up this new object and know to update
+      // it?
+
+      // substitue the type args in place so that this type can still
+      // be widened by a subsequent call to unify()
+      type.typeArgs = type.typeArgs.map((a) => substitute(sub, a));
+
+      // Something we could try out, using the substitution mechanism
+      // to substitute a TCon with a widened version of it.  In order
+      // to make this possible, we'd need to give all types ids.
+      // This would avoid spooky action at a distance.
+
+      return type;
     case "TRec":
+      // TODO: don't create a new TRec, instead mutate properties in place
+      // in order to support widening
       return build.tRec(
         ...type.properties.map((p) =>
           build.tProp(p.name, substitute(sub, p.type), p.optional)
         )
       );
     case "TTuple":
+      // TODO: don't create a new TTuple, instead mutate properties in place
+      // in order to support widening
       return build.tTuple(...type.types.map((e) => substitute(sub, e)));
     case "TUnion":
+      // TODO: don't create a new TUnion, instead mutate properties in place
+      // in order to support widening
       return build.tUnion(...type.types.map((e) => substitute(sub, e)));
   }
 };
