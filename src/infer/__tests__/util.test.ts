@@ -371,7 +371,7 @@ describe("isSubtypeOf", () => {
       expect(result).toBe(true);
     });
 
-    test.only("each elem is a subtype", () => {
+    test("each elem is a subtype", () => {
       // [5, "hello"] is a subtype of [number, string]
       const t1 = b.tTuple(b.tNum(5), b.tStr("hello"));
       const t2 = b.tTuple(builtins.tNumber(), builtins.tString());
@@ -595,8 +595,7 @@ describe("flatten", () => {
     expect(print(result)).toEqual("a | b | c | d");
   });
 
-  // TODO: flatten needs to be updated to handle duplicates in the union
-  test.skip("(a | b) | (b | c) -> a | b | c", () => {
+  test("(a | b) | (b | c) -> a | b | c", () => {
     const at = b.tVar();
     const bt = b.tVar();
     const ct = b.tVar();

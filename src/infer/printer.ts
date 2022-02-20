@@ -14,7 +14,6 @@ export const print = (
   let nextName: string = String.fromCharCode(nextNameCharCode);
 
   const _print = (t: Type): string => {
-    t = t.widened || t;
     switch (t.t) {
       case "TLit": {
         const l = t.literal;

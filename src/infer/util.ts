@@ -17,14 +17,22 @@ export const flatten = (union: t.TUnion): t.Type => {
   // TODO: remove duplicates
   // TODO: rewrite this using immutable.js so we're not so memory inefficient
   const uniqueTypes: t.Type[] = [];
-  types.forEach((t, i) => {
-    const remainingTypes = [...types.slice(0, i), ...types.slice(i + 1)];
+  for (const type of types) {
+    if (!uniqueTypes.some(uniqueType => equal(uniqueType, type))) {
+      uniqueTypes.push(type);
+    }
+  }
+
+  const mergedTypes: t.Type[] = [];
+  uniqueTypes.forEach((t, i) => {
+    const remainingTypes = [...uniqueTypes.slice(0, i), ...uniqueTypes.slice(i + 1)];
     if (!remainingTypes.some((rt) => isSubtypeOf(t, rt))) {
-      uniqueTypes.push(t);
+      mergedTypes.push(t);
     }
   });
+ 
   // TODO: assert uniqueTypes.length > 0
-  return uniqueTypes.length === 1 ? uniqueTypes[0] : b.tUnion(...uniqueTypes);
+  return mergedTypes.length === 1 ? mergedTypes[0] : b.tUnion(...mergedTypes);
 };
 
 // TODO: How do report errors if we wrap types like this to do comparisons?

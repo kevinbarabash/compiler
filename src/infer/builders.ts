@@ -14,7 +14,7 @@ const lStr = (value: string): t.LStr => {
 };
 
 const tLit = (literal: t.Literal): t.TLiteral => {
-  return { t: "TLit", literal };
+  return { t: "TLit", id: getId(), literal };
 };
 
 export const tBool = (value: boolean): t.TLiteral => {
@@ -37,18 +37,18 @@ export const tCon = (
   name: string,
   typeArgs: readonly t.Type[] = []
 ): t.TCon => {
-  return { t: "TCon", name, typeArgs };
+  return { t: "TCon", id: getId(), name, typeArgs };
 };
 
 export const tFun = (
   paramTypes: readonly t.TParam[],
   retType: t.Type
 ): t.TFun => {
-  return { t: "TFun", paramTypes, retType };
+  return { t: "TFun", id: getId(), paramTypes, retType };
 };
 
 export const tRec = (...properties: readonly t.TProp[]): t.TRec => {
-  return { t: "TRec", properties };
+  return { t: "TRec", id: getId(), properties };
 };
 
 export const tProp = (
@@ -56,7 +56,7 @@ export const tProp = (
   type: t.Type,
   optional = false // TODO: make this an enum instead
 ): t.TProp => {
-  return { t: "TProp", name, type, optional };
+  return { t: "TProp", id: getId(), name, type, optional };
 };
 
 export const tParam = (
@@ -64,13 +64,13 @@ export const tParam = (
   type: t.Type,
   optional = false
 ): t.TParam => {
-  return { t: "TParam", name, type, optional };
+  return { t: "TParam", id: getId(), name, type, optional };
 };
 
 export const tTuple = (...types: readonly t.Type[]): t.TTuple => {
-  return { t: "TTuple", types };
+  return { t: "TTuple", id: getId(), types };
 };
 
 export const tUnion = (...types: readonly t.Type[]): t.TUnion => {
-  return { t: "TUnion", types };
+  return { t: "TUnion", id: getId(), types };
 };

@@ -2,22 +2,8 @@ import * as build from "./builders";
 import * as t from "./types";
 import { zip, getParamType, getPropType, isSubtypeOf } from "./util";
 import { print } from "./printer";
-import { clone, equal, flatten } from "./util";
-
-const printConstraints = (constraints: Constraint[]) => {
-  const varNames = {};
-  const message = constraints.map(([left, right]) => {
-    return `${print(left, varNames, true)} ≡ ${print(right, varNames, true)}`
-  }).join("\n");
-  console.log(message);
-}
-
-// TODO: replace Constraint w/ Constr
-// TODO: use .relation to implement subtyping
-type Constr = {
-  types: [t.Type, t.Type],
-  relation: null | "param,arg" | "arg,param",
-};
+import { equal, flatten, clone } from "./util";
+import { getId } from "./core";
 
 export type Constraint = [t.Type, t.Type];
 export type Subst = [number, t.Type]; // [id, type]
@@ -44,24 +30,13 @@ export const unify = (constraints: Constraint[]): Subst[] => {
 // types passed to unify_one must already be applied.
 const unifyTypes = (a: t.Type, b: t.Type): Subst[] => {
   if (a.t === "TVar") {
-    if (!equal(a, b)) {
-      // TODO: add occurs in check?
-      if (b.t === "TVar") {
-        // Is it safe to just ignore situations where both a and b are TVars?
-        // TODO: copy test cases from hindley-milner directories to ensure that
-        // things are working as expected
-        if (process.env.DEBUG) {
-          console.log("setting one type variable to another");
-          console.log(`a = ${print(a, {}, true)}, b = ${print(b, {}, true)}`);
-        }
-        return [[a.id, b]];
-      } else {
-        return [[a.id, b]];
-      }
+    if (equal(a, b)) {
+      return [];
     }
-    return [];
+    // TODO: add occurs in check?
+    return [[a.id, b]];
   } else if (b.t === "TVar") {
-    return [[b.id, a]]
+    return [[b.id, a]];
   } else if (a.t === "TLit" && b.t === "TLit") {
     return unifyLiteral(a, b);
   } else if (a.t === "TFun" && b.t === "TFun") {
@@ -95,60 +70,53 @@ const unifyTypes = (a: t.Type, b: t.Type): Subst[] => {
     }
 
     if (!a.frozen && !b.frozen) {
-      // We have to clone the types we're adding to the union
-      // to avoid having a recursive data structure
-      const union = flatten(build.tUnion(clone(a), clone(b)));
-      a.widened = union;
-      b.widened = union;
-      return [];
+      const union = flatten(build.tUnion(a, b));
+      return [
+        [a.id, union],
+        [b.id, union],
+      ];
     }
 
     throw new Error(`mismatched types: ${a.t} != ${b.t}`);
   }
 };
 
+const widen = (a: t.Type, b: t.Type): Subst[] => {
+  // We have to give the types in the union different ids then
+  // the types the union is replacing otherwise we'll end up with
+  // a | b expanded to a | a | b.
+  const aClone = clone(a);
+  aClone.id = getId();
+  const bClone = clone(b);
+  bClone.id = getId();
+  const union = flatten(build.tUnion(aClone, bClone));
+  return [
+    [a.id, union],
+    [b.id, union],
+  ];
+};
+
 const unifyLiteral = (a: t.TLiteral, b: t.TLiteral): Subst[] => {
+  if (equal(a, b)) {
+    return [];
+  }
+
+  if (!a.frozen && !b.frozen) {
+    return widen(a, b);
+  }
+
   const aLit = a.literal;
   const bLit = b.literal;
-  // Right now a Substitution maps a type variable to a type,
-  // but in the future we could also map a type literal to a
-  // widened type, e.g. 5 -> 5 | 10, 10 -> 5 | 10
-  if (aLit.t === "LBool" && bLit.t === "LBool") {
-    return [];
-  } else if (aLit.t === "LNum" && bLit.t === "LNum") {
-    if (aLit.value !== bLit.value && !a.frozen && !b.frozen) {
-      // TODO: why does widening work for literals, but not for
-      // type constructors?  Maybe it's because we're passing variables
-      // and not literals
-      // We have to clone the types we're adding to the union
-      // to avoid having a recursive data structure
-      const union = flatten(build.tUnion(clone(a), clone(b)));
-      a.widened = union;
-      b.widened = union;
-      // TODO: I think we should be able to widen any type using
-      // this approach as long as the type isn't frozen.
-    }
-    return [];
-  } else if (aLit.t === "LStr" && bLit.t === "LStr") {
-    return [];
-  }
-  
-  if (!a.frozen && !b.frozen) {
-    // We have to clone the types we're adding to the union
-    // to avoid having a recursive data structure
-    const union = flatten(build.tUnion(clone(a), clone(b)));
-    a.widened = union;
-    b.widened = union;
-    return [];
-  }
 
   throw new Error(`${aLit.t} != ${bLit.t}`);
-}
+};
 
+// TODO: function subtyping
+// TODO: optional/default params
 const unifyFun = (a: t.TFun, b: t.TFun): Subst[] => {
   // assume that type generator has already done the appropriate
   // subtyping and partial application checks
-  // WARNING: `getParamType` can return a copy of the original type if 
+  // WARNING: `getParamType` can return a copy of the original type if
   // it has to make it optional.  How do we deal with this?
   const aParamTypes = a.paramTypes.map(getParamType);
   const bParamTypes = b.paramTypes.map(getParamType);
@@ -158,35 +126,30 @@ const unifyFun = (a: t.TFun, b: t.TFun): Subst[] => {
     [a.retType, b.retType],
   ];
 
-  if (!a.frozen && !b.frozen) {
-    // TODO: pass in copies of the param types with the frozen-ness removed
-    // then update the param types of each function to be copies.
-  }
-
   const result = unify(constraints);
 
   return result;
-}
+};
 
 const unifyCon = (a: t.TCon, b: t.TCon): Subst[] => {
   if (a.name !== b.name) {
     if (!a.frozen && !b.frozen) {
-      // We have to clone the types we're adding to the union
-      // to avoid having a recursive data structure
-      const union = flatten(build.tUnion(clone(a), clone(b)));
-      a.widened = union;
-      b.widened = union;
-      return [];
+      return widen(a, b);
     }
     throw new Error(`type constructor mismatch: ${a.name} != ${b.name}`);
   }
+
   if (a.typeArgs.length !== b.typeArgs.length) {
+    // TODO: support this via option/default type args
     throw new Error("type constructors have different number of type args");
   }
 
+  // TODO: don't bother calling unify if there are no type args
   return unify(zip(a.typeArgs, b.typeArgs));
-}
+};
 
+// TODO: subtyping
+// TODO: optional properties
 const unifyRec = (a: t.TRec, b: t.TRec): Subst[] => {
   const constraints: Constraint[] = [];
 
@@ -202,15 +165,16 @@ const unifyRec = (a: t.TRec, b: t.TRec): Subst[] => {
   });
 
   return unify(constraints);
-}
+};
 
 const unifyTuple = (a: t.TTuple, b: t.TTuple): Subst[] => {
   if (a.types.length !== b.types.length) {
+    
     throw new Error("tuple types have different numbers of elements");
   }
 
   return unify(zip(a.types, b.types));
-}
+};
 
 const unifyUnion = (a: t.TUnion, b: t.TUnion): Subst[] => {
   // How do we unify a union of types?
@@ -232,84 +196,77 @@ const unifyUnion = (a: t.TUnion, b: t.TUnion): Subst[] => {
   return [];
 };
 
-// TODO: how does widening interact with substitution?
 // TODO: add a check to avoid recursive unification and add a test for it
 const substitute = (sub: Subst, type: t.Type): t.Type => {
   switch (type.t) {
     case "TLit":
-      // If type literals had ids as well, we could also do substitutions
-      // of them (and all other types) the same way we do for TVar.
-      // If we ever need the original type, we could create a linked, list
-      // backwards in time across applied substitutions.
-      return type;
+      return type.id === sub[0] ? sub[1] : type;
     case "TVar":
       return type.id === sub[0] ? sub[1] : type;
-    // Subtyping:
-    // If we tag TFun's as either calls or definitions, we can use that to determine
-    // the direction of subtyping when unifying a call with its definition.
-
-    // return a new type where each instance of the type variable sol[0] has
-    // been replaced with type sol[1]
-    case "TFun":
-      // @ts-expect-error
-      if (type.foobar === "newFuncType") {
-        console.log("newFuncType");
-        console.log(JSON.stringify(sub, null, 2));
+    case "TFun": {
+      if (type.id === sub[0]) {
+        return sub[1];
       }
-      return build.tFun(
+      // TODO: check if there's actually anything to subtitute
+      const result = build.tFun(
         type.paramTypes.map((p) => {
-          // TODO: check if there's actually anything to subtitute
           return build.tParam(p.name, substitute(sub, p.type), p.optional);
         }),
         substitute(sub, type.retType)
       );
-    case "TCon":
-      // console.log(`building a TCon with name ${type.name}`);
-      // const result = build.tCon(
-      //   type.name,
-      //   type.typeArgs.map((a) => substitute(sub, a))
-      // );
-      // if (type.frozen) {
-      //   result.frozen = type.frozen;
-      // }
-      // if (type.widened) {
-      //   result.widened = type.widened;
-      // }
-
-      // If we return the original type, then unifyCon() can update it
-      // later.  If we create a new instance of tCon() here then that
-      // connection is broken.  We could try maintaining the connection
-      // by other means, i.e. having a global context object where all
-      // type annotations have a unique id.  The question then becomes:
-      // how does unifyCon() look up this new object and know to update
-      // it?
-
-      // substitue the type args in place so that this type can still
-      // be widened by a subsequent call to unify()
-      type.typeArgs = type.typeArgs.map((a) => substitute(sub, a));
-
-      // Something we could try out, using the substitution mechanism
-      // to substitute a TCon with a widened version of it.  In order
-      // to make this possible, we'd need to give all types ids.
-      // This would avoid spooky action at a distance.
-
-      return type;
-    case "TRec":
-      // TODO: don't create a new TRec, instead mutate properties in place
-      // in order to support widening
-      return build.tRec(
+      result.id = type.id;
+      result.frozen = type.frozen;
+      return result;
+    }
+    case "TCon": {
+      if (type.id === sub[0]) {
+        return sub[1];
+      } else {
+        // TODO: check if there's actually anything to subtitute
+        const result = build.tCon(
+          type.name,
+          type.typeArgs.map((a) => substitute(sub, a))
+        );
+        result.id = type.id;
+        result.frozen = type.frozen;
+        return result;
+      }
+    }
+    case "TRec": {
+      if (type.id === sub[0]) {
+        return sub[1];
+      }
+      const result = build.tRec(
         ...type.properties.map((p) =>
           build.tProp(p.name, substitute(sub, p.type), p.optional)
         )
       );
-    case "TTuple":
-      // TODO: don't create a new TTuple, instead mutate properties in place
-      // in order to support widening
-      return build.tTuple(...type.types.map((e) => substitute(sub, e)));
-    case "TUnion":
-      // TODO: don't create a new TUnion, instead mutate properties in place
-      // in order to support widening
-      return build.tUnion(...type.types.map((e) => substitute(sub, e)));
+      result.id = type.id;
+      result.frozen = type.frozen;
+      return result;
+    }
+    case "TTuple": {
+      if (type.id === sub[0]) {
+        return sub[1];
+      } 
+      const result = build.tTuple(
+        ...type.types.map((e) => substitute(sub, e))
+      );
+      result.id = type.id;
+      result.frozen = type.frozen;
+      return result;
+    }
+    case "TUnion": {
+      if (type.id === sub[0]) {
+        return sub[1];
+      }
+      const result = build.tUnion(
+        ...type.types.map((e) => substitute(sub, e))
+      );
+      result.id = type.id;
+      result.frozen = type.frozen;
+      return result;
+    }
   }
 };
 

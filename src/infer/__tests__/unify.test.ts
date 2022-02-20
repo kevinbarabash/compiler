@@ -2,6 +2,7 @@ import * as b from "../builders";
 import * as builtins from "../builtins";
 import { print } from "../printer";
 import { applySubst, unify, Constraint, Subst } from "../unify";
+import * as core from "../core";
 
 const printSubstitutions = (subs: Subst[]): string[] => {
   const varNames = {};
@@ -13,6 +14,11 @@ const printSubstitutions = (subs: Subst[]): string[] => {
 };
 
 describe("unify", () => {
+  beforeEach(() => {
+    let id = 0;
+    jest.spyOn(core, "getId").mockImplementation(() => id++);
+  });
+
   test("simple example", () => {
     const t0 = b.tVar(); // ignore this, we create it so that the ids line up
 
