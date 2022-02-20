@@ -35,8 +35,8 @@ export type LStr = {
 export type Literal = LBool | LNum | LStr;
 
 type TCommon = {
-  frozen?: boolean, // if true, can unify with non-frozen sub-types
-  widened?: Type, // if set, unifyTypes should use this instead
+  id: number;
+  frozen?: boolean; // if true, can unify with non-frozen sub-types
 };
 
 export type TLiteral = TCommon & {
@@ -48,7 +48,6 @@ export type TLiteral = TCommon & {
 // TODO: constraints on type variables
 export type TVar = TCommon & {
   t: "TVar";
-  id: number;
 };
 
 // TODO: default + optional type args

@@ -4,6 +4,7 @@ import { annotate, collect } from "../analyze";
 import { unify, applySubst, Subst } from "../unify";
 import * as t from "../types";
 import { print } from "../printer";
+import * as core from "../core";
 
 const printSubstitutions = (subs: Subst[]): string[] => {
   const varNames = {};
@@ -15,6 +16,11 @@ const printSubstitutions = (subs: Subst[]): string[] => {
 };
 
 describe("annotate", () => {
+  beforeEach(() => {
+    let id = 0;
+    jest.spyOn(core, "getId").mockImplementation(() => id++);
+  });
+
   test("let f = (x) => x in f(5)", () => {
     const ast: Expr = {
       tag: "Let",
@@ -36,7 +42,13 @@ describe("annotate", () => {
     const constraints = collect(annotatedAst);
     const substitutions = unify(constraints);
     const result = printSubstitutions(substitutions);
-    expect(result).toEqual(["t1 ≡ (x: 5) => 5", "t0 ≡ 5", "t2 ≡ 5"]);
+    expect(result).toMatchInlineSnapshot(`
+Array [
+  "t3 ≡ (x: 5) => 5",
+  "t0 ≡ 5",
+  "t5 ≡ 5",
+]
+`);
   });
 
   test("((x) => x)(5)", () => {
@@ -55,6 +67,10 @@ describe("annotate", () => {
     const constraints = collect(annotatedAst);
     const substitutions = unify(constraints);
     const result = printSubstitutions(substitutions);
-    expect(result).toEqual(["t3 ≡ 5"]);
+    expect(result).toMatchInlineSnapshot(`
+Array [
+  "t0 ≡ 5",
+]
+`);
   });
 });
