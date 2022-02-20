@@ -558,6 +558,12 @@ describe("isSubtypeOf", () => {
       expect(isSubtypeOf(c1, c2)).toBe(false);
     });
   });
+
+  describe("union type", () => {
+    test.todo("union of number literals is subtype of number");
+    test.todo("union of string literals is subtype of string");
+    test.todo("union of function types is subtype is subtype of function if each element type is a subtype of the function");
+  });
 });
 
 describe("flatten", () => {
