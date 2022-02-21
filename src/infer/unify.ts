@@ -165,7 +165,6 @@ const unifyRec = (a: t.TRec, b: t.TRec): Subst[] => {
 
 const unifyTuple = (a: t.TTuple, b: t.TTuple): Subst[] => {
   if (a.types.length !== b.types.length) {
-    
     throw new Error("tuple types have different numbers of elements");
   }
 
@@ -244,10 +243,8 @@ const substitute = (sub: Subst, type: t.Type): t.Type => {
     case "TTuple": {
       if (type.id === sub[0]) {
         return sub[1];
-      } 
-      const result = build.tTuple(
-        ...type.types.map((e) => substitute(sub, e))
-      );
+      }
+      const result = build.tTuple(...type.types.map((e) => substitute(sub, e)));
       result.id = type.id;
       result.frozen = type.frozen;
       return result;
@@ -256,9 +253,7 @@ const substitute = (sub: Subst, type: t.Type): t.Type => {
       if (type.id === sub[0]) {
         return sub[1];
       }
-      const result = build.tUnion(
-        ...type.types.map((e) => substitute(sub, e))
-      );
+      const result = build.tUnion(...type.types.map((e) => substitute(sub, e)));
       result.id = type.id;
       result.frozen = type.frozen;
       return result;
