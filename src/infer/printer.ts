@@ -51,7 +51,9 @@ export const print = (
             ? `${name}?: ${_print(p.type)}`
             : `${name}: ${_print(p.type)}`;
         });
-        const retType = _print(t.retType);
+        const retType = t.retType.t === "TFun"
+          ? `(${_print(t.retType)})`
+          : _print(t.retType);
         return `(${paramTypes.join(", ")}) => ${retType}`;
       }
       case "TRec": {

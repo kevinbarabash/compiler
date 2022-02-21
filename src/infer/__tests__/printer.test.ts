@@ -70,7 +70,7 @@ describe("print", () => {
         [b.tParam("", b.tVar())],
         b.tFun([b.tParam("", b.tVar())], b.tVar())
       );
-      expect(print(ast)).toEqual("(arg0: a) => (arg0: b) => c");
+      expect(print(ast)).toEqual("(arg0: a) => ((arg0: b) => c)");
     });
   });
 
