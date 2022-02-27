@@ -4,7 +4,7 @@ export type Expr =
   | { tag: "Lam"; arg: string; body: Expr }
   | { tag: "Let"; name: string; value: Expr; body: Expr }
   | { tag: "Lit"; value: Lit }
-  | { tag: "If"; cond: Expr; then: Expr; else: Expr }
+  | { tag: "If"; cond: Expr; th: Expr; el: Expr }
   | { tag: "Fix"; expr: Expr }
   | { tag: "Op"; op: Binop; left: Expr; right: Expr };
 

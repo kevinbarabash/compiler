@@ -19,9 +19,8 @@ import {
   equal,
   tInt,
   tBool,
-  print,
 } from "./type";
-import { Expr } from "./syntax";
+import { Binop, Expr } from "./syntax";
 
 const isTCon = (t: any): t is TCon => t.tag === "TCon";
 const isTVar = (t: any): t is TVar => t.tag === "TVar";
@@ -132,21 +131,21 @@ const emptyEnv: Env = Map();
 export const inferExpr = (env: Env, expr: Expr): Scheme => {
   const initCtx: Context = {
     env: env,
-    state: {count: 0},
+    state: { count: 0 },
   };
   const [ty, cs] = infer(expr, initCtx);
   const subs = runSolve(cs);
   return closeOver(apply(subs, ty));
-}
+};
 
 //  Return the internal constraints used in solving for the type of an expression
 export const constraintsExpr = (
   env: Env,
-  expr: Expr,
+  expr: Expr
 ): [Constraint[], Subst, Type, Scheme] => {
   const initCtx: Context = {
     env: env,
-    state: {count: 0},
+    state: { count: 0 },
   };
   const [ty, cs] = infer(expr, initCtx);
   const subst = runSolve(cs);
@@ -159,14 +158,6 @@ const closeOver = (t: Type): Scheme => {
   return normalize(generalize(emptyEnv, t));
 };
 
-const generalize = (env: Env, t: Type): Scheme => {
-  return {
-    tag: "Forall",
-    qualifiers: ftv(t).subtract(ftv(env)).toArray(),
-    type: t,
-  };
-};
-
 const lookup = (a: TVar, entries: [TVar, TVar][]): TVar | null => {
   for (const [k, v] of entries) {
     // TODO: replace with IDs and generate names when printin
@@ -175,7 +166,7 @@ const lookup = (a: TVar, entries: [TVar, TVar][]): TVar | null => {
     }
   }
   return null;
-}
+};
 
 function fst<A, B>(tuple: [A, B]): A {
   return tuple[0];
@@ -186,8 +177,8 @@ function snd<A, B>(tuple: [A, B]): B {
 
 // remove duplicates from the array
 function nub(array: TVar[]): TVar[] {
-  const names: string[] = []
-  return array.filter(tv => {
+  const names: string[] = [];
+  return array.filter((tv) => {
     if (!names.includes(tv.name)) {
       names.push(tv.name);
       return true;
@@ -201,43 +192,47 @@ const normalize = (sc: Scheme): Scheme => {
   // Returns the names of the free variables in a type
   const fv = (type: Type): TVar[] => {
     switch (type.tag) {
-      case "TVar": return [type];
+      case "TVar":
+        return [type];
       // TODO: extend to handle n-ary lambdas
-      case "TArr": return [...fv(type.arg), ...fv(type.ret)];
-      case "TCon": return [];
+      case "TArr":
+        return [...fv(type.arg), ...fv(type.ret)];
+      case "TCon":
+        return [];
     }
-  }
+  };
 
   const body = sc.type;
   const ord = zip(
     nub(fv(body)),
-    letters.map(name => ({tag:"TVar", name} as TVar)),
+    letters.map((name) => ({ tag: "TVar", name } as TVar))
   );
 
   const normType = (type: Type): Type => {
     switch (type.tag) {
       case "TArr": {
         // TODO: extend to handle n-ary lambdas
-        const {arg, ret} = type;
-        return {tag: "TArr", arg: normType(arg), ret: normType(ret)};
+        const { arg, ret } = type;
+        return { tag: "TArr", arg: normType(arg), ret: normType(ret) };
       }
-      case "TCon": return type;
+      case "TCon":
+        return type;
       case "TVar": {
         const replacement = lookup(type, ord);
         if (replacement) {
           return replacement;
         } else {
-          throw new Error("type variable not in signature")
+          throw new Error("type variable not in signature");
         }
       }
     }
-  }
+  };
 
   return {
     tag: "Forall",
     qualifiers: ord.map(snd),
     type: normType(body),
-  }
+  };
 };
 
 // // Extend type environment
@@ -309,8 +304,50 @@ const fresh = (ctx: Context): Type => {
 
 const instantiate = (sc: Scheme, ctx: Context): Type => {
   const freshQualifiers = sc.qualifiers.map(() => fresh(ctx));
-  const subs = Map(zip(sc.qualifiers.map(qual => qual.name), freshQualifiers));
+  const subs = Map(
+    zip(
+      sc.qualifiers.map((qual) => qual.name),
+      freshQualifiers
+    )
+  );
   return apply(subs, sc.type);
+};
+
+const generalize = (env: Env, t: Type): Scheme => {
+  return {
+    tag: "Forall",
+    qualifiers: ftv(t).subtract(ftv(env)).toArray(),
+    type: t,
+  };
+};
+
+const ops = (op: Binop): Type => {
+  switch (op) {
+    case "Add":
+      return {
+        tag: "TArr",
+        arg: tInt,
+        ret: { tag: "TArr", arg: tInt, ret: tInt },
+      };
+    case "Mul":
+      return {
+        tag: "TArr",
+        arg: tInt,
+        ret: { tag: "TArr", arg: tInt, ret: tInt },
+      };
+    case "Sub":
+      return {
+        tag: "TArr",
+        arg: tInt,
+        ret: { tag: "TArr", arg: tInt, ret: tInt },
+      };
+    case "Eql":
+      return {
+        tag: "TArr",
+        arg: tInt,
+        ret: { tag: "TArr", arg: tInt, ret: tBool },
+      };
+  }
 };
 
 const infer = (expr: Expr, ctx: Context): [Type, Constraint[]] => {
@@ -380,11 +417,28 @@ const infer = (expr: Expr, ctx: Context): [Type, Constraint[]] => {
       return [tv, [...c1, [{ tag: "TArr", arg: tv, ret: tv }, t1]]];
     }
 
-    case "Op":
-      throw new Error("TODO: handle Op");
+    case "Op": {
+      const { op, left, right } = expr;
+      const [lt, lc] = infer(left, ctx);
+      const [rt, rc] = infer(right, ctx);
+      const tv = fresh(ctx);
+      const u1: Type = {
+        tag: "TArr",
+        arg: lt,
+        ret: { tag: "TArr", arg: rt, ret: tv },
+      };
+      const u2 = ops(op);
+      return [tv, [...lc, ...rc, [u1, u2]]];
+    }
 
-    case "If":
-      throw new Error("TODO: handle If");
+    case "If": {
+      const {cond, th, el} = expr;
+      const [t1, c1] = infer(cond, ctx);
+      const [t2, c2] = infer(th, ctx);
+      const [t3, c3] = infer(el, ctx);
+      // This is similar how we'll handle n-ary apply
+      return [t2, [...c1, ...c2, ...c3, [t1, tBool], [t2, t3]]];
+    }
   }
 };
 
@@ -427,8 +481,8 @@ const unifies = (t1: Type, t2: Type): Subst => {
 };
 
 const composeSubs = (s1: Subst, s2: Subst): Subst => {
-  return s2.map(t => apply(s1, t)).merge(s1);
-}
+  return s2.map((t) => apply(s1, t)).merge(s1);
+};
 
 // Unification solver
 const solver = (u: Unifier): Subst => {
