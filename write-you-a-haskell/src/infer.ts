@@ -10,7 +10,7 @@ import {
   Type,
   TVar,
   Scheme,
-  TArr,
+  TApp,
   TCon,
   Subst,
   Env,
@@ -22,9 +22,15 @@ import {
 } from "./type";
 import { Binop, Expr } from "./syntax";
 
+const scheme = (qualifiers: TVar[], type: Type): Scheme => ({
+  tag: "Forall",
+  qualifiers,
+  type,
+});
+
 const isTCon = (t: any): t is TCon => t.tag === "TCon";
 const isTVar = (t: any): t is TVar => t.tag === "TVar";
-const isTArr = (t: any): t is TArr => t.tag === "TArr";
+const isTApp = (t: any): t is TApp => t.tag === "TApp";
 const isScheme = (t: any): t is Scheme => t.tag === "Forall";
 
 function apply(s: Subst, type: Type): Type;
@@ -42,9 +48,9 @@ function apply(s: Subst, a: any): any {
   if (isTVar(a)) {
     return s.get(a.name) || a;
   }
-  if (isTArr(a)) {
+  if (isTApp(a)) {
     return {
-      tag: "TArr",
+      tag: "TApp",
       arg: apply(s, a.arg),
       ret: apply(s, a.ret),
     };
@@ -52,17 +58,16 @@ function apply(s: Subst, a: any): any {
 
   // instance Substitutable Scheme
   if (isScheme(a)) {
-    return {
-      tag: "Forall",
-      qualifiers: a.qualifiers,
-      type: apply(
+    return scheme(
+      a.qualifiers,
+      apply(
         // remove all TVars from the Substitution mapping that appear in the scheme as
         // qualifiers.
         // TODO: should this be using reduceRight to match Infer.hs' use of foldr?
-        a.qualifiers.reduce((accum, val) => accum.delete(val.name), s),
+        a.qualifiers.reduceRight((accum, val) => accum.delete(val.name), s),
         a.type
-      ),
-    };
+      )
+    );
   }
 
   // instance Substitutable Constraint
@@ -93,7 +98,7 @@ function ftv(a: any): any {
   if (isTVar(a)) {
     return Set([a]); // Set.singleton a
   }
-  if (isTArr(a)) {
+  if (isTApp(a)) {
     return Set.union([ftv(a.arg), ftv(a.ret)]); // ftv t1 `Set.union` ftv t2
   }
 
@@ -195,7 +200,7 @@ const normalize = (sc: Scheme): Scheme => {
       case "TVar":
         return [type];
       // TODO: extend to handle n-ary lambdas
-      case "TArr":
+      case "TApp":
         return [...fv(type.arg), ...fv(type.ret)];
       case "TCon":
         return [];
@@ -210,10 +215,10 @@ const normalize = (sc: Scheme): Scheme => {
 
   const normType = (type: Type): Type => {
     switch (type.tag) {
-      case "TArr": {
+      case "TApp": {
         // TODO: extend to handle n-ary lambdas
         const { arg, ret } = type;
-        return { tag: "TArr", arg: normType(arg), ret: normType(ret) };
+        return { tag: "TApp", arg: normType(arg), ret: normType(ret) };
       }
       case "TCon":
         return type;
@@ -228,28 +233,16 @@ const normalize = (sc: Scheme): Scheme => {
     }
   };
 
-  return {
-    tag: "Forall",
-    qualifiers: ord.map(snd),
-    type: normType(body),
-  };
+  return scheme(ord.map(snd), normType(body));
 };
-
-// // Extend type environment
-// // From the usage in Infer.hs, it looks like this executes some code using the
-// // new Context, in particular we run infer with a new Context object
-// const inEnv = (x: string, sc: Scheme, ctx: Context): [Type, Constraint[]] => {
-//   // let scope e = (remove e x) `extend` (x, sc)
-//   // local scope m
-//   // TODO: how do we make this change to env local?
-//   // TODO: it looks like `x` gets remove from the current (local?) environment
-//   ctx.env = ctx.env.set(x, sc);
-// };
 
 // Lookup type in the environment
 const lookupEnv = (name: string, ctx: Context): Type => {
   const value = ctx.env.get(name);
   if (!value) {
+    // TODO: keep track of all unbound variables in a decl
+    // we can return `unknown` as the type so that unifcation
+    // can continue.
     throw new UnboundVariable(name);
   }
   return instantiate(value, ctx);
@@ -313,39 +306,35 @@ const instantiate = (sc: Scheme, ctx: Context): Type => {
   return apply(subs, sc.type);
 };
 
-const generalize = (env: Env, t: Type): Scheme => {
-  return {
-    tag: "Forall",
-    qualifiers: ftv(t).subtract(ftv(env)).toArray(),
-    type: t,
-  };
+const generalize = (env: Env, type: Type): Scheme => {
+  return scheme(ftv(type).subtract(ftv(env)).toArray(), type);
 };
 
 const ops = (op: Binop): Type => {
   switch (op) {
     case "Add":
       return {
-        tag: "TArr",
+        tag: "TApp",
         arg: tInt,
-        ret: { tag: "TArr", arg: tInt, ret: tInt },
+        ret: { tag: "TApp", arg: tInt, ret: tInt },
       };
     case "Mul":
       return {
-        tag: "TArr",
+        tag: "TApp",
         arg: tInt,
-        ret: { tag: "TArr", arg: tInt, ret: tInt },
+        ret: { tag: "TApp", arg: tInt, ret: tInt },
       };
     case "Sub":
       return {
-        tag: "TArr",
+        tag: "TApp",
         arg: tInt,
-        ret: { tag: "TArr", arg: tInt, ret: tInt },
+        ret: { tag: "TApp", arg: tInt, ret: tInt },
       };
     case "Eql":
       return {
-        tag: "TArr",
+        tag: "TApp",
         arg: tInt,
-        ret: { tag: "TArr", arg: tInt, ret: tBool },
+        ret: { tag: "TApp", arg: tInt, ret: tBool },
       };
   }
 };
@@ -370,14 +359,11 @@ const infer = (expr: Expr, ctx: Context): [Type, Constraint[]] => {
     case "Lam": {
       const { arg, body } = expr;
       const tv = fresh(ctx);
-      const sc: Scheme = { tag: "Forall", qualifiers: [], type: tv };
-      // What happens with ctx.count?  Is there overlap between variable
-      // names in different contexts?
-      // TODO: just use unique IDs for type vars
-      const newCtx = { ...ctx, env: ctx.env.set(arg, sc) }; // inEnv (x, Forall [] tv)
+      // inEnv (x, Forall [] tv)
       // newCtx introduces a new scope
+      const newCtx = { ...ctx, env: ctx.env.set(arg, scheme([], tv)) };
       const [t, c] = infer(body, newCtx);
-      return [{ tag: "TArr", arg: tv, ret: t }, c];
+      return [{ tag: "TApp", arg: tv, ret: t }, c];
     }
 
     case "App": {
@@ -391,7 +377,7 @@ const infer = (expr: Expr, ctx: Context): [Type, Constraint[]] => {
           ...c_fn,
           ...c_arg,
           // This is almost the reverse of what we return from the "Lam" case
-          [t_fn, { tag: "TArr", arg: t_arg, ret: tv }],
+          [t_fn, { tag: "TApp", arg: t_arg, ret: tv }],
         ],
       ];
     }
@@ -414,7 +400,7 @@ const infer = (expr: Expr, ctx: Context): [Type, Constraint[]] => {
       const { expr: e } = expr;
       let [t1, c1] = infer(e, ctx);
       const tv = fresh(ctx);
-      return [tv, [...c1, [{ tag: "TArr", arg: tv, ret: tv }, t1]]];
+      return [tv, [...c1, [{ tag: "TApp", arg: tv, ret: tv }, t1]]];
     }
 
     case "Op": {
@@ -423,16 +409,16 @@ const infer = (expr: Expr, ctx: Context): [Type, Constraint[]] => {
       const [rt, rc] = infer(right, ctx);
       const tv = fresh(ctx);
       const u1: Type = {
-        tag: "TArr",
+        tag: "TApp",
         arg: lt,
-        ret: { tag: "TArr", arg: rt, ret: tv },
+        ret: { tag: "TApp", arg: rt, ret: tv },
       };
       const u2 = ops(op);
       return [tv, [...lc, ...rc, [u1, u2]]];
     }
 
     case "If": {
-      const {cond, th, el} = expr;
+      const { cond, th, el } = expr;
       const [t1, c1] = infer(cond, ctx);
       const [t2, c2] = infer(th, ctx);
       const [t3, c3] = infer(el, ctx);
@@ -473,7 +459,7 @@ const unifies = (t1: Type, t2: Type): Subst => {
     return bind(t1, t2);
   } else if (isTVar(t2)) {
     return bind(t2, t1);
-  } else if (isTArr(t1) && isTArr(t2)) {
+  } else if (isTApp(t1) && isTApp(t2)) {
     return unifyMany([t1.arg, t1.ret], [t2.arg, t2.ret]);
   } else {
     throw new UnificationFail(t1, t2);
