@@ -1,7 +1,7 @@
 export type Expr =
   | { tag: "Var"; name: string }
-  | { tag: "App"; fn: Expr; arg: Expr } // TODO: make this n-ary
-  | { tag: "Lam"; arg: string; body: Expr }
+  | { tag: "App"; fn: Expr; args: Expr[] }
+  | { tag: "Lam"; args: string[]; body: Expr }
   | { tag: "Let"; name: string; value: Expr; body: Expr }
   | { tag: "Lit"; value: Lit }
   | { tag: "If"; cond: Expr; th: Expr; el: Expr }

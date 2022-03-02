@@ -6,7 +6,8 @@ import { Env, print } from "../type";
 
 type Binding = [string, Expr];
 
-const app = (fn: Expr, arg: Expr): Expr => ({ tag: "App", fn, arg });
+const app = (fn: Expr, arg: Expr): Expr => ({ tag: "App", fn, args: [arg] });
+const nary_app = (fn: Expr, args: Expr[]): Expr => ({ tag: "App", fn, args });
 const _if = (cond: Expr, th: Expr, el: Expr): Expr => ({
   tag: "If",
   cond,
@@ -14,7 +15,16 @@ const _if = (cond: Expr, th: Expr, el: Expr): Expr => ({
   el,
 });
 const fix = (expr: Expr): Expr => ({ tag: "Fix", expr });
-const lam = (arg: string, body: Expr): Expr => ({ tag: "Lam", arg, body });
+const lam = (arg: string, body: Expr): Expr => ({
+  tag: "Lam",
+  args: [arg],
+  body,
+});
+const nary_lam = (args: string[], body: Expr): Expr => ({
+  tag: "Lam",
+  args,
+  body,
+});
 const _let = (name: string, value: Expr, body: Expr): Expr => ({
   tag: "Let",
   name,
@@ -79,14 +89,14 @@ describe("inferExpr", () => {
       const env: Env = Map();
       const result = inferExpr(env, I[1]);
 
-      expect(print(result)).toEqual("forall a => a -> a");
+      expect(print(result, true)).toEqual("<a>(a) => a");
     });
 
     test("let K x y = x", () => {
       const env: Env = Map();
       const result = inferExpr(env, K[1]);
 
-      expect(print(result)).toEqual("forall a, b => a -> b -> a");
+      expect(print(result, true)).toEqual("<a, b>(a) => (b) => a");
     });
 
     test("let S f g x = f x (g x)", () => {
@@ -94,7 +104,7 @@ describe("inferExpr", () => {
       const result = inferExpr(env, S[1]);
 
       expect(print(result)).toEqual(
-        "forall a, b, c => (a -> b -> c) -> (a -> b) -> a -> c"
+        "<a, b, c>(a -> b -> c) -> (a -> b) -> a -> c"
       );
     });
 
@@ -111,7 +121,7 @@ describe("inferExpr", () => {
         throw new Error("skk is undefined");
       }
 
-      expect(print(result)).toEqual("forall a => a -> a");
+      expect(print(result)).toEqual("<a>a -> a");
     });
 
     test("Mu f = f (fix f)", () => {
@@ -120,7 +130,7 @@ describe("inferExpr", () => {
       const env: Env = Map();
       const result = inferExpr(env, Mu[1]);
 
-      expect(print(result)).toEqual("forall a => (a -> a) -> a");
+      expect(print(result)).toEqual("<a>(a -> a) -> a");
     });
   });
 
@@ -131,7 +141,7 @@ describe("inferExpr", () => {
       const env: Env = Map();
       const result = inferExpr(env, nsucc[1]);
 
-      expect(print(result)).toEqual("Int -> Int");
+      expect(print(result, true)).toEqual("(Int) => Int");
     });
 
     test("let npred x = x - 1", () => {
@@ -140,7 +150,7 @@ describe("inferExpr", () => {
       const env: Env = Map();
       const result = inferExpr(env, nsucc[1]);
 
-      expect(print(result)).toEqual("Int -> Int");
+      expect(print(result, true)).toEqual("(Int) => Int");
     });
   });
 
@@ -188,7 +198,7 @@ describe("inferExpr", () => {
       let env: Env = Map();
       const result = inferExpr(env, _const[1]);
 
-      expect(print(result)).toEqual("forall a, b => a -> b -> a");
+      expect(print(result)).toEqual("<a, b>a -> b -> a");
     });
 
     test("issue #82", () => {
@@ -243,9 +253,7 @@ describe("inferExpr", () => {
       let env: Env = Map();
       const result = inferExpr(env, compose[1]);
 
-      expect(print(result)).toEqual(
-        "forall a, b, c => (a -> b) -> (b -> c) -> a -> c"
-      );
+      expect(print(result)).toEqual("<a, b, c>(a -> b) -> (b -> c) -> a -> c");
     });
 
     test("let on g f = \\x y -> g (f x) (f y)", () => {
@@ -275,20 +283,20 @@ describe("inferExpr", () => {
       expect(print(result)).toEqual(
         // g: a -> a -> b
         // f: c -> a
-        "forall a, b, c => (a -> a -> b) -> (c -> a) -> c -> c -> b"
+        "<a, b, c>(a -> a -> b) -> (c -> a) -> c -> c -> b"
       );
     });
 
     test("let ap f x = f (f x);", () => {
       const ap: Binding = [
         "ap",
-        lam("f", lam("x", app(_var("f"), app(_var("f"), _var("x")))))
+        lam("f", lam("x", app(_var("f"), app(_var("f"), _var("x"))))),
       ];
 
       let env: Env = Map();
       const result = inferExpr(env, ap[1]);
 
-      expect(print(result)).toEqual("forall a => (a -> a) -> a -> a");
+      expect(print(result)).toEqual("<a>(a -> a) -> a -> a");
     });
 
     test("until", () => {
@@ -325,8 +333,40 @@ describe("inferExpr", () => {
       let env: Env = Map();
       const result = inferExpr(env, until[1]);
 
-      expect(print(result)).toEqual(
-        "forall a => (a -> Bool) -> (a -> a) -> a -> a"
+      expect(print(result)).toEqual("<a>(a -> Bool) -> (a -> a) -> a -> a");
+    });
+
+    test("until (nary)", () => {
+      const until: Binding = [
+        "until",
+        // let rec until p f x =
+        fix(
+          nary_lam(
+            ["until"],
+            nary_lam(
+              ["p", "f", "x"],
+              _if(
+                //   if (p x)
+                nary_app(_var("p"), [_var("x")]),
+                //   then x
+                _var("x"),
+                //   else (until p f (f x));
+                nary_app(_var("until"), [
+                  _var("p"),
+                  _var("f"),
+                  nary_app(_var("f"), [_var("x")]),
+                ])
+              )
+            )
+          )
+        ),
+      ];
+
+      let env: Env = Map();
+      const result = inferExpr(env, until[1]);
+
+      expect(print(result, true)).toEqual(
+        "<a>((a) => Bool, (a) => a, a) => a"
       );
     });
   });
@@ -356,7 +396,7 @@ describe("inferExpr", () => {
       const env: Env = Map();
       const result = inferExpr(env, self[1]);
 
-      expect(print(result)).toEqual("forall a => a -> a");
+      expect(print(result)).toEqual("<a>a -> a");
     });
 
     test("let innerlet = (x) => (let y = (z) => z in y)", () => {
@@ -369,7 +409,7 @@ describe("inferExpr", () => {
       const result = inferExpr(env, innerlet[1]);
 
       // the 'x' param is ignored
-      expect(print(result)).toEqual("forall a, b => a -> b -> b");
+      expect(print(result)).toEqual("<a, b>a -> b -> b");
     });
 
     // The expression tree for `let rec` appears to be the same as that
@@ -379,13 +419,17 @@ describe("inferExpr", () => {
     test("let f = let add = a b -> a + b in add;", () => {
       const f: Binding = [
         "f",
-        _let("add", lam("a", lam("b", add(_var("a"), _var("b")))), _var("add")),
+        _let(
+          "add",
+          nary_lam(["a", "b"], add(_var("a"), _var("b"))),
+          _var("add")
+        ),
       ];
 
       const env: Env = Map();
       const result = inferExpr(env, f[1]);
 
-      expect(print(result)).toEqual("Int -> Int -> Int");
+      expect(print(result, true)).toEqual("(Int, Int) => Int");
     });
   });
 

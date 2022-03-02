@@ -19,8 +19,10 @@ import {
   equal,
   tInt,
   tBool,
+  print,
 } from "./type";
 import { Binop, Expr } from "./syntax";
+import { snd, zip } from "./util";
 
 const scheme = (qualifiers: TVar[], type: Type): Scheme => ({
   tag: "Forall",
@@ -51,7 +53,7 @@ function apply(s: Subst, a: any): any {
   if (isTApp(a)) {
     return {
       tag: "TApp",
-      arg: apply(s, a.arg),
+      args: apply(s, a.args),
       ret: apply(s, a.ret),
     };
   }
@@ -99,7 +101,7 @@ function ftv(a: any): any {
     return Set([a]); // Set.singleton a
   }
   if (isTApp(a)) {
-    return Set.union([ftv(a.arg), ftv(a.ret)]); // ftv t1 `Set.union` ftv t2
+    return Set.union([...a.args.map(ftv), ftv(a.ret)]); // ftv t1 `Set.union` ftv t2
   }
 
   // instance Substitutable Scheme
@@ -173,13 +175,6 @@ const lookup = (a: TVar, entries: [TVar, TVar][]): TVar | null => {
   return null;
 };
 
-function fst<A, B>(tuple: [A, B]): A {
-  return tuple[0];
-}
-function snd<A, B>(tuple: [A, B]): B {
-  return tuple[1];
-}
-
 // remove duplicates from the array
 function nub(array: TVar[]): TVar[] {
   const names: string[] = [];
@@ -199,9 +194,8 @@ const normalize = (sc: Scheme): Scheme => {
     switch (type.tag) {
       case "TVar":
         return [type];
-      // TODO: extend to handle n-ary lambdas
       case "TApp":
-        return [...fv(type.arg), ...fv(type.ret)];
+        return [...type.args.flatMap(fv), ...fv(type.ret)];
       case "TCon":
         return [];
     }
@@ -216,9 +210,8 @@ const normalize = (sc: Scheme): Scheme => {
   const normType = (type: Type): Type => {
     switch (type.tag) {
       case "TApp": {
-        // TODO: extend to handle n-ary lambdas
-        const { arg, ret } = type;
-        return { tag: "TApp", arg: normType(arg), ret: normType(ret) };
+        const { args, ret } = type;
+        return { tag: "TApp", args: args.map(normType), ret: normType(ret) };
       }
       case "TCon":
         return type;
@@ -247,15 +240,6 @@ const lookupEnv = (name: string, ctx: Context): Type => {
   }
   return instantiate(value, ctx);
 };
-
-function zip<A, B>(as: readonly A[], bs: readonly B[]): [A, B][] {
-  const length = Math.min(as.length, bs.length);
-  const result: [A, B][] = [];
-  for (let i = 0; i < length; i++) {
-    result.push([as[i], bs[i]]);
-  }
-  return result;
-}
 
 const letters = [
   "a",
@@ -287,7 +271,7 @@ const letters = [
 ];
 
 // TODO: use IDs for TVar's and defer naming until print time
-const fresh = (ctx: Context): Type => {
+const fresh = (ctx: Context): TVar => {
   ctx.state.count++;
   return {
     tag: "TVar",
@@ -315,26 +299,26 @@ const ops = (op: Binop): Type => {
     case "Add":
       return {
         tag: "TApp",
-        arg: tInt,
-        ret: { tag: "TApp", arg: tInt, ret: tInt },
+        args: [tInt, tInt],
+        ret: tInt ,
       };
     case "Mul":
       return {
         tag: "TApp",
-        arg: tInt,
-        ret: { tag: "TApp", arg: tInt, ret: tInt },
+        args: [tInt, tInt],
+        ret: tInt ,
       };
     case "Sub":
       return {
         tag: "TApp",
-        arg: tInt,
-        ret: { tag: "TApp", arg: tInt, ret: tInt },
+        args: [tInt, tInt],
+        ret: tInt ,
       };
     case "Eql":
       return {
         tag: "TApp",
-        arg: tInt,
-        ret: { tag: "TApp", arg: tInt, ret: tBool },
+        args: [tInt, tInt],
+        ret: tBool,
       };
   }
 };
@@ -357,27 +341,40 @@ const infer = (expr: Expr, ctx: Context): [Type, Constraint[]] => {
     }
 
     case "Lam": {
-      const { arg, body } = expr;
-      const tv = fresh(ctx);
-      // inEnv (x, Forall [] tv)
+      const { args, body } = expr;
       // newCtx introduces a new scope
-      const newCtx = { ...ctx, env: ctx.env.set(arg, scheme([], tv)) };
+      const tvs = args.map(() => fresh(ctx));
+      const newCtx = {
+        ...ctx,
+        env: ctx.env.withMutations(env => {
+          for (const [arg, tv] of zip(args, tvs)) {
+            // scheme([], tv) is a type variable without any qualifiers
+            env.set(arg, scheme([], tv)) 
+          }
+        }),
+      }; 
       const [t, c] = infer(body, newCtx);
-      return [{ tag: "TApp", arg: tv, ret: t }, c];
+      return [{ tag: "TApp", args: tvs, ret: t }, c];
     }
 
     case "App": {
-      const { fn, arg } = expr; // TODO: expand to handle multiple args
+      const { fn, args } = expr;
       const [t_fn, c_fn] = infer(fn, ctx);
-      const [t_arg, c_arg] = infer(arg, ctx);
+      const t_args: Type[] = [];
+      const c_args: Constraint[][] = [];
+      for (const arg of args) {
+        const [t_arg, c_arg] = infer(arg, ctx);
+        t_args.push(t_arg);
+        c_args.push(c_arg);
+      }
       const tv = fresh(ctx);
       return [
         tv,
         [
           ...c_fn,
-          ...c_arg,
+          ...c_args.flat(),
           // This is almost the reverse of what we return from the "Lam" case
-          [t_fn, { tag: "TApp", arg: t_arg, ret: tv }],
+          [t_fn, { tag: "TApp", args: t_args, ret: tv }],
         ],
       ];
     }
@@ -400,7 +397,7 @@ const infer = (expr: Expr, ctx: Context): [Type, Constraint[]] => {
       const { expr: e } = expr;
       let [t1, c1] = infer(e, ctx);
       const tv = fresh(ctx);
-      return [tv, [...c1, [{ tag: "TApp", arg: tv, ret: tv }, t1]]];
+      return [tv, [...c1, [{ tag: "TApp", args: [tv], ret: tv }, t1]]];
     }
 
     case "Op": {
@@ -410,8 +407,8 @@ const infer = (expr: Expr, ctx: Context): [Type, Constraint[]] => {
       const tv = fresh(ctx);
       const u1: Type = {
         tag: "TApp",
-        arg: lt,
-        ret: { tag: "TApp", arg: rt, ret: tv },
+        args: [lt, rt],
+        ret: tv,
       };
       const u2 = ops(op);
       return [tv, [...lc, ...rc, [u1, u2]]];
@@ -452,7 +449,7 @@ const unifyMany = (ts1: Type[], ts2: Type[]): Subst => {
   return composeSubs(su2, su1);
 };
 
-const unifies = (t1: Type, t2: Type): Subst => {
+export const unifies = (t1: Type, t2: Type): Subst => {
   if (equal(t1, t2)) {
     return emptySubst;
   } else if (isTVar(t1)) {
@@ -460,7 +457,7 @@ const unifies = (t1: Type, t2: Type): Subst => {
   } else if (isTVar(t2)) {
     return bind(t2, t1);
   } else if (isTApp(t1) && isTApp(t2)) {
-    return unifyMany([t1.arg, t1.ret], [t2.arg, t2.ret]);
+    return unifyMany([...t1.args, t1.ret], [...t2.args, t2.ret]);
   } else {
     throw new UnificationFail(t1, t2);
   }
