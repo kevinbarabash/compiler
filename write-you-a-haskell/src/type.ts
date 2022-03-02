@@ -17,7 +17,7 @@ export const tInt: TCon = { tag: "TCon", name: "Int" };
 export const tBool: TCon = { tag: "TCon", name: "Bool" };
 
 // TODO: add an option to control output style
-export function print(t: Type | Scheme, nary = false): string {
+export function print(t: Type | Scheme): string {
   switch (t.tag) {
     case "TVar": {
       return t.name;
@@ -26,26 +26,16 @@ export function print(t: Type | Scheme, nary = false): string {
       return t.name;
     }
     case "TApp": {
-      if (nary) {
-        return `(${t.args
-          .map((arg) => print(arg, nary))
-          .join(", ")}) => ${print(t.ret, nary)}`;
-      } else {
-        // we assume that there's always a single arg when `nary` is false
-        if (t.args[0].tag === "TApp") {
-          return `(${print(t.args[0], nary)}) -> ${print(t.ret, nary)}`;
-        } else {
-          return `${print(t.args[0], nary)} -> ${print(t.ret, nary)}`;
-        }
-      }
+      return `(${t.args
+        .map((arg) => print(arg))
+        .join(", ")}) => ${print(t.ret)}`;
     }
     case "Forall": {
       return t.qualifiers.length > 0
-        ? `<${t.qualifiers.map((qual) => print(qual, nary)).join(", ")}>${print(
+        ? `<${t.qualifiers.map((qual) => print(qual)).join(", ")}>${print(
             t.type,
-            nary
           )}`
-        : print(t.type, nary);
+        : print(t.type);
     }
   }
 }

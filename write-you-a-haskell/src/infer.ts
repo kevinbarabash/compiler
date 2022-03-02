@@ -457,6 +457,7 @@ export const unifies = (t1: Type, t2: Type): Subst => {
   } else if (isTVar(t2)) {
     return bind(t2, t1);
   } else if (isTApp(t1) && isTApp(t2)) {
+    // TODO: write a test to check that zero-arg lambdas can unify
     return unifyMany([...t1.args, t1.ret], [...t2.args, t2.ret]);
   } else {
     throw new UnificationFail(t1, t2);
