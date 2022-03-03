@@ -1,12 +1,13 @@
 import { Map } from "immutable";
 
+import { zip } from "./util";
+
 // TODO: update types to use id's
 export type TVar = { tag: "TVar"; name: string };
-// TODO: update type constructors to have type params so that we can 
+// TODO: update type constructors to have type params so that we can
 // support Array<T>, Promise<T>, etc. in the future.
 export type TCon = { tag: "TCon"; name: string };
-// TODO: upgrade arg: Type to args: Type[]
-export type TApp = { tag: "TApp"; arg: Type; ret: Type };
+export type TApp = { tag: "TApp"; args: Type[]; ret: Type };
 
 export type Type = TVar | TCon | TApp;
 
@@ -15,6 +16,7 @@ export type Scheme = { tag: "Forall"; qualifiers: TVar[]; type: Type };
 export const tInt: TCon = { tag: "TCon", name: "Int" };
 export const tBool: TCon = { tag: "TCon", name: "Bool" };
 
+// TODO: add an option to control output style
 export function print(t: Type | Scheme): string {
   switch (t.tag) {
     case "TVar": {
@@ -24,15 +26,15 @@ export function print(t: Type | Scheme): string {
       return t.name;
     }
     case "TApp": {
-      if (t.arg.tag === "TApp") {
-        return `(${print(t.arg)}) -> ${print(t.ret)}`;
-      } else {
-        return `${print(t.arg)} -> ${print(t.ret)}`;
-      }
+      return `(${t.args
+        .map((arg) => print(arg))
+        .join(", ")}) => ${print(t.ret)}`;
     }
     case "Forall": {
       return t.qualifiers.length > 0
-        ? `forall ${t.qualifiers.map(print).join(", ")} => ${print(t.type)}`
+        ? `<${t.qualifiers.map((qual) => print(qual)).join(", ")}>${print(
+            t.type,
+          )}`
         : print(t.type);
     }
   }
@@ -43,10 +45,14 @@ export function equal(a: Type | Scheme, b: Type | Scheme): boolean {
     return a.name === b.name; // TODO: use IDs
   } else if (a.tag === "TCon" && b.tag === "TCon") {
     // TODO: add support for type params to TCon
-    return a.name === b.name; 
+    return a.name === b.name;
   } else if (a.tag === "TApp" && b.tag === "TApp") {
-    // TODO: add supprt for n-ary application
-    return equal(a.arg, b.arg) && equal(a.ret, b.ret);
+    return (
+      a.args.length === b.args.length &&
+      zip([...a.args, a.ret], [...b.args, b.ret]).every((pair) =>
+        equal(...pair)
+      )
+    );
   } else if (a.tag === "Forall" && b.tag === "Forall") {
     throw new Error("TODO: implement equal for Schemes");
   }
