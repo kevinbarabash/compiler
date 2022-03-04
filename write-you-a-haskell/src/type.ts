@@ -4,8 +4,6 @@ import { zip } from "./util";
 
 // TODO: update types to use id's
 export type TVar = { tag: "TVar"; name: string };
-// TODO: update type constructors to have type params so that we can
-// support Array<T>, Promise<T>, etc. in the future.
 export type TCon = { tag: "TCon"; name: string; params: Type[] };
 export type TApp = {
   tag: "TApp";
