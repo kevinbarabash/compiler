@@ -72,15 +72,13 @@ const S: Binding = [
       ["g"],
       lam(
         ["x"],
-        app(app(_var("f"), [_var("x")]), [
-          app(_var("g"), [_var("x")]),
-        ])
+        app(app(_var("f"), [_var("x")]), [app(_var("g"), [_var("x")])])
       )
     )
   ),
 ];
 
-const _const: Binding = ["const", lam(["x"], lam(["y"], _var("x")))];
+const _const: Binding = ["const", lam(["x", "y"], _var("x"))];
 
 describe("inferExpr", () => {
   describe("SKI cominbators", () => {
@@ -127,10 +125,7 @@ describe("inferExpr", () => {
     });
 
     test("Mu f = f (fix f)", () => {
-      const Mu: Binding = [
-        "Mu",
-        lam(["f"], app(_var("f"), [fix(_var("f"))])),
-      ];
+      const Mu: Binding = ["Mu", lam(["f"], app(_var("f"), [fix(_var("f"))]))];
 
       const env: Env = Map();
       const result = inferExpr(env, Mu[1]);
@@ -203,11 +198,13 @@ describe("inferExpr", () => {
       let env: Env = Map();
       const result = inferExpr(env, _const[1]);
 
-      expect(print(result)).toEqual("<a, b>(a) => (b) => a");
+      expect(print(result)).toEqual("<a, b>(a, b) => a");
     });
 
     test("issue #82", () => {
-      // let y = \y -> (let f = \x -> if x then True else False in const (f y) y);
+      // let y = \y -> {
+      //   let f = \x -> if x then True else False in const(f(y), y);
+      // }
       const y: Binding = [
         "y",
         lam(
@@ -215,10 +212,7 @@ describe("inferExpr", () => {
           _let(
             "f",
             lam(["x"], _if(_var("x"), bool(true), bool(false))),
-            app(
-              app(_var("const"), [app(_var("f"), [_var("y")])]),
-              [_var("y")]
-            )
+            app(_var("const"), [app(_var("f"), [_var("y")]), _var("y")])
           )
         ),
       ];
@@ -260,10 +254,7 @@ describe("inferExpr", () => {
         "compose",
         lam(
           ["f"],
-          lam(
-            ["g"],
-            lam(["x"], app(_var("g"), [app(_var("f"), [_var("x")])]))
-          )
+          lam(["g"], lam(["x"], app(_var("g"), [app(_var("f"), [_var("x")])])))
         ),
       ];
 
@@ -302,10 +293,7 @@ describe("inferExpr", () => {
     test("let ap = (f, x) => f(f(x);", () => {
       const ap: Binding = [
         "ap",
-        lam(
-          ["f", "x"],
-          app(_var("f"), [app(_var("f"), [_var("x")])])
-        ),
+        lam(["f", "x"], app(_var("f"), [app(_var("f"), [_var("x")])])),
       ];
 
       let env: Env = Map();
@@ -417,12 +405,59 @@ describe("inferExpr", () => {
     });
   });
 
+  describe("partial applicaiton", () => {
+    test("add5 = add(5)", () => {
+      const _add: Binding = ["add", lam(["a", "b"], add(_var("a"), _var("b")))];
+      const add5: Binding = ["add5", app(_var("add"), [int(5)])];
+
+      let env: Env = Map();
+      const addScheme = inferExpr(env, _add[1]);
+      env = env.set(_add[0], addScheme);
+      env = env.set(add5[0], inferExpr(env, add5[1]));
+
+      const result = env.get("add5");
+      if (!result) {
+        throw new Error("add5 is undefined");
+      }
+
+      expect(print(result)).toEqual("(Int) => Int");
+    });
+
+    test("let sum = add(5)(10)", () => {
+      const _add: Binding = ["add", lam(["a", "b"], add(_var("a"), _var("b")))];
+      const sum: Binding = ["sum", app(app(_var("add"), [int(5)]), [int(10)])];
+
+      let env: Env = Map();
+      const addScheme = inferExpr(env, _add[1]);
+      env = env.set(_add[0], addScheme);
+      env = env.set(sum[0], inferExpr(env, sum[1]));
+
+      const result = env.get("sum");
+      if (!result) {
+        throw new Error("sum is undefined");
+      }
+
+      expect(print(result)).toEqual("Int");
+    });
+
+    test("((a, b) => a + b)(5)", () => {
+      const add5: Binding = [
+        "add5",
+        app(lam(["a", "b"], add(_var("a"), _var("b"))), [int(5)]),
+      ];
+
+      const env: Env = Map();
+      const result = inferExpr(env, add5[1]);
+
+      expect(print(result)).toEqual("(Int) => Int");
+    });
+  });
+
   describe("errors", () => {
     test("UnboundVariable", () => {
       const unbound: Binding = ["unbound", app(_var("foo"), [_var("x")])];
 
       const env: Env = Map();
-
       expect(() =>
         inferExpr(env, unbound[1])
       ).toThrowErrorMatchingInlineSnapshot(`"foo is unbound"`);
@@ -442,10 +477,7 @@ describe("inferExpr", () => {
     });
 
     test("InfiniteType", () => {
-      const omega: Binding = [
-        "omega",
-        lam(["x"], app(_var("x"), [_var("x")])),
-      ];
+      const omega: Binding = ["omega", lam(["x"], app(_var("x"), [_var("x")]))];
 
       const env: Env = Map();
 

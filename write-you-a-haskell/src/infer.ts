@@ -55,6 +55,7 @@ function apply(s: Subst, a: any): any {
       tag: "TApp",
       args: apply(s, a.args),
       ret: apply(s, a.ret),
+      src: a.src,
     };
   }
 
@@ -187,6 +188,9 @@ function nub(array: TVar[]): TVar[] {
   });
 }
 
+// TODO: switch to IDs for types and then simplify the normalization by
+// generating names for type variables at print time.
+
 // Renames type variables so that they start with 'a' and there are no gaps
 const normalize = (sc: Scheme): Scheme => {
   // Returns the names of the free variables in a type
@@ -210,8 +214,13 @@ const normalize = (sc: Scheme): Scheme => {
   const normType = (type: Type): Type => {
     switch (type.tag) {
       case "TApp": {
-        const { args, ret } = type;
-        return { tag: "TApp", args: args.map(normType), ret: normType(ret) };
+        const { args, ret, src } = type;
+        return {
+          tag: "TApp",
+          args: args.map(normType),
+          ret: normType(ret),
+          src,
+        };
       }
       case "TCon":
         return type;
@@ -300,19 +309,19 @@ const ops = (op: Binop): Type => {
       return {
         tag: "TApp",
         args: [tInt, tInt],
-        ret: tInt ,
+        ret: tInt,
       };
     case "Mul":
       return {
         tag: "TApp",
         args: [tInt, tInt],
-        ret: tInt ,
+        ret: tInt,
       };
     case "Sub":
       return {
         tag: "TApp",
         args: [tInt, tInt],
-        ret: tInt ,
+        ret: tInt,
       };
     case "Eql":
       return {
@@ -346,15 +355,15 @@ const infer = (expr: Expr, ctx: Context): [Type, Constraint[]] => {
       const tvs = args.map(() => fresh(ctx));
       const newCtx = {
         ...ctx,
-        env: ctx.env.withMutations(env => {
+        env: ctx.env.withMutations((env) => {
           for (const [arg, tv] of zip(args, tvs)) {
             // scheme([], tv) is a type variable without any qualifiers
-            env.set(arg, scheme([], tv)) 
+            env.set(arg, scheme([], tv));
           }
         }),
-      }; 
+      };
       const [t, c] = infer(body, newCtx);
-      return [{ tag: "TApp", args: tvs, ret: t }, c];
+      return [{ tag: "TApp", args: tvs, ret: t, src: "Lam" }, c];
     }
 
     case "App": {
@@ -374,7 +383,7 @@ const infer = (expr: Expr, ctx: Context): [Type, Constraint[]] => {
           ...c_fn,
           ...c_args.flat(),
           // This is almost the reverse of what we return from the "Lam" case
-          [t_fn, { tag: "TApp", args: t_args, ret: tv }],
+          [t_fn, { tag: "TApp", args: t_args, ret: tv, src: "App" }],
         ],
       ];
     }
@@ -397,7 +406,7 @@ const infer = (expr: Expr, ctx: Context): [Type, Constraint[]] => {
       const { expr: e } = expr;
       let [t1, c1] = infer(e, ctx);
       const tv = fresh(ctx);
-      return [tv, [...c1, [{ tag: "TApp", args: [tv], ret: tv }, t1]]];
+      return [tv, [...c1, [{ tag: "TApp", args: [tv], ret: tv, src: "Fix" }, t1]]];
     }
 
     case "Op": {
@@ -457,7 +466,29 @@ export const unifies = (t1: Type, t2: Type): Subst => {
   } else if (isTVar(t2)) {
     return bind(t2, t1);
   } else if (isTApp(t1) && isTApp(t2)) {
-    // TODO: write a test to check that zero-arg lambdas can unify
+    // infer() only ever creates a Lam node on the left side of a constraint
+    // and an App on the right side of a constraint so this check is sufficient.
+    if (
+      t1.src === "Lam" &&
+      t2.src === "App" &&
+      t2.args.length < t1.args.length
+    ) {
+      // partial application
+      const t1_partial: Type = {
+        tag: "TApp",
+        args: t1.args.slice(0, t2.args.length),
+        ret: {
+          tag: "TApp",
+          args: t1.args.slice(t2.args.length),
+          ret: t1.ret,
+        },
+      };
+      return unifyMany(
+        [...t1_partial.args, t1_partial.ret],
+        [...t2.args, t2.ret]
+      );
+    }
+
     return unifyMany([...t1.args, t1.ret], [...t2.args, t2.ret]);
   } else {
     throw new UnificationFail(t1, t2);

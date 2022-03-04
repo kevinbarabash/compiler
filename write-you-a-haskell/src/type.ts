@@ -7,7 +7,7 @@ export type TVar = { tag: "TVar"; name: string };
 // TODO: update type constructors to have type params so that we can
 // support Array<T>, Promise<T>, etc. in the future.
 export type TCon = { tag: "TCon"; name: string };
-export type TApp = { tag: "TApp"; args: Type[]; ret: Type };
+export type TApp = { tag: "TApp"; args: Type[]; ret: Type, src?: "App" | "Fix" | "Lam" };
 
 export type Type = TVar | TCon | TApp;
 
@@ -16,7 +16,6 @@ export type Scheme = { tag: "Forall"; qualifiers: TVar[]; type: Type };
 export const tInt: TCon = { tag: "TCon", name: "Int" };
 export const tBool: TCon = { tag: "TCon", name: "Bool" };
 
-// TODO: add an option to control output style
 export function print(t: Type | Scheme): string {
   switch (t.tag) {
     case "TVar": {
