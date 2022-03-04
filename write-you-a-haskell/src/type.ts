@@ -7,7 +7,12 @@ export type TVar = { tag: "TVar"; name: string };
 // TODO: update type constructors to have type params so that we can
 // support Array<T>, Promise<T>, etc. in the future.
 export type TCon = { tag: "TCon"; name: string; params: Type[] };
-export type TApp = { tag: "TApp"; args: Type[]; ret: Type, src?: "App" | "Fix" | "Lam" };
+export type TApp = {
+  tag: "TApp";
+  args: Type[];
+  ret: Type;
+  src?: "App" | "Fix" | "Lam";
+};
 
 export type Type = TVar | TCon | TApp;
 
@@ -24,17 +29,17 @@ export function print(t: Type | Scheme): string {
     case "TCon": {
       return t.params.length > 0
         ? `${t.name}<${t.params.map((param) => print(param)).join(", ")}>`
-        : t.name
+        : t.name;
     }
     case "TApp": {
-      return `(${t.args
-        .map((arg) => print(arg))
-        .join(", ")}) => ${print(t.ret)}`;
+      return `(${t.args.map((arg) => print(arg)).join(", ")}) => ${print(
+        t.ret
+      )}`;
     }
     case "Forall": {
       return t.qualifiers.length > 0
         ? `<${t.qualifiers.map((qual) => print(qual)).join(", ")}>${print(
-            t.type,
+            t.type
           )}`
         : print(t.type);
     }
@@ -46,7 +51,11 @@ export function equal(a: Type | Scheme, b: Type | Scheme): boolean {
     return a.name === b.name; // TODO: use IDs
   } else if (a.tag === "TCon" && b.tag === "TCon") {
     // TODO: add support for type params to TCon
-    return a.name === b.name;
+    return (
+      a.name === b.name &&
+      a.params.length === b.params.length &&
+      zip(a.params, b.params).every((pair) => equal(...pair))
+    );
   } else if (a.tag === "TApp" && b.tag === "TApp") {
     return (
       a.args.length === b.args.length &&

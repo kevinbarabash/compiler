@@ -495,7 +495,6 @@ export const unifies = (t1: Type, t2: Type): Subst => {
 
     return unifyMany([...t1.args, t1.ret], [...t2.args, t2.ret]);
   } else if (isTCon(t1) && isTCon(t2) && t1.name === t2.name) {
-    // TODO: figure out how to write a test for this
     return unifyMany(t1.params, t2.params);
   } else {
     throw new UnificationFail(t1, t2);

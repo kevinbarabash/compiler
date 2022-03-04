@@ -506,7 +506,40 @@ describe("inferExpr", () => {
       );
 
       const result = inferExpr(env, addFoos);
-      expect(print(result)).toEqual("(Foo<Int>, Foo<Int>) => Int")
+      expect(print(result)).toEqual("(Foo<Int>, Foo<Int>) => Int");
+    });
+
+    test("extract value from type constructor 2", () => {
+      const aVar: TVar = { tag: "TVar", name: "a" };
+      // <a>(Foo<a>) => a
+      const extractScheme: Scheme = {
+        tag: "Forall",
+        qualifiers: [aVar],
+        type: {
+          tag: "TApp",
+          args: [{ tag: "TCon", name: "Foo", params: [aVar] }],
+          ret: aVar,
+        },
+      };
+
+      let env: Env = Map();
+
+      env = env.set("extract", extractScheme);
+        // x is of type Foo<Int>
+      env = env.set("x", {
+        tag: "Forall",
+        qualifiers: [],
+        type: {
+          tag: "TCon",
+          name: "Foo",
+          params: [{ tag: "TCon", name: "Int", params: [] }],
+        }
+      });
+
+      const extractedX = app(_var("extract"), [_var("x")]);
+
+      const result = inferExpr(env, extractedX);
+      expect(print(result)).toEqual("Int");
     });
   });
 
