@@ -50,7 +50,6 @@ export function equal(a: Type | Scheme, b: Type | Scheme): boolean {
   if (a.tag === "TVar" && b.tag === "TVar") {
     return a.name === b.name; // TODO: use IDs
   } else if (a.tag === "TCon" && b.tag === "TCon") {
-    // TODO: add support for type params to TCon
     return (
       a.name === b.name &&
       a.params.length === b.params.length &&
