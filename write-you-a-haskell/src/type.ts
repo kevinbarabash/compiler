@@ -6,15 +6,15 @@ import { zip } from "./util";
 export type TVar = { tag: "TVar"; name: string };
 // TODO: update type constructors to have type params so that we can
 // support Array<T>, Promise<T>, etc. in the future.
-export type TCon = { tag: "TCon"; name: string };
+export type TCon = { tag: "TCon"; name: string; params: Type[] };
 export type TApp = { tag: "TApp"; args: Type[]; ret: Type, src?: "App" | "Fix" | "Lam" };
 
 export type Type = TVar | TCon | TApp;
 
 export type Scheme = { tag: "Forall"; qualifiers: TVar[]; type: Type };
 
-export const tInt: TCon = { tag: "TCon", name: "Int" };
-export const tBool: TCon = { tag: "TCon", name: "Bool" };
+export const tInt: TCon = { tag: "TCon", name: "Int", params: [] };
+export const tBool: TCon = { tag: "TCon", name: "Bool", params: [] };
 
 export function print(t: Type | Scheme): string {
   switch (t.tag) {
@@ -22,7 +22,9 @@ export function print(t: Type | Scheme): string {
       return t.name;
     }
     case "TCon": {
-      return t.name;
+      return t.params.length > 0
+        ? `${t.name}<${t.params.map((param) => print(param)).join(", ")}>`
+        : t.name
     }
     case "TApp": {
       return `(${t.args
