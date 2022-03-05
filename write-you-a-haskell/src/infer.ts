@@ -24,7 +24,7 @@ import {
 import { Binop, Expr } from "./syntax";
 import { snd, zip } from "./util";
 
-const scheme = (qualifiers: TVar[], type: Type): Scheme => ({
+const scheme = (qualifiers: readonly TVar[], type: Type): Scheme => ({
   tag: "Forall",
   qualifiers,
   type,
@@ -37,10 +37,10 @@ const isScheme = (t: any): t is Scheme => t.tag === "Forall";
 
 function apply(s: Subst, type: Type): Type;
 function apply(s: Subst, scheme: Scheme): Scheme;
-function apply(s: Subst, types: Type[]): Type[];
-function apply(s: Subst, schemes: Scheme[]): Scheme[];
+function apply(s: Subst, types: readonly Type[]): readonly Type[];
+function apply(s: Subst, schemes: readonly Scheme[]): readonly Scheme[];
 function apply(s: Subst, constraint: Constraint): Constraint; // special case of Type[]
-function apply(s: Subst, constraint: Constraint[]): Constraint[]; // this should just work
+function apply(s: Subst, constraint: readonly Constraint[]): readonly Constraint[]; // this should just work
 function apply(s: Subst, env: Env): Env;
 function apply(s: Subst, a: any): any {
   // instance Substitutable Type
@@ -93,8 +93,8 @@ function apply(s: Subst, a: any): any {
 
 function ftv(type: Type): Set<TVar>;
 function ftv(scheme: Scheme): Set<TVar>;
-function ftv(types: Type[]): Set<TVar>;
-function ftv(schemes: Scheme[]): Set<TVar>;
+function ftv(types: readonly Type[]): Set<TVar>;
+function ftv(schemes: readonly Scheme[]): Set<TVar>;
 function ftv(constraint: Constraint): Set<TVar>; // special case of Type[]
 function ftv(env: Env): Set<TVar>;
 function ftv(a: any): any {
@@ -154,7 +154,7 @@ export const inferExpr = (env: Env, expr: Expr): Scheme => {
 export const constraintsExpr = (
   env: Env,
   expr: Expr
-): [Constraint[], Subst, Type, Scheme] => {
+): readonly [readonly Constraint[], Subst, Type, Scheme] => {
   const initCtx: Context = {
     env: env,
     state: { count: 0 },
@@ -170,7 +170,7 @@ const closeOver = (t: Type): Scheme => {
   return normalize(generalize(emptyEnv, t));
 };
 
-const lookup = (a: TVar, entries: [TVar, TVar][]): TVar | null => {
+const lookup = (a: TVar, entries: readonly [TVar, TVar][]): TVar | null => {
   for (const [k, v] of entries) {
     // TODO: replace with IDs and generate names when printin
     if (a.name === k.name) {
@@ -181,7 +181,7 @@ const lookup = (a: TVar, entries: [TVar, TVar][]): TVar | null => {
 };
 
 // remove duplicates from the array
-function nub(array: TVar[]): TVar[] {
+function nub(array: readonly TVar[]): readonly TVar[] {
   const names: string[] = [];
   return array.filter((tv) => {
     if (!names.includes(tv.name)) {
@@ -198,7 +198,7 @@ function nub(array: TVar[]): TVar[] {
 // Renames type variables so that they start with 'a' and there are no gaps
 const normalize = (sc: Scheme): Scheme => {
   // Returns the names of the free variables in a type
-  const fv = (type: Type): TVar[] => {
+  const fv = (type: Type): readonly TVar[] => {
     switch (type.tag) {
       case "TVar":
         return [type];
@@ -336,7 +336,7 @@ const ops = (op: Binop): Type => {
   }
 };
 
-const infer = (expr: Expr, ctx: Context): [Type, Constraint[]] => {
+const infer = (expr: Expr, ctx: Context): readonly [Type, readonly Constraint[]] => {
   switch (expr.tag) {
     case "Lit": {
       const lit = expr.value;
@@ -374,7 +374,7 @@ const infer = (expr: Expr, ctx: Context): [Type, Constraint[]] => {
       const { fn, args } = expr;
       const [t_fn, c_fn] = infer(fn, ctx);
       const t_args: Type[] = [];
-      const c_args: Constraint[][] = [];
+      const c_args: (readonly Constraint[])[] = [];
       for (const arg of args) {
         const [t_arg, c_arg] = infer(arg, ctx);
         t_args.push(t_arg);
@@ -447,11 +447,11 @@ const infer = (expr: Expr, ctx: Context): [Type, Constraint[]] => {
 
 const emptySubst: Subst = Map();
 
-const runSolve = (cs: Constraint[]): Subst => {
+const runSolve = (cs: readonly Constraint[]): Subst => {
   return solver([emptySubst, cs]);
 };
 
-const unifyMany = (ts1: Type[], ts2: Type[]): Subst => {
+const unifyMany = (ts1: readonly Type[], ts2: readonly Type[]): Subst => {
   if (ts1.length !== ts2.length) {
     throw new UnificationMismatch(ts1, ts2);
   }
