@@ -456,7 +456,10 @@ describe("inferExpr", () => {
   describe("function subtyping", () => {
     test("extra args are allowed and ignored", () => {
       const _add: Binding = ["add", lam(["a", "b"], add(_var("a"), _var("b")))];
-      const sum: Binding = ["sum", app(_var("add"), [int(5), int(10), int(99)])];
+      const sum: Binding = [
+        "sum",
+        app(_var("add"), [int(5), int(10), int(99)]),
+      ];
 
       let env: Env = Map();
       const addScheme = inferExpr(env, _add[1]);
@@ -465,19 +468,19 @@ describe("inferExpr", () => {
     });
 
     test("passing a callback with fewer params is allowed", () => {
-      const aVar: Type = {tag: "TVar", id: 0, name: "a"};
-      const bVar: Type = {tag: "TVar", id: 1, name: "b"};
-      
+      const aVar: Type = { tag: "TVar", id: 0, name: "a" };
+      const bVar: Type = { tag: "TVar", id: 1, name: "b" };
+
       const mapScheme: Scheme = {
         tag: "Forall",
         qualifiers: [aVar, bVar],
         type: {
           tag: "TApp",
           args: [
-            {tag: "TCon", name: "Array", params: [aVar]},
-            {tag: "TApp", args: [aVar, tInt], ret: bVar, src: "App"},
+            { tag: "TCon", id: 2, name: "Array", params: [aVar] },
+            { tag: "TApp", args: [aVar, tInt], ret: bVar, src: "App" },
           ],
-          ret: {tag: "TCon", name: "Array", params: [bVar]},
+          ret: { tag: "TCon", id: 3, name: "Array", params: [bVar] },
         },
       };
 
@@ -487,39 +490,36 @@ describe("inferExpr", () => {
       const intArray: Scheme = {
         tag: "Forall",
         qualifiers: [],
-        type: {tag: "TCon", name: "Array", params: [tInt]},
+        type: { tag: "TCon", id: 4, name: "Array", params: [tInt] },
       };
-      
+
       env = env.set("array", intArray);
 
       const call: Expr = {
         tag: "App",
         fn: _var("map"),
-        args: [
-          _var("array"),
-          lam(["x"], eql(_var("x"), int(0))),
-        ],
+        args: [_var("array"), lam(["x"], eql(_var("x"), int(0)))],
       };
 
-      const result = inferExpr(env, call, { count: 2 });
+      const result = inferExpr(env, call, { count: 5 });
 
-      expect(print(result)).toEqual("Array<Bool>")
+      expect(print(result)).toEqual("Array<Bool>");
     });
 
     test("partial application of a callback", () => {
-      const aVar: Type = {tag: "TVar", id: 0, name: "a"};
-      const bVar: Type = {tag: "TVar", id: 1, name: "b"};
-      
+      const aVar: Type = { tag: "TVar", id: 0, name: "a" };
+      const bVar: Type = { tag: "TVar", id: 1, name: "b" };
+
       const mapScheme: Scheme = {
         tag: "Forall",
         qualifiers: [aVar, bVar],
         type: {
           tag: "TApp",
           args: [
-            {tag: "TCon", name: "Array", params: [aVar]},
-            {tag: "TApp", args: [aVar, tInt], ret: bVar, src: "App"},
+            { tag: "TCon", id: 3, name: "Array", params: [aVar] },
+            { tag: "TApp", args: [aVar, tInt], ret: bVar, src: "App" },
           ],
-          ret: {tag: "TCon", name: "Array", params: [bVar]},
+          ret: { tag: "TCon", id: 4, name: "Array", params: [bVar] },
         },
       };
 
@@ -529,9 +529,9 @@ describe("inferExpr", () => {
       const intArray: Scheme = {
         tag: "Forall",
         qualifiers: [],
-        type: {tag: "TCon", name: "Array", params: [tInt]},
+        type: { tag: "TCon", id: 5, name: "Array", params: [tInt] },
       };
-      
+
       env = env.set("array", intArray);
 
       const _add: Binding = ["add", lam(["a", "b"], add(_var("a"), _var("b")))];
@@ -540,15 +540,12 @@ describe("inferExpr", () => {
       const call: Expr = {
         tag: "App",
         fn: _var("map"),
-        args: [
-          _var("array"),
-          lam(["x"], app(_var("add"), [_var("x")])),
-        ],
+        args: [_var("array"), lam(["x"], app(_var("add"), [_var("x")]))],
       };
 
-      const result = inferExpr(env, call, { count: 2 });
+      const result = inferExpr(env, call, { count: 6 });
 
-      expect(print(result)).toEqual("Array<(Int) => Int>")
+      expect(print(result)).toEqual("Array<(Int) => Int>");
     });
   });
 
@@ -562,7 +559,7 @@ describe("inferExpr", () => {
         type: {
           tag: "TApp",
           args: [aVar],
-          ret: { tag: "TCon", name: "Promise", params: [aVar] },
+          ret: { tag: "TCon", id: 1, name: "Promise", params: [aVar] },
           src: "Lam",
         },
       };
@@ -571,11 +568,11 @@ describe("inferExpr", () => {
 
       env = env.set("promisify", promisifyScheme);
       const intCall: Binding = ["call", app(_var("promisify"), [int(5)])];
-      const intResult = inferExpr(env, intCall[1], { count: 1 });
+      const intResult = inferExpr(env, intCall[1], { count: 2 });
       expect(print(intResult)).toEqual("Promise<Int>");
 
       const boolCall: Binding = ["call", app(_var("promisify"), [bool(true)])];
-      const boolResult = inferExpr(env, boolCall[1], { count: 1 });
+      const boolResult = inferExpr(env, boolCall[1], { count: 2 });
       expect(print(boolResult)).toEqual("Promise<Bool>");
     });
 
@@ -587,7 +584,7 @@ describe("inferExpr", () => {
         qualifiers: [aVar],
         type: {
           tag: "TApp",
-          args: [{ tag: "TCon", name: "Foo", params: [aVar] }],
+          args: [{ tag: "TCon", id: 2, name: "Foo", params: [aVar] }],
           ret: aVar,
           src: "Lam",
         },
@@ -605,7 +602,7 @@ describe("inferExpr", () => {
         )
       );
 
-      const result = inferExpr(env, addFoos, { count: 1 });
+      const result = inferExpr(env, addFoos, { count: 3 });
       expect(print(result)).toEqual("(Foo<Int>, Foo<Int>) => Int");
     });
 
@@ -617,7 +614,7 @@ describe("inferExpr", () => {
         qualifiers: [aVar],
         type: {
           tag: "TApp",
-          args: [{ tag: "TCon", name: "Foo", params: [aVar] }],
+          args: [{ tag: "TCon", id: 1, name: "Foo", params: [aVar] }],
           ret: aVar,
           src: "Lam",
         },
@@ -632,31 +629,32 @@ describe("inferExpr", () => {
         qualifiers: [],
         type: {
           tag: "TCon",
+          id: 2,
           name: "Foo",
-          params: [{ tag: "TCon", name: "Int", params: [] }],
+          params: [{ tag: "TCon", id: 3, name: "Int", params: [] }],
         },
       });
 
       const extractedX = app(_var("extract"), [_var("x")]);
 
-      const result = inferExpr(env, extractedX, { count: 1 });
+      const result = inferExpr(env, extractedX, { count: 4 });
       expect(print(result)).toEqual("Int");
     });
   });
 
-  describe("Union types", () => {
+  describe("Union types and type widening", () => {
     test("call function that returns a union type", () => {
-      const aVar: TVar = {tag: "TVar", id: 0, name: "a"};
-      const bVar: TVar = {tag: "TVar", id: 1, name: "b"};
-      
+      const aVar: TVar = { tag: "TVar", id: 0, name: "a" };
+      const bVar: TVar = { tag: "TVar", id: 1, name: "b" };
+
       const retUnion: Scheme = {
         tag: "Forall",
         qualifiers: [aVar, bVar],
         type: {
           tag: "TApp",
           args: [aVar, bVar],
-          ret: {tag: "TUnion", types: [aVar, bVar]},
-        }
+          ret: { tag: "TUnion", types: [aVar, bVar] },
+        },
       };
 
       const call: Expr = {
@@ -690,27 +688,30 @@ describe("inferExpr", () => {
       expect(print(result2)).toEqual("Bool | Int");
     });
 
-    test("order of types in union doesn't matter", () => {
-      
-    });
+    test.todo("order of types in union doesn't matter");
 
-    // TODO: need to
-    // - change constraints to use IDs
-    // - give all types IDs
-    // - update unifies to generate union constraints
-    test.skip("infer lambda with union return type", () => {
-      const expr: Expr = lam(["x", "y"], 
-        _if(
-          _var("y"),
-          app(_var("x"), [int(5)]),
-          app(_var("x"), [bool(true)]),
-        ),
+    test("infer lambda with union return type", () => {
+      const expr: Expr = lam(
+        ["x", "y"],
+        _if(_var("x"), app(_var("y"), [int(5)]), app(_var("y"), [bool(true)]))
       );
 
       const env: Env = Map();
 
       const result = inferExpr(env, expr);
-      expect(print(result)).toEqual("Promise<Int>");
+      expect(print(result)).toEqual("<a>(Bool, (Int | Bool) => a) => a");
+    });
+
+    test("should not widen frozen types", () => {
+      const _add: Binding = ["add", lam(["a", "b"], add(_var("a"), _var("b")))];
+      const expr: Expr = app(_var("add"), [int(5), bool(true)]);
+
+      let env: Env = Map();
+      env = env.set(_add[0], inferExpr(env, _add[1]));
+
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+        `"Couldn't unify Int with Bool"`
+      );
     });
   });
 
@@ -725,15 +726,14 @@ describe("inferExpr", () => {
     });
 
     test("UnificationFail", () => {
-      const fail: Binding = [
-        "fail",
-        lam(["foo"], add(bool(true), bool(false))),
-      ];
+      const _add: Binding = ["add", lam(["a", "b"], add(_var("a"), _var("b")))];
+      const expr: Expr = app(_var("add"), [int(5), bool(true)]);
 
-      const env: Env = Map();
+      let env: Env = Map();
+      env = env.set(_add[0], inferExpr(env, _add[1]));
 
-      expect(() => inferExpr(env, fail[1])).toThrowErrorMatchingInlineSnapshot(
-        `"Couldn't unify Bool with Int"`
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+        `"Couldn't unify Int with Bool"`
       );
     });
 

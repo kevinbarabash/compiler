@@ -21,6 +21,7 @@ import {
   tBool,
   print,
   TUnion,
+  freeze,
 } from "./type";
 import { Binop, Expr } from "./syntax";
 import { snd, zip } from "./util";
@@ -56,26 +57,28 @@ function apply(s: Subst, env: Env): Env;
 function apply(s: Subst, a: any): any {
   // instance Substitutable Type
   if (isTCon(a)) {
-    return {
-      tag: "TCon",
-      name: a.name,
+    if (a.id && s.has(a.id)) {
+      return s.get(a.id);
+    }
+    const result: TCon = {
+      ...a,
       params: apply(s, a.params),
     };
+    return result;
   }
   if (isTVar(a)) {
     return s.get(a.id) || a;
   }
   if (isTApp(a)) {
     return {
-      tag: "TApp",
+      ...a,
       args: apply(s, a.args),
       ret: apply(s, a.ret),
-      src: a.src,
     };
   }
   if (isTUnion(a)) {
     return {
-      tag: "TUnion",
+      ...a,
       types: apply(s, a.types),
     };
   }
@@ -187,7 +190,11 @@ export const constraintsExpr = (
 
 // Canonicalize and return the polymorphic toplevel type
 const closeOver = (t: Type): Scheme => {
-  return normalize(generalize(emptyEnv, t));
+  const result = normalize(generalize(emptyEnv, t));
+  // We freeze the result type before returning it so that it
+  // can't be widened when used in subsequent top-level decls.
+  freeze(result.type);
+  return result;
 };
 
 const lookup = (a: TVar, entries: readonly [TVar, TVar][]): TVar | null => {
@@ -326,6 +333,16 @@ export const fresh = (ctx: Context): TVar => {
   };
 };
 
+export const freshTCon = (ctx: Context, name: string): TCon => {
+  ctx.state.count++;
+  return {
+    tag: "TCon",
+    id: ctx.state.count,
+    name,
+    params: [],
+  };
+}
+
 const instantiate = (sc: Scheme, ctx: Context): Type => {
   const freshQualifiers = sc.qualifiers.map(() => fresh(ctx));
   const subs = Map(
@@ -376,9 +393,9 @@ const infer = (expr: Expr, ctx: Context): readonly [Type, readonly Constraint[]]
       const lit = expr.value;
       switch (lit.tag) {
         case "LInt":
-          return [tInt, []];
+          return [freshTCon(ctx, "Int"), []];
         case "LBool":
-          return [tBool, []];
+          return [freshTCon(ctx, "Bool"), []];
       }
     }
 
@@ -578,11 +595,20 @@ export const unifies = (t1: Type, t2: Type): Subst => {
     // consistently.  Is there a way to do this?
     return unifyMany(t1.types, t2.types);
   } else {
-    // When can one type be used as a subtype of another:
-    // - if t1 is an arg being applied and t2 is the param of a lambda, 
-    //   then t1 can be a subtype of t2
-    // What about return types from a lambda?
-    // - requires type widening, not sure if a subtype check will be needed
+    // As long as the types haven't been frozen then this is okay
+    // NOTE: We may need to add .src info in the future if we notice
+    // any places where expected type widening is occurring.
+    if ("id" in t1 && "id" in t2 && !t1.frozen && !t2.frozen) {
+      const union: TUnion = {
+        tag: "TUnion",
+        types: [t1, t2],
+      };
+      const result: Subst = Map([
+        [t1.id, union],
+        [t2.id, union],
+      ])
+      return result;
+    }
 
     throw new UnificationFail(t1, t2);
   }
