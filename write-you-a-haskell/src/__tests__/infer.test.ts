@@ -2,7 +2,7 @@ import { Map } from "immutable";
 
 import { inferExpr } from "../infer";
 import { Expr } from "../syntax";
-import { Env, print } from "../type";
+import { Env, print, Scheme, Type, TVar } from "../type";
 
 type Binding = [string, Expr];
 
@@ -450,6 +450,96 @@ describe("inferExpr", () => {
       const result = inferExpr(env, add5[1]);
 
       expect(print(result)).toEqual("(Int) => Int");
+    });
+  });
+
+  describe("Type Constructors", () => {
+    test("infer promise type", () => {
+      const aVar: TVar = { tag: "TVar", name: "a" };
+      const promisifyType: Type = {
+        tag: "TApp",
+        args: [aVar],
+        ret: { tag: "TCon", name: "Promise", params: [aVar] },
+      };
+      // <a>(a) => Promise<a>
+      const promisifyScheme: Scheme = {
+        tag: "Forall",
+        qualifiers: [aVar],
+        type: promisifyType,
+      };
+
+      let env: Env = Map();
+
+      env = env.set("promisify", promisifyScheme);
+      const intCall: Binding = ["call", app(_var("promisify"), [int(5)])];
+      const intResult = inferExpr(env, intCall[1]);
+      expect(print(intResult)).toEqual("Promise<Int>");
+
+      const boolCall: Binding = ["call", app(_var("promisify"), [bool(true)])];
+      const boolResult = inferExpr(env, boolCall[1]);
+      expect(print(boolResult)).toEqual("Promise<Bool>");
+    });
+
+    test("extract value from type constructor", () => {
+      const aVar: TVar = { tag: "TVar", name: "a" };
+      // <a>(Foo<a>) => a
+      const extractScheme: Scheme = {
+        tag: "Forall",
+        qualifiers: [aVar],
+        type: {
+          tag: "TApp",
+          args: [{ tag: "TCon", name: "Foo", params: [aVar] }],
+          ret: aVar,
+        },
+      };
+
+      let env: Env = Map();
+
+      env = env.set("extract", extractScheme);
+
+      const addFoos = lam(
+        ["x", "y"],
+        add(
+          app(_var("extract"), [_var("x")]),
+          app(_var("extract"), [_var("y")])
+        )
+      );
+
+      const result = inferExpr(env, addFoos);
+      expect(print(result)).toEqual("(Foo<Int>, Foo<Int>) => Int");
+    });
+
+    test("extract value from type constructor 2", () => {
+      const aVar: TVar = { tag: "TVar", name: "a" };
+      // <a>(Foo<a>) => a
+      const extractScheme: Scheme = {
+        tag: "Forall",
+        qualifiers: [aVar],
+        type: {
+          tag: "TApp",
+          args: [{ tag: "TCon", name: "Foo", params: [aVar] }],
+          ret: aVar,
+        },
+      };
+
+      let env: Env = Map();
+
+      env = env.set("extract", extractScheme);
+      // x is of type Foo<Int>
+      env = env.set("x", {
+        tag: "Forall",
+        qualifiers: [],
+        type: {
+          tag: "TCon",
+          name: "Foo",
+          params: [{ tag: "TCon", name: "Int", params: [] }],
+        },
+      });
+
+      const extractedX = app(_var("extract"), [_var("x")]);
+
+      const result = inferExpr(env, extractedX);
+      expect(print(result)).toEqual("Int");
     });
   });
 

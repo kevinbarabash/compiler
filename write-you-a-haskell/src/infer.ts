@@ -45,7 +45,11 @@ function apply(s: Subst, env: Env): Env;
 function apply(s: Subst, a: any): any {
   // instance Substitutable Type
   if (isTCon(a)) {
-    return a;
+    return {
+      tag: "TCon",
+      name: a.name,
+      params: apply(s, a.params),
+    };
   }
   if (isTVar(a)) {
     return s.get(a.name) || a;
@@ -96,7 +100,7 @@ function ftv(env: Env): Set<TVar>;
 function ftv(a: any): any {
   // instance Substitutable Type
   if (isTCon(a)) {
-    return Set(); // Set.empty
+    return Set.union(a.params.map(ftv));
   }
   if (isTVar(a)) {
     return Set([a]); // Set.singleton a
@@ -406,7 +410,10 @@ const infer = (expr: Expr, ctx: Context): [Type, Constraint[]] => {
       const { expr: e } = expr;
       let [t1, c1] = infer(e, ctx);
       const tv = fresh(ctx);
-      return [tv, [...c1, [{ tag: "TApp", args: [tv], ret: tv, src: "Fix" }, t1]]];
+      return [
+        tv,
+        [...c1, [{ tag: "TApp", args: [tv], ret: tv, src: "Fix" }, t1]],
+      ];
     }
 
     case "Op": {
@@ -490,6 +497,8 @@ export const unifies = (t1: Type, t2: Type): Subst => {
     }
 
     return unifyMany([...t1.args, t1.ret], [...t2.args, t2.ret]);
+  } else if (isTCon(t1) && isTCon(t2) && t1.name === t2.name) {
+    return unifyMany(t1.params, t2.params);
   } else {
     throw new UnificationFail(t1, t2);
   }

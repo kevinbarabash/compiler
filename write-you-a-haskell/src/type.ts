@@ -4,17 +4,20 @@ import { zip } from "./util";
 
 // TODO: update types to use id's
 export type TVar = { tag: "TVar"; name: string };
-// TODO: update type constructors to have type params so that we can
-// support Array<T>, Promise<T>, etc. in the future.
-export type TCon = { tag: "TCon"; name: string };
-export type TApp = { tag: "TApp"; args: Type[]; ret: Type, src?: "App" | "Fix" | "Lam" };
+export type TCon = { tag: "TCon"; name: string; params: Type[] };
+export type TApp = {
+  tag: "TApp";
+  args: Type[];
+  ret: Type;
+  src?: "App" | "Fix" | "Lam";
+};
 
 export type Type = TVar | TCon | TApp;
 
 export type Scheme = { tag: "Forall"; qualifiers: TVar[]; type: Type };
 
-export const tInt: TCon = { tag: "TCon", name: "Int" };
-export const tBool: TCon = { tag: "TCon", name: "Bool" };
+export const tInt: TCon = { tag: "TCon", name: "Int", params: [] };
+export const tBool: TCon = { tag: "TCon", name: "Bool", params: [] };
 
 export function print(t: Type | Scheme): string {
   switch (t.tag) {
@@ -22,19 +25,18 @@ export function print(t: Type | Scheme): string {
       return t.name;
     }
     case "TCon": {
-      return t.name;
+      const params = t.params.map((param) => print(param)).join(", ");
+      return t.params.length > 0 ? `${t.name}<${params}>` : t.name;
     }
     case "TApp": {
-      return `(${t.args
-        .map((arg) => print(arg))
-        .join(", ")}) => ${print(t.ret)}`;
+      return `(${t.args.map((arg) => print(arg)).join(", ")}) => ${print(
+        t.ret
+      )}`;
     }
     case "Forall": {
-      return t.qualifiers.length > 0
-        ? `<${t.qualifiers.map((qual) => print(qual)).join(", ")}>${print(
-            t.type,
-          )}`
-        : print(t.type);
+      const quals = t.qualifiers.map((qual) => print(qual)).join(", ");
+      const type = print(t.type);
+      return t.qualifiers.length > 0 ? `<${quals}>${type}` : type;
     }
   }
 }
@@ -43,8 +45,11 @@ export function equal(a: Type | Scheme, b: Type | Scheme): boolean {
   if (a.tag === "TVar" && b.tag === "TVar") {
     return a.name === b.name; // TODO: use IDs
   } else if (a.tag === "TCon" && b.tag === "TCon") {
-    // TODO: add support for type params to TCon
-    return a.name === b.name;
+    return (
+      a.name === b.name &&
+      a.params.length === b.params.length &&
+      zip(a.params, b.params).every((pair) => equal(...pair))
+    );
   } else if (a.tag === "TApp" && b.tag === "TApp") {
     return (
       a.args.length === b.args.length &&
