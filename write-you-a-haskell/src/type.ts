@@ -2,6 +2,10 @@ import { Map } from "immutable";
 
 import { zip } from "./util";
 
+function assertUnreachable(x: never): never {
+  throw new Error("Didn't expect to get here");
+}
+
 // TODO: update types to use id's
 export type TVar = { tag: "TVar"; name: string };
 export type TCon = { tag: "TCon"; name: string; params: readonly Type[] };
@@ -11,8 +15,9 @@ export type TApp = {
   ret: Type;
   src?: "App" | "Fix" | "Lam";
 };
+export type TUnion = { tag: "TUnion"; types: Type[] };
 
-export type Type = TVar | TCon | TApp;
+export type Type = TVar | TCon | TApp | TUnion;
 
 export type Scheme = { tag: "Forall"; qualifiers: readonly TVar[]; type: Type };
 
@@ -25,19 +30,22 @@ export function print(t: Type | Scheme): string {
       return t.name;
     }
     case "TCon": {
-      const params = t.params.map((param) => print(param)).join(", ");
+      const params = t.params.map(print).join(", ");
       return t.params.length > 0 ? `${t.name}<${params}>` : t.name;
     }
     case "TApp": {
-      return `(${t.args.map((arg) => print(arg)).join(", ")}) => ${print(
-        t.ret
-      )}`;
+      return `(${t.args.map(print).join(", ")}) => ${print(t.ret)}`;
+    }
+    case "TUnion": {
+      return t.types.map(print).join(" | ");
     }
     case "Forall": {
       const quals = t.qualifiers.map((qual) => print(qual)).join(", ");
       const type = print(t.type);
       return t.qualifiers.length > 0 ? `<${quals}>${type}` : type;
     }
+    default:
+      assertUnreachable(t);
   }
 }
 

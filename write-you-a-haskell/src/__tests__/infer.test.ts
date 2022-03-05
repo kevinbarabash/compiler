@@ -555,16 +555,16 @@ describe("inferExpr", () => {
   describe("Type Constructors", () => {
     test("infer promise type", () => {
       const aVar: TVar = { tag: "TVar", name: "a" };
-      const promisifyType: Type = {
-        tag: "TApp",
-        args: [aVar],
-        ret: { tag: "TCon", name: "Promise", params: [aVar] },
-      };
       // <a>(a) => Promise<a>
       const promisifyScheme: Scheme = {
         tag: "Forall",
         qualifiers: [aVar],
-        type: promisifyType,
+        type: {
+          tag: "TApp",
+          args: [aVar],
+          ret: { tag: "TCon", name: "Promise", params: [aVar] },
+          src: "Lam",
+        },
       };
 
       let env: Env = Map();
@@ -589,6 +589,7 @@ describe("inferExpr", () => {
           tag: "TApp",
           args: [{ tag: "TCon", name: "Foo", params: [aVar] }],
           ret: aVar,
+          src: "Lam",
         },
       };
 
@@ -618,6 +619,7 @@ describe("inferExpr", () => {
           tag: "TApp",
           args: [{ tag: "TCon", name: "Foo", params: [aVar] }],
           ret: aVar,
+          src: "Lam",
         },
       };
 
@@ -639,6 +641,76 @@ describe("inferExpr", () => {
 
       const result = inferExpr(env, extractedX);
       expect(print(result)).toEqual("Int");
+    });
+  });
+
+  describe.only("Union types", () => {
+    test("call function that returns a union type", () => {
+      const aVar: TVar = {tag: "TVar", name: "a"};
+      const bVar: TVar = {tag: "TVar", name: "b"};
+      
+      const retUnion: Scheme = {
+        tag: "Forall",
+        qualifiers: [aVar, bVar],
+        type: {
+          tag: "TApp",
+          args: [aVar, bVar],
+          ret: {tag: "TUnion", types: [aVar, bVar]},
+        }
+      };
+
+      const call: Expr = {
+        tag: "App",
+        fn: _var("retUnion"),
+        args: [int(5), bool(true)],
+      };
+      let env: Env = Map();
+
+      env = env.set("retUnion", retUnion);
+
+      const result0 = env.get("retUnion");
+      if (!result0) {
+        throw new Error("retUnion is undefined");
+      }
+      expect(print(result0)).toEqual("<a, b>(a, b) => a | b");
+
+      const result1 = inferExpr(env, call);
+
+      expect(print(result1)).toEqual("Int | Bool");
+
+      const call2: Expr = {
+        tag: "App",
+        fn: _var("retUnion"),
+        args: [bool(false), int(10)],
+      };
+
+      env = env.set("retUnion", retUnion);
+      const result2 = inferExpr(env, call2);
+
+      expect(print(result2)).toEqual("Bool | Int");
+    });
+
+    test("order of types in union doesn't matter", () => {
+      
+    });
+
+    // TODO: need to
+    // - change constraints to use IDs
+    // - give all types IDs
+    // - update unifies to generate union constraints
+    test.skip("infer lambda with union return type", () => {
+      const expr: Expr = lam(["x", "y"], 
+        _if(
+          _var("y"),
+          app(_var("x"), [int(5)]),
+          app(_var("x"), [bool(true)]),
+        ),
+      );
+
+      const env: Env = Map();
+
+      const result = inferExpr(env, expr);
+      expect(print(result)).toEqual("Promise<Int>");
     });
   });
 
