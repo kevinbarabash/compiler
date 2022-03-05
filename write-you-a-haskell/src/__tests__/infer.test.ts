@@ -2,7 +2,7 @@ import { Map } from "immutable";
 
 import { inferExpr } from "../infer";
 import { Expr } from "../syntax";
-import { Env, print, Scheme, Type, TVar } from "../type";
+import { Env, print, Scheme, Type, TVar, tInt } from "../type";
 
 type Binding = [string, Expr];
 
@@ -450,6 +450,105 @@ describe("inferExpr", () => {
       const result = inferExpr(env, add5[1]);
 
       expect(print(result)).toEqual("(Int) => Int");
+    });
+  });
+
+  describe("function subtyping", () => {
+    test("extra args are allowed and ignored", () => {
+      const _add: Binding = ["add", lam(["a", "b"], add(_var("a"), _var("b")))];
+      const sum: Binding = ["sum", app(_var("add"), [int(5), int(10), int(99)])];
+
+      let env: Env = Map();
+      const addScheme = inferExpr(env, _add[1]);
+      env = env.set(_add[0], addScheme);
+      env = env.set(sum[0], inferExpr(env, sum[1]));
+    });
+
+    test("passing a callback with fewer params is allowed", () => {
+      const aVar: Type = {tag: "TVar", name: "a"};
+      const bVar: Type = {tag: "TVar", name: "b"};
+      
+      const mapScheme: Scheme = {
+        tag: "Forall",
+        qualifiers: [aVar, bVar],
+        type: {
+          tag: "TApp",
+          args: [
+            {tag: "TCon", name: "Array", params: [aVar]},
+            {tag: "TApp", args: [aVar, tInt], ret: bVar, src: "App"},
+          ],
+          ret: {tag: "TCon", name: "Array", params: [bVar]},
+        },
+      };
+
+      let env: Env = Map();
+      env = env.set("map", mapScheme);
+
+      const intArray: Scheme = {
+        tag: "Forall",
+        qualifiers: [],
+        type: {tag: "TCon", name: "Array", params: [tInt]},
+      };
+      
+      env = env.set("array", intArray);
+
+      const call: Expr = {
+        tag: "App",
+        fn: _var("map"),
+        args: [
+          _var("array"),
+          lam(["x"], eql(_var("x"), int(0))),
+        ],
+      };
+
+      const result = inferExpr(env, call);
+
+      expect(print(result)).toEqual("Array<Bool>")
+    });
+
+    test("partial application of a callback", () => {
+      const aVar: Type = {tag: "TVar", name: "a"};
+      const bVar: Type = {tag: "TVar", name: "b"};
+      
+      const mapScheme: Scheme = {
+        tag: "Forall",
+        qualifiers: [aVar, bVar],
+        type: {
+          tag: "TApp",
+          args: [
+            {tag: "TCon", name: "Array", params: [aVar]},
+            {tag: "TApp", args: [aVar, tInt], ret: bVar, src: "App"},
+          ],
+          ret: {tag: "TCon", name: "Array", params: [bVar]},
+        },
+      };
+
+      let env: Env = Map();
+      env = env.set("map", mapScheme);
+
+      const intArray: Scheme = {
+        tag: "Forall",
+        qualifiers: [],
+        type: {tag: "TCon", name: "Array", params: [tInt]},
+      };
+      
+      env = env.set("array", intArray);
+
+      const _add: Binding = ["add", lam(["a", "b"], add(_var("a"), _var("b")))];
+      env = env.set(_add[0], inferExpr(env, _add[1]));
+
+      const call: Expr = {
+        tag: "App",
+        fn: _var("map"),
+        args: [
+          _var("array"),
+          lam(["x"], app(_var("add"), [_var("x")])),
+        ],
+      };
+
+      const result = inferExpr(env, call);
+
+      expect(print(result)).toEqual("Array<(Int) => Int>")
     });
   });
 

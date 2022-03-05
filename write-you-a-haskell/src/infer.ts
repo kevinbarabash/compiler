@@ -475,26 +475,65 @@ export const unifies = (t1: Type, t2: Type): Subst => {
   } else if (isTApp(t1) && isTApp(t2)) {
     // infer() only ever creates a Lam node on the left side of a constraint
     // and an App on the right side of a constraint so this check is sufficient.
-    if (
-      t1.src === "Lam" &&
-      t2.src === "App" &&
-      t2.args.length < t1.args.length
-    ) {
+    if (t1.src === "Lam" && t2.src === "App") {
       // partial application
-      const t1_partial: Type = {
-        tag: "TApp",
-        args: t1.args.slice(0, t2.args.length),
-        ret: {
+      if (t1.args.length > t2.args.length) {
+        const t1_partial: Type = {
           tag: "TApp",
-          args: t1.args.slice(t2.args.length),
-          ret: t1.ret,
-        },
-      };
-      return unifyMany(
-        [...t1_partial.args, t1_partial.ret],
-        [...t2.args, t2.ret]
-      );
+          args: t1.args.slice(0, t2.args.length),
+          ret: {
+            tag: "TApp",
+            args: t1.args.slice(t2.args.length),
+            ret: t1.ret,
+          },
+          src: t1.src,
+        };
+        return unifyMany(
+          [...t1_partial.args, t1_partial.ret],
+          [...t2.args, t2.ret]
+        );
+      }
+
+      // subtyping: we ignore extra args
+      // TODO: Create a `isSubType` helper function
+      // TODO: update this once we support rest params
+      if (t1.args.length < t2.args.length) {
+        const t2_without_extra_args: Type = {
+          tag: "TApp",
+          args: t2.args.slice(0, t1.args.length),
+          ret: t2.ret,
+          src: t2.src,
+        }
+        return unifyMany(
+          [...t1.args, t1.ret],
+          [...t2_without_extra_args.args, t2_without_extra_args.ret]
+        );
+      }
     }
+
+    // The reverse can happen when a callback is passed as an arg
+    if (t1.src === "App" && t2.src === "Lam") {
+      // Can partial application happen in this situation?
+
+      // subtyping: we ignore extra args
+      // TODO: Create a `isSubType` helper function
+      // TODO: update this once we support rest params
+      if (t1.args.length > t2.args.length) {
+        const t1_without_extra_args: Type = {
+          tag: "TApp",
+          args: t1.args.slice(0, t2.args.length),
+          ret: t1.ret,
+          src: t1.src,
+        }
+        return unifyMany(
+          [...t1_without_extra_args.args, t1_without_extra_args.ret],
+          [...t2.args, t2.ret]
+        );
+      }
+    }
+
+    // TODO: add support for optional params
+    // we can model optional params as union types, e.g. int | void
 
     return unifyMany([...t1.args, t1.ret], [...t2.args, t2.ret]);
   } else if (isTCon(t1) && isTCon(t2) && t1.name === t2.name) {
