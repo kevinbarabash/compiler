@@ -25,9 +25,8 @@ export function print(t: Type | Scheme): string {
       return t.name;
     }
     case "TCon": {
-      return t.params.length > 0
-        ? `${t.name}<${t.params.map((param) => print(param)).join(", ")}>`
-        : t.name;
+      const params = t.params.map((param) => print(param)).join(", ");
+      return t.params.length > 0 ? `${t.name}<${params}>` : t.name;
     }
     case "TApp": {
       return `(${t.args.map((arg) => print(arg)).join(", ")}) => ${print(
@@ -35,11 +34,9 @@ export function print(t: Type | Scheme): string {
       )}`;
     }
     case "Forall": {
-      return t.qualifiers.length > 0
-        ? `<${t.qualifiers.map((qual) => print(qual)).join(", ")}>${print(
-            t.type
-          )}`
-        : print(t.type);
+      const quals = t.qualifiers.map((qual) => print(qual)).join(", ");
+      const type = print(t.type);
+      return t.qualifiers.length > 0 ? `<${quals}>${type}` : type;
     }
   }
 }

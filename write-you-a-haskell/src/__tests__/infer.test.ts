@@ -525,7 +525,7 @@ describe("inferExpr", () => {
       let env: Env = Map();
 
       env = env.set("extract", extractScheme);
-        // x is of type Foo<Int>
+      // x is of type Foo<Int>
       env = env.set("x", {
         tag: "Forall",
         qualifiers: [],
@@ -533,7 +533,7 @@ describe("inferExpr", () => {
           tag: "TCon",
           name: "Foo",
           params: [{ tag: "TCon", name: "Int", params: [] }],
-        }
+        },
       });
 
       const extractedX = app(_var("extract"), [_var("x")]);

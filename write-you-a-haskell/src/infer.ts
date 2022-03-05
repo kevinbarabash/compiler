@@ -410,7 +410,10 @@ const infer = (expr: Expr, ctx: Context): [Type, Constraint[]] => {
       const { expr: e } = expr;
       let [t1, c1] = infer(e, ctx);
       const tv = fresh(ctx);
-      return [tv, [...c1, [{ tag: "TApp", args: [tv], ret: tv, src: "Fix" }, t1]]];
+      return [
+        tv,
+        [...c1, [{ tag: "TApp", args: [tv], ret: tv, src: "Fix" }, t1]],
+      ];
     }
 
     case "Op": {
