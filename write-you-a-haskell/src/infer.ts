@@ -20,19 +20,30 @@ import {
   tInt,
   tBool,
   print,
+  TUnion,
 } from "./type";
 import { Binop, Expr } from "./syntax";
 import { snd, zip } from "./util";
 
-const scheme = (qualifiers: readonly TVar[], type: Type): Scheme => ({
-  tag: "Forall",
-  qualifiers,
-  type,
-});
+function assertUnreachable(x: never): never {
+  throw new Error("Didn't expect to get here");
+}
 
-const isTCon = (t: any): t is TCon => t.tag === "TCon";
-const isTVar = (t: any): t is TVar => t.tag === "TVar";
-const isTApp = (t: any): t is TApp => t.tag === "TApp";
+const scheme = (qualifiers: readonly TVar[], type: Type): Scheme => {
+  if (type === undefined) {
+    throw new Error("scheme: type can't be undefined");
+  }
+  return {
+    tag: "Forall",
+    qualifiers,
+    type,
+  };
+};
+
+const isTCon = (t: Type): t is TCon => t.tag === "TCon";
+const isTVar = (t: Type): t is TVar => t.tag === "TVar";
+const isTApp = (t: Type): t is TApp => t.tag === "TApp";
+const isTUnion = (t: Type): t is TUnion => t.tag === "TUnion";
 const isScheme = (t: any): t is Scheme => t.tag === "Forall";
 
 function apply(s: Subst, type: Type): Type;
@@ -60,6 +71,12 @@ function apply(s: Subst, a: any): any {
       args: apply(s, a.args),
       ret: apply(s, a.ret),
       src: a.src,
+    };
+  }
+  if (isTUnion(a)) {
+    return {
+      tag: "TUnion",
+      types: apply(s, a.types),
     };
   }
 
@@ -107,6 +124,9 @@ function ftv(a: any): any {
   }
   if (isTApp(a)) {
     return Set.union([...a.args.map(ftv), ftv(a.ret)]); // ftv t1 `Set.union` ftv t2
+  }
+  if (isTUnion(a)) {
+    return ftv(a.types);
   }
 
   // instance Substitutable Scheme
@@ -206,6 +226,10 @@ const normalize = (sc: Scheme): Scheme => {
         return [...type.args.flatMap(fv), ...fv(type.ret)];
       case "TCon":
         return [];
+      case "TUnion":
+        return type.types.flatMap(fv);
+      default:
+        assertUnreachable(type);
     }
   };
 
@@ -236,6 +260,14 @@ const normalize = (sc: Scheme): Scheme => {
           throw new Error("type variable not in signature");
         }
       }
+      case "TUnion": {
+        return {
+          tag: "TUnion",
+          types: type.types.map(normType),
+        };
+      }
+      default: 
+        assertUnreachable(type)
     }
   };
 
@@ -538,7 +570,18 @@ export const unifies = (t1: Type, t2: Type): Subst => {
     return unifyMany([...t1.args, t1.ret], [...t2.args, t2.ret]);
   } else if (isTCon(t1) && isTCon(t2) && t1.name === t2.name) {
     return unifyMany(t1.params, t2.params);
+  } else if (isTUnion(t1) && isTUnion(t2)) {
+    // Assume that the union types have been normalized by this point
+    // This only works if the types that make up the unions are ordered
+    // consistently.  Is there a way to do this?
+    return unifyMany(t1.types, t2.types);
   } else {
+    // When can one type be used as a subtype of another:
+    // - if t1 is an arg being applied and t2 is the param of a lambda, 
+    //   then t1 can be a subtype of t2
+    // What about return types from a lambda?
+    // - requires type widening, not sure if a subtype check will be needed
+
     throw new UnificationFail(t1, t2);
   }
 };
