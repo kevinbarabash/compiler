@@ -6,23 +6,30 @@ function assertUnreachable(x: never): never {
   throw new Error("Didn't expect to get here");
 }
 
+type TCommon = { frozen?: boolean };
+
 // TODO: update types to use id's
-export type TVar = { tag: "TVar"; id: number; name: string };
-export type TCon = { tag: "TCon"; name: string; params: readonly Type[] };
-export type TApp = {
+export type TVar = TCommon & { tag: "TVar"; id: number; name: string };
+export type TCon = TCommon & {
+  tag: "TCon";
+  id: number;
+  name: string;
+  params: readonly Type[];
+};
+export type TApp = TCommon & {
   tag: "TApp";
   args: readonly Type[];
   ret: Type;
   src?: "App" | "Fix" | "Lam";
 };
-export type TUnion = { tag: "TUnion"; types: Type[] };
+export type TUnion = TCommon & { tag: "TUnion"; types: Type[] };
 
 export type Type = TVar | TCon | TApp | TUnion;
 
 export type Scheme = { tag: "Forall"; qualifiers: readonly TVar[]; type: Type };
 
-export const tInt: TCon = { tag: "TCon", name: "Int", params: [] };
-export const tBool: TCon = { tag: "TCon", name: "Bool", params: [] };
+export const tInt: TCon = { tag: "TCon", id: -1, name: "Int", params: [] };
+export const tBool: TCon = { tag: "TCon", id: -1, name: "Bool", params: [] };
 
 export function print(t: Type | Scheme): string {
   switch (t.tag) {
@@ -69,6 +76,29 @@ export function equal(a: Type | Scheme, b: Type | Scheme): boolean {
     throw new Error("TODO: implement equal for Schemes");
   }
   return false;
+}
+
+// NOTE: this function mutates its param
+export function freeze(t: Type): void {
+  t.frozen = true;
+  switch (t.tag) {
+    case "TApp": {
+      t.args.map(freeze);
+      freeze(t.ret);
+      break;
+    }
+    case "TCon": {
+      t.params.map(freeze);
+      break;
+    }
+    case "TVar": {
+      break;
+    }
+    case "TUnion": {
+      t.types.map(freeze);
+      break;
+    }
+  }
 }
 
 // Env is a map of all the current schemes (qualified types) that
