@@ -7,7 +7,7 @@ function assertUnreachable(x: never): never {
 }
 
 // TODO: update types to use id's
-export type TVar = { tag: "TVar"; name: string };
+export type TVar = { tag: "TVar"; id: number; name: string };
 export type TCon = { tag: "TCon"; name: string; params: readonly Type[] };
 export type TApp = {
   tag: "TApp";
@@ -51,7 +51,7 @@ export function print(t: Type | Scheme): string {
 
 export function equal(a: Type | Scheme, b: Type | Scheme): boolean {
   if (a.tag === "TVar" && b.tag === "TVar") {
-    return a.name === b.name; // TODO: use IDs
+    return a.id === b.id; // TODO: use IDs
   } else if (a.tag === "TCon" && b.tag === "TCon") {
     return (
       a.name === b.name &&
@@ -78,4 +78,4 @@ export type Env = Map<string, Scheme>;
 export type Constraint = readonly [Type, Type];
 export type Unifier = readonly [Subst, readonly Constraint[]];
 
-export type Subst = Map<string, Type>;
+export type Subst = Map<number, Type>;
