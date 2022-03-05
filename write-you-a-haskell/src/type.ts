@@ -4,17 +4,17 @@ import { zip } from "./util";
 
 // TODO: update types to use id's
 export type TVar = { tag: "TVar"; name: string };
-export type TCon = { tag: "TCon"; name: string; params: Type[] };
+export type TCon = { tag: "TCon"; name: string; params: readonly Type[] };
 export type TApp = {
   tag: "TApp";
-  args: Type[];
+  args: readonly Type[];
   ret: Type;
   src?: "App" | "Fix" | "Lam";
 };
 
 export type Type = TVar | TCon | TApp;
 
-export type Scheme = { tag: "Forall"; qualifiers: TVar[]; type: Type };
+export type Scheme = { tag: "Forall"; qualifiers: readonly TVar[]; type: Type };
 
 export const tInt: TCon = { tag: "TCon", name: "Int", params: [] };
 export const tBool: TCon = { tag: "TCon", name: "Bool", params: [] };
@@ -67,7 +67,7 @@ export function equal(a: Type | Scheme, b: Type | Scheme): boolean {
 // are in scope.
 export type Env = Map<string, Scheme>;
 
-export type Constraint = [Type, Type];
-export type Unifier = [Subst, Constraint[]];
+export type Constraint = readonly [Type, Type];
+export type Unifier = readonly [Subst, readonly Constraint[]];
 
 export type Subst = Map<string, Type>;

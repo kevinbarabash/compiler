@@ -35,7 +35,7 @@ export class Ambiguous extends Error {
 }
 
 export class UnificationMismatch extends Error {
-  constructor(as: Type[], bs: Type[]) {
+  constructor(as: readonly Type[], readonly bs: readonly Type[]) {
     super("UnificationMismatch");
     this.name = "UnificationMismatch";
   }
