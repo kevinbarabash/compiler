@@ -644,7 +644,7 @@ describe("inferExpr", () => {
     });
   });
 
-  describe.only("Union types", () => {
+  describe("Union types", () => {
     test("call function that returns a union type", () => {
       const aVar: TVar = {tag: "TVar", name: "a"};
       const bVar: TVar = {tag: "TVar", name: "b"};
