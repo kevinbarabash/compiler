@@ -63,7 +63,7 @@ function apply(s: Subst, a: any): any {
     };
   }
   if (isTVar(a)) {
-    return s.get(a.name) || a;
+    return s.get(a.id) || a;
   }
   if (isTApp(a)) {
     return {
@@ -88,7 +88,7 @@ function apply(s: Subst, a: any): any {
         // remove all TVars from the Substitution mapping that appear in the scheme as
         // qualifiers.
         // TODO: should this be using reduceRight to match Infer.hs' use of foldr?
-        a.qualifiers.reduceRight((accum, val) => accum.delete(val.name), s),
+        a.qualifiers.reduceRight((accum, val) => accum.delete(val.id), s),
         a.type
       )
     );
@@ -160,10 +160,10 @@ type Context = {
 
 const emptyEnv: Env = Map();
 
-export const inferExpr = (env: Env, expr: Expr): Scheme => {
+export const inferExpr = (env: Env, expr: Expr, state?: State): Scheme => {
   const initCtx: Context = {
     env: env,
-    state: { count: 0 },
+    state: state || { count: 0 },
   };
   const [ty, cs] = infer(expr, initCtx);
   const subs = runSolve(cs);
@@ -193,7 +193,7 @@ const closeOver = (t: Type): Scheme => {
 const lookup = (a: TVar, entries: readonly [TVar, TVar][]): TVar | null => {
   for (const [k, v] of entries) {
     // TODO: replace with IDs and generate names when printin
-    if (a.name === k.name) {
+    if (a.id === k.id) {
       return v;
     }
   }
@@ -202,10 +202,10 @@ const lookup = (a: TVar, entries: readonly [TVar, TVar][]): TVar | null => {
 
 // remove duplicates from the array
 function nub(array: readonly TVar[]): readonly TVar[] {
-  const names: string[] = [];
+  const ids: number[] = [];
   return array.filter((tv) => {
-    if (!names.includes(tv.name)) {
-      names.push(tv.name);
+    if (!ids.includes(tv.id)) {
+      ids.push(tv.id);
       return true;
     }
     return false;
@@ -234,10 +234,11 @@ const normalize = (sc: Scheme): Scheme => {
   };
 
   const body = sc.type;
-  const ord = zip(
-    nub(fv(body)),
-    letters.map((name) => ({ tag: "TVar", name } as TVar))
-  );
+  const keys = nub(fv(body));
+  const values: TVar[] = keys.map((key, index) => {
+    return {tag: "TVar", id: key.id, name: letters[index]};
+  })
+  const ord = zip(keys, values);
 
   const normType = (type: Type): Type => {
     switch (type.tag) {
@@ -316,10 +317,11 @@ const letters = [
 ];
 
 // TODO: use IDs for TVar's and defer naming until print time
-const fresh = (ctx: Context): TVar => {
+export const fresh = (ctx: Context): TVar => {
   ctx.state.count++;
   return {
     tag: "TVar",
+    id: ctx.state.count,
     name: letters[ctx.state.count],
   };
 };
@@ -328,7 +330,7 @@ const instantiate = (sc: Scheme, ctx: Context): Type => {
   const freshQualifiers = sc.qualifiers.map(() => fresh(ctx));
   const subs = Map(
     zip(
-      sc.qualifiers.map((qual) => qual.name),
+      sc.qualifiers.map((qual) => qual.id),
       freshQualifiers
     )
   );
@@ -602,12 +604,12 @@ const solver = (u: Unifier): Subst => {
 };
 
 const bind = (tv: TVar, t: Type): Subst => {
-  if (t.tag === "TVar" && t.name === tv.name) {
+  if (t.tag === "TVar" && t.id === tv.id) {
     return emptySubst;
   } else if (occursCheck(tv, t)) {
     throw new InfiniteType(tv, t);
   } else {
-    return Map([[tv.name, t]]);
+    return Map([[tv.id, t]]);
   }
 };
 

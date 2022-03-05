@@ -465,8 +465,8 @@ describe("inferExpr", () => {
     });
 
     test("passing a callback with fewer params is allowed", () => {
-      const aVar: Type = {tag: "TVar", name: "a"};
-      const bVar: Type = {tag: "TVar", name: "b"};
+      const aVar: Type = {tag: "TVar", id: 0, name: "a"};
+      const bVar: Type = {tag: "TVar", id: 1, name: "b"};
       
       const mapScheme: Scheme = {
         tag: "Forall",
@@ -501,14 +501,14 @@ describe("inferExpr", () => {
         ],
       };
 
-      const result = inferExpr(env, call);
+      const result = inferExpr(env, call, { count: 2 });
 
       expect(print(result)).toEqual("Array<Bool>")
     });
 
     test("partial application of a callback", () => {
-      const aVar: Type = {tag: "TVar", name: "a"};
-      const bVar: Type = {tag: "TVar", name: "b"};
+      const aVar: Type = {tag: "TVar", id: 0, name: "a"};
+      const bVar: Type = {tag: "TVar", id: 1, name: "b"};
       
       const mapScheme: Scheme = {
         tag: "Forall",
@@ -546,7 +546,7 @@ describe("inferExpr", () => {
         ],
       };
 
-      const result = inferExpr(env, call);
+      const result = inferExpr(env, call, { count: 2 });
 
       expect(print(result)).toEqual("Array<(Int) => Int>")
     });
@@ -554,7 +554,7 @@ describe("inferExpr", () => {
 
   describe("Type Constructors", () => {
     test("infer promise type", () => {
-      const aVar: TVar = { tag: "TVar", name: "a" };
+      const aVar: TVar = { tag: "TVar", id: 0, name: "a" };
       // <a>(a) => Promise<a>
       const promisifyScheme: Scheme = {
         tag: "Forall",
@@ -571,16 +571,16 @@ describe("inferExpr", () => {
 
       env = env.set("promisify", promisifyScheme);
       const intCall: Binding = ["call", app(_var("promisify"), [int(5)])];
-      const intResult = inferExpr(env, intCall[1]);
+      const intResult = inferExpr(env, intCall[1], { count: 1 });
       expect(print(intResult)).toEqual("Promise<Int>");
 
       const boolCall: Binding = ["call", app(_var("promisify"), [bool(true)])];
-      const boolResult = inferExpr(env, boolCall[1]);
+      const boolResult = inferExpr(env, boolCall[1], { count: 1 });
       expect(print(boolResult)).toEqual("Promise<Bool>");
     });
 
     test("extract value from type constructor", () => {
-      const aVar: TVar = { tag: "TVar", name: "a" };
+      const aVar: TVar = { tag: "TVar", id: 0, name: "a" };
       // <a>(Foo<a>) => a
       const extractScheme: Scheme = {
         tag: "Forall",
@@ -605,12 +605,12 @@ describe("inferExpr", () => {
         )
       );
 
-      const result = inferExpr(env, addFoos);
+      const result = inferExpr(env, addFoos, { count: 1 });
       expect(print(result)).toEqual("(Foo<Int>, Foo<Int>) => Int");
     });
 
     test("extract value from type constructor 2", () => {
-      const aVar: TVar = { tag: "TVar", name: "a" };
+      const aVar: TVar = { tag: "TVar", id: 0, name: "a" };
       // <a>(Foo<a>) => a
       const extractScheme: Scheme = {
         tag: "Forall",
@@ -639,15 +639,15 @@ describe("inferExpr", () => {
 
       const extractedX = app(_var("extract"), [_var("x")]);
 
-      const result = inferExpr(env, extractedX);
+      const result = inferExpr(env, extractedX, { count: 1 });
       expect(print(result)).toEqual("Int");
     });
   });
 
   describe("Union types", () => {
     test("call function that returns a union type", () => {
-      const aVar: TVar = {tag: "TVar", name: "a"};
-      const bVar: TVar = {tag: "TVar", name: "b"};
+      const aVar: TVar = {tag: "TVar", id: 0, name: "a"};
+      const bVar: TVar = {tag: "TVar", id: 1, name: "b"};
       
       const retUnion: Scheme = {
         tag: "Forall",
@@ -674,7 +674,7 @@ describe("inferExpr", () => {
       }
       expect(print(result0)).toEqual("<a, b>(a, b) => a | b");
 
-      const result1 = inferExpr(env, call);
+      const result1 = inferExpr(env, call, { count: 2 });
 
       expect(print(result1)).toEqual("Int | Bool");
 
@@ -685,7 +685,7 @@ describe("inferExpr", () => {
       };
 
       env = env.set("retUnion", retUnion);
-      const result2 = inferExpr(env, call2);
+      const result2 = inferExpr(env, call2, { count: 2 });
 
       expect(print(result2)).toEqual("Bool | Int");
     });
