@@ -14,10 +14,11 @@ const _if = (cond: Expr, th: Expr, el: Expr): Expr => ({
   el,
 });
 const fix = (expr: Expr): Expr => ({ tag: "Fix", expr });
-const lam = (args: string[], body: Expr): Expr => ({
+const lam = (args: string[], body: Expr, async?: boolean): Expr => ({
   tag: "Lam",
   args,
   body,
+  async,
 });
 const _let = (name: string, value: Expr, body: Expr): Expr => ({
   tag: "Let",
@@ -26,6 +27,7 @@ const _let = (name: string, value: Expr, body: Expr): Expr => ({
   body,
 });
 const _var = (name: string): Expr => ({ tag: "Var", name });
+const _await = (expr: Expr): Expr => ({ tag: "Await", expr });
 
 const int = (value: number): Expr => ({
   tag: "Lit",
@@ -712,6 +714,122 @@ describe("inferExpr", () => {
       expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
         `"Couldn't unify Int with Bool"`
       );
+    });
+  });
+
+  describe("Async/Await", () => {
+    test("return value is wrapped in a promise", () => {
+      const expr: Expr = lam([], int(5), true);
+
+      const env: Env = Map();
+      const result = inferExpr(env, expr);
+
+      expect(print(result)).toEqual("() => Promise<Int>");
+    });
+
+    test("return value is not rewrapped if already a promise", () => {
+      const retVal: Scheme = {
+        tag: "Forall",
+        qualifiers: [],
+        type: {
+          tag: "TCon",
+          id: 0,
+          name: "Promise",
+          params: [{ tag: "TCon", name: "Int", id: 1, params: [] }],
+        },
+      };
+      const expr: Expr = lam([], _var("retVal"), true);
+
+      let env: Env = Map();
+      env = env.set("retVal", retVal);
+      const result = inferExpr(env, expr, { count: 2 });
+
+      expect(print(result)).toEqual("() => Promise<Int>");
+    });
+
+    test("awaiting a promise will unwrap it", () => {
+      const retVal: Scheme = {
+        tag: "Forall",
+        qualifiers: [],
+        type: {
+          tag: "TCon",
+          id: 0,
+          name: "Promise",
+          params: [{ tag: "TCon", name: "Int", id: 1, params: [] }],
+        },
+      };
+      // Passing an awaited Promise<Int> to add() verifies that we're
+      // unwrapping promises.
+      const expr: Expr = lam([], add(_await(_var("retVal")), int(5)), true);
+
+      let env: Env = Map();
+      env = env.set("retVal", retVal);
+      const result = inferExpr(env, expr, { count: 2 });
+
+      expect(print(result)).toEqual("() => Promise<Int>");
+    });
+
+    test("awaiting a non-promise value is a no-op", () => {
+      // Passing an awaited Promise<Int> to add() verifies that we're
+      // unwrapping promises.
+      const expr: Expr = lam([], add(_await(int(5)), int(10)), true);
+
+      const env: Env = Map();
+      const result = inferExpr(env, expr);
+
+      expect(print(result)).toEqual("() => Promise<Int>");
+    });
+
+    test("inferring an async function that returns a polymorphic promise", () => {
+      const expr: Expr = lam(["x"], app(_var("x"), []), true);
+
+      const env: Env = Map();
+      const result = inferExpr(env, expr);
+
+      expect(print(result)).toEqual("<a>(() => a) => Promise<a>");
+    });
+
+    test("awaiting inside a non-async lambda", () => {
+      const expr: Expr = lam([], add(_await(int(5)), int(10)));
+
+      const env: Env = Map();
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+        `"Can't use \`await\` inside non-async lambda"`
+      );
+    });
+
+    test("awaiting inside a nested non-async lambda", () => {
+      const expr: Expr = lam(
+        [],
+        _let(
+          "add",
+          lam(["a", "b"], add(_await(_var("a")), _var("b"))),
+          app(_var("add"), [int(5), int(10)])
+        ),
+        true, // Even though the outer lambda is async, the inner one isn't
+      );
+
+      const env: Env = Map();
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+        `"Can't use \`await\` inside non-async lambda"`
+      );
+    });
+
+    test("awaiting inside a nested async lambda", () => {
+      const expr: Expr = lam(
+        [],
+        _let(
+          "add",
+          lam(["a", "b"], add(_await(_var("a")), _var("b")), true),
+          app(_var("add"), [int(5), int(10)])
+        ),
+        false,
+      );
+
+      const env: Env = Map();
+      const result = inferExpr(env, expr);
+
+      expect(print(result)).toEqual("() => Promise<Int>");
     });
   });
 

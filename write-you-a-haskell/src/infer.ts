@@ -14,6 +14,7 @@ type State = {
 type Context = {
   env: Env;
   state: State;
+  async?: boolean;
 };
 
 const emptyEnv: Env = Map();
@@ -102,7 +103,10 @@ const normalize = (sc: Scheme): Scheme => {
         };
       }
       case "TCon":
-        return type;
+        return {
+          ...type,
+          params: type.params.map(normType),
+        };
       case "TVar": {
         const replacement = mapping[type.id];
         if (replacement) {
@@ -150,13 +154,13 @@ export const fresh = (ctx: Context): TVar => {
   };
 };
 
-export const freshTCon = (ctx: Context, name: string): TCon => {
+export const freshTCon = (ctx: Context, name: string, params: Type[] = []): TCon => {
   ctx.state.count++;
   return {
     tag: "TCon",
     id: ctx.state.count,
     name,
-    params: [],
+    params,
   };
 };
 
@@ -199,7 +203,7 @@ const infer = (
       const { args, body } = expr;
       // newCtx introduces a new scope
       const tvs = args.map(() => fresh(ctx));
-      const newCtx = {
+      const newCtx: Context = {
         ...ctx,
         env: ctx.env.withMutations((env) => {
           for (const [arg, tv] of zip(args, tvs)) {
@@ -207,9 +211,16 @@ const infer = (
             env.set(arg, scheme([], tv));
           }
         }),
+        async: expr.async,
       };
       const [t, c] = infer(body, newCtx);
-      return [{ tag: "TFun", args: tvs, ret: t, src: "Lam" }, c];
+      // We wrap the return value in a promise if:
+      // - the lambda is marked as async
+      // - its inferred return value isn't already in a promise
+      // TODO: add more general support for conditional types
+      const ret = !expr.async || t.tag === "TCon" && t.name === "Promise"
+        ? t : freshTCon(ctx, "Promise", [t]);
+      return [{ tag: "TFun", args: tvs, ret, src: "Lam" }, c];
     }
 
     case "App": {
@@ -280,6 +291,31 @@ const infer = (
       // This is similar how we'll handle n-ary apply
       return [t2, [...c1, ...c2, ...c3, [t1, tBool], [t2, t3]]];
     }
+
+    case "Await": {
+      if (!ctx.async) {
+        throw new Error("Can't use `await` inside non-async lambda");
+      }
+
+      const [t, c] = infer(expr.expr, ctx);
+
+      if (t.tag === "TCon" && t.name === "Promise") {
+        if (t.params.length !== 1) {
+          // TODO: How do we prevent people from overwriting built-in types
+          // TODO: How do we allow local shadowing of other types within a module?
+          //       Do we even want to?
+          throw new Error("Invalid Promise type");
+        }
+        return [t.params[0], c];
+      }
+
+      // If the await expression isn't a promise then we return the inferred
+      // type and constraints from the awaited expression.
+      return [t, c];
+    }
+
+    default: 
+      assertUnreachable(expr);
   }
 };
 
