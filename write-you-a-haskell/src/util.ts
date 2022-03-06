@@ -1,7 +1,7 @@
 import { Map, Set } from "immutable";
 
 import { Type, TCon, TVar, Subst, Constraint, Scheme, Env } from "./type";
-import { isTCon, isTVar, isTApp, isTUnion, isScheme, scheme } from "./type";
+import { isTCon, isTVar, isTFun, isTUnion, isScheme, scheme } from "./type";
 
 export function apply(s: Subst, type: Type): Type;
 export function apply(s: Subst, scheme: Scheme): Scheme;
@@ -28,7 +28,7 @@ export function apply(s: Subst, a: any): any {
   if (isTVar(a)) {
     return s.get(a.id) || a;
   }
-  if (isTApp(a)) {
+  if (isTFun(a)) {
     return {
       ...a,
       args: apply(s, a.args),
@@ -85,7 +85,7 @@ export function ftv(a: any): any {
   if (isTVar(a)) {
     return Set([a]); // Set.singleton a
   }
-  if (isTApp(a)) {
+  if (isTFun(a)) {
     return Set.union([...a.args.map(ftv), ftv(a.ret)]); // ftv t1 `Set.union` ftv t2
   }
   if (isTUnion(a)) {

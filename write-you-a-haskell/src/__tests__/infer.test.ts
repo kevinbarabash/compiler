@@ -475,10 +475,10 @@ describe("inferExpr", () => {
         tag: "Forall",
         qualifiers: [aVar, bVar],
         type: {
-          tag: "TApp",
+          tag: "TFun",
           args: [
             { tag: "TCon", id: 2, name: "Array", params: [aVar] },
-            { tag: "TApp", args: [aVar, tInt], ret: bVar, src: "App" },
+            { tag: "TFun", args: [aVar, tInt], ret: bVar, src: "App" },
           ],
           ret: { tag: "TCon", id: 3, name: "Array", params: [bVar] },
         },
@@ -514,10 +514,10 @@ describe("inferExpr", () => {
         tag: "Forall",
         qualifiers: [aVar, bVar],
         type: {
-          tag: "TApp",
+          tag: "TFun",
           args: [
             { tag: "TCon", id: 3, name: "Array", params: [aVar] },
-            { tag: "TApp", args: [aVar, tInt], ret: bVar, src: "App" },
+            { tag: "TFun", args: [aVar, tInt], ret: bVar, src: "App" },
           ],
           ret: { tag: "TCon", id: 4, name: "Array", params: [bVar] },
         },
@@ -557,7 +557,7 @@ describe("inferExpr", () => {
         tag: "Forall",
         qualifiers: [aVar],
         type: {
-          tag: "TApp",
+          tag: "TFun",
           args: [aVar],
           ret: { tag: "TCon", id: 1, name: "Promise", params: [aVar] },
           src: "Lam",
@@ -583,7 +583,7 @@ describe("inferExpr", () => {
         tag: "Forall",
         qualifiers: [aVar],
         type: {
-          tag: "TApp",
+          tag: "TFun",
           args: [{ tag: "TCon", id: 2, name: "Foo", params: [aVar] }],
           ret: aVar,
           src: "Lam",
@@ -613,7 +613,7 @@ describe("inferExpr", () => {
         tag: "Forall",
         qualifiers: [aVar],
         type: {
-          tag: "TApp",
+          tag: "TFun",
           args: [{ tag: "TCon", id: 1, name: "Foo", params: [aVar] }],
           ret: aVar,
           src: "Lam",
@@ -651,7 +651,7 @@ describe("inferExpr", () => {
         tag: "Forall",
         qualifiers: [aVar, bVar],
         type: {
-          tag: "TApp",
+          tag: "TFun",
           args: [aVar, bVar],
           ret: { tag: "TUnion", types: [aVar, bVar] },
         },
