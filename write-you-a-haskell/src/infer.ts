@@ -3,7 +3,7 @@ import { Map } from "immutable";
 import { UnboundVariable } from "./errors";
 import { freeze, scheme, tBool, tInt } from "./type";
 import { Constraint, Env, Scheme, Subst, TCon, TVar, Type } from "./type";
-import { Binop, Expr } from "./syntax";
+import { Binop, Expr } from "./syntax-types";
 import { zip, apply, ftv, assertUnreachable } from "./util";
 import { runSolve } from "./constraint-solver";
 
