@@ -101,6 +101,23 @@ export function freeze(t: Type): void {
   }
 }
 
+export const scheme = (qualifiers: readonly TVar[], type: Type): Scheme => {
+  if (type === undefined) {
+    throw new Error("scheme: type can't be undefined");
+  }
+  return {
+    tag: "Forall",
+    qualifiers,
+    type,
+  };
+};
+
+export const isTCon = (t: Type): t is TCon => t.tag === "TCon";
+export const isTVar = (t: Type): t is TVar => t.tag === "TVar";
+export const isTApp = (t: Type): t is TApp => t.tag === "TApp";
+export const isTUnion = (t: Type): t is TUnion => t.tag === "TUnion";
+export const isScheme = (t: any): t is Scheme => t.tag === "Forall";
+
 // Env is a map of all the current schemes (qualified types) that
 // are in scope.
 export type Env = Map<string, Scheme>;
