@@ -16,15 +16,15 @@ export type TCon = TCommon & {
   name: string;
   params: readonly Type[];
 };
-export type TApp = TCommon & {
-  tag: "TApp";
+export type TFun = TCommon & {
+  tag: "TFun";
   args: readonly Type[];
   ret: Type;
   src?: "App" | "Fix" | "Lam";
 };
 export type TUnion = TCommon & { tag: "TUnion"; types: Type[] };
 
-export type Type = TVar | TCon | TApp | TUnion;
+export type Type = TVar | TCon | TFun | TUnion;
 
 export type Scheme = { tag: "Forall"; qualifiers: readonly TVar[]; type: Type };
 
@@ -40,7 +40,7 @@ export function print(t: Type | Scheme): string {
       const params = t.params.map(print).join(", ");
       return t.params.length > 0 ? `${t.name}<${params}>` : t.name;
     }
-    case "TApp": {
+    case "TFun": {
       return `(${t.args.map(print).join(", ")}) => ${print(t.ret)}`;
     }
     case "TUnion": {
@@ -65,7 +65,7 @@ export function equal(a: Type | Scheme, b: Type | Scheme): boolean {
       a.params.length === b.params.length &&
       zip(a.params, b.params).every((pair) => equal(...pair))
     );
-  } else if (a.tag === "TApp" && b.tag === "TApp") {
+  } else if (a.tag === "TFun" && b.tag === "TFun") {
     return (
       a.args.length === b.args.length &&
       zip([...a.args, a.ret], [...b.args, b.ret]).every((pair) =>
@@ -82,7 +82,7 @@ export function equal(a: Type | Scheme, b: Type | Scheme): boolean {
 export function freeze(t: Type): void {
   t.frozen = true;
   switch (t.tag) {
-    case "TApp": {
+    case "TFun": {
       t.args.map(freeze);
       freeze(t.ret);
       break;
@@ -114,7 +114,7 @@ export const scheme = (qualifiers: readonly TVar[], type: Type): Scheme => {
 
 export const isTCon = (t: Type): t is TCon => t.tag === "TCon";
 export const isTVar = (t: Type): t is TVar => t.tag === "TVar";
-export const isTApp = (t: Type): t is TApp => t.tag === "TApp";
+export const isTFun = (t: Type): t is TFun => t.tag === "TFun";
 export const isTUnion = (t: Type): t is TUnion => t.tag === "TUnion";
 export const isScheme = (t: any): t is Scheme => t.tag === "Forall";
 

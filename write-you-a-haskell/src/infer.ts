@@ -72,7 +72,7 @@ const normalize = (sc: Scheme): Scheme => {
     switch (type.tag) {
       case "TVar":
         return [type];
-      case "TApp":
+      case "TFun":
         return [...type.args.flatMap(fv), ...fv(type.ret)];
       case "TCon":
         return [];
@@ -92,10 +92,10 @@ const normalize = (sc: Scheme): Scheme => {
 
   const normType = (type: Type): Type => {
     switch (type.tag) {
-      case "TApp": {
+      case "TFun": {
         const { args, ret, src } = type;
         return {
-          tag: "TApp",
+          tag: "TFun",
           args: args.map(normType),
           ret: normType(ret),
           src,
@@ -209,7 +209,7 @@ const infer = (
         }),
       };
       const [t, c] = infer(body, newCtx);
-      return [{ tag: "TApp", args: tvs, ret: t, src: "Lam" }, c];
+      return [{ tag: "TFun", args: tvs, ret: t, src: "Lam" }, c];
     }
 
     case "App": {
@@ -229,7 +229,7 @@ const infer = (
           ...c_fn,
           ...c_args.flat(),
           // This is almost the reverse of what we return from the "Lam" case
-          [t_fn, { tag: "TApp", args: t_args, ret: tv, src: "App" }],
+          [t_fn, { tag: "TFun", args: t_args, ret: tv, src: "App" }],
         ],
       ];
     }
@@ -254,7 +254,7 @@ const infer = (
       const tv = fresh(ctx);
       return [
         tv,
-        [...c1, [{ tag: "TApp", args: [tv], ret: tv, src: "Fix" }, t1]],
+        [...c1, [{ tag: "TFun", args: [tv], ret: tv, src: "Fix" }, t1]],
       ];
     }
 
@@ -264,7 +264,7 @@ const infer = (
       const [rt, rc] = infer(right, ctx);
       const tv = fresh(ctx);
       const u1: Type = {
-        tag: "TApp",
+        tag: "TFun",
         args: [lt, rt],
         ret: tv,
       };
@@ -287,25 +287,25 @@ const ops = (op: Binop): Type => {
   switch (op) {
     case "Add":
       return {
-        tag: "TApp",
+        tag: "TFun",
         args: [tInt, tInt],
         ret: tInt,
       };
     case "Mul":
       return {
-        tag: "TApp",
+        tag: "TFun",
         args: [tInt, tInt],
         ret: tInt,
       };
     case "Sub":
       return {
-        tag: "TApp",
+        tag: "TFun",
         args: [tInt, tInt],
         ret: tInt,
       };
     case "Eql":
       return {
-        tag: "TApp",
+        tag: "TFun",
         args: [tInt, tInt],
         ret: tBool,
       };

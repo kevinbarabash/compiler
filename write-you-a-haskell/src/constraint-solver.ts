@@ -1,7 +1,7 @@
 import { Map } from "immutable";
 
 import { Type, TVar, Subst, Constraint, Unifier, equal, TUnion } from "./type";
-import { isTCon, isTVar, isTApp, isTUnion } from "./type";
+import { isTCon, isTVar, isTFun, isTUnion } from "./type";
 import { InfiniteType, UnificationFail, UnificationMismatch } from "./errors";
 import { apply, ftv } from "./util";
 
@@ -36,17 +36,17 @@ export const unifies = (t1: Type, t2: Type): Subst => {
     return bind(t1, t2);
   } else if (isTVar(t2)) {
     return bind(t2, t1);
-  } else if (isTApp(t1) && isTApp(t2)) {
+  } else if (isTFun(t1) && isTFun(t2)) {
     // infer() only ever creates a Lam node on the left side of a constraint
     // and an App on the right side of a constraint so this check is sufficient.
     if (t1.src === "Lam" && t2.src === "App") {
       // partial application
       if (t1.args.length > t2.args.length) {
         const t1_partial: Type = {
-          tag: "TApp",
+          tag: "TFun",
           args: t1.args.slice(0, t2.args.length),
           ret: {
-            tag: "TApp",
+            tag: "TFun",
             args: t1.args.slice(t2.args.length),
             ret: t1.ret,
           },
@@ -63,7 +63,7 @@ export const unifies = (t1: Type, t2: Type): Subst => {
       // TODO: update this once we support rest params
       if (t1.args.length < t2.args.length) {
         const t2_without_extra_args: Type = {
-          tag: "TApp",
+          tag: "TFun",
           args: t2.args.slice(0, t1.args.length),
           ret: t2.ret,
           src: t2.src,
@@ -84,7 +84,7 @@ export const unifies = (t1: Type, t2: Type): Subst => {
       // TODO: update this once we support rest params
       if (t1.args.length > t2.args.length) {
         const t1_without_extra_args: Type = {
-          tag: "TApp",
+          tag: "TFun",
           args: t1.args.slice(0, t2.args.length),
           ret: t1.ret,
           src: t1.src,
