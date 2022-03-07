@@ -6,24 +6,21 @@ function assertUnreachable(x: never): never {
   throw new Error("Didn't expect to get here");
 }
 
-type TCommon = { frozen?: boolean };
+type TCommon = { frozen?: boolean; id: number };
 
-// TODO: update types to use id's
-export type TVar = TCommon & { tag: "TVar"; id: number; name: string };
+export type TVar = TCommon & { tag: "TVar"; name: string };
 export type TCon = TCommon & {
   tag: "TCon";
-  id: number;
   name: string;
   params: readonly Type[];
 };
 export type TFun = TCommon & {
   tag: "TFun";
-  id: number;
   args: readonly Type[];
   ret: Type;
   src?: "App" | "Fix" | "Lam";
 };
-export type TUnion = TCommon & { tag: "TUnion"; id: number; types: readonly Type[] };
+export type TUnion = TCommon & { tag: "TUnion"; types: readonly Type[] };
 
 export type Type = TVar | TCon | TFun | TUnion;
 

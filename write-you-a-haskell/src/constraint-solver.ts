@@ -121,14 +121,14 @@ export const unifies = (t1: Type, t2: Type, ctx: Context): Subst => {
     if ("id" in t1 && "id" in t2 && !t1.frozen && !t2.frozen) {
       ctx.state.count++;
       const names: string[] = [];
-      // flatten
+      // Flattens types
       const types = [
         ...(isTUnion(t1) ? t1.types : [t1]),
         ...(isTUnion(t2) ? t2.types : [t2]),
       ].filter(type => {
-        // remove duplicate TCons
-        // TODO: check for TCon's with different numbers of params
-        if (isTCon(type)) {
+        // Removes duplicate TCons
+        // TODO: handle TCons with params
+        if (isTCon(type) && type.params.length === 0) {
           if (names.includes(type.name)) {
             return false;
           }

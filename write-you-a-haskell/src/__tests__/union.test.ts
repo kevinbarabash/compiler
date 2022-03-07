@@ -73,7 +73,7 @@ describe("Union types and type widening", () => {
     expect(print(result)).toEqual("<a>(Bool, (Int | Bool) => a) => a");
   });
 
-  test.only("infer union of function types", () => {
+  test("infer union of function types", () => {
     const foo: Scheme = {
       tag: "Forall",
       qualifiers: [],
