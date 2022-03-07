@@ -18,18 +18,24 @@ export type TCon = TCommon & {
 };
 export type TFun = TCommon & {
   tag: "TFun";
+  id: number;
   args: readonly Type[];
   ret: Type;
   src?: "App" | "Fix" | "Lam";
 };
-export type TUnion = TCommon & { tag: "TUnion"; types: Type[] };
+export type TUnion = TCommon & { tag: "TUnion"; id: number; types: readonly Type[] };
 
 export type Type = TVar | TCon | TFun | TUnion;
 
 export type Scheme = { tag: "Forall"; qualifiers: readonly TVar[]; type: Type };
 
+// TODO: provide a way to declare types as part of the syntax AST
+// We'll need this eventually to support defining bindings to external libraries.
+// It will also help simplify writing tests where we need to define the type of
+// of something that we can't easily infer from an expression.
 export const tInt: TCon = { tag: "TCon", id: -1, name: "Int", params: [] };
 export const tBool: TCon = { tag: "TCon", id: -1, name: "Bool", params: [] };
+export const tStr: TCon = { tag: "TCon", id: -1, name: "Str", params: [] };
 
 export function print(t: Type | Scheme): string {
   switch (t.tag) {
@@ -126,3 +132,13 @@ export type Constraint = readonly [Type, Type];
 export type Unifier = readonly [Subst, readonly Constraint[]];
 
 export type Subst = Map<number, Type>;
+
+export type State = {
+  count: number;
+};
+
+export type Context = {
+  env: Env;
+  state: State;
+  async?: boolean;
+};
