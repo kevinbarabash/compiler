@@ -73,9 +73,7 @@ describe("Union types and type widening", () => {
     expect(print(result)).toEqual("<a>(Bool, (Int | Bool) => a) => a");
   });
 
-  test("infer union of function types", () => {
-    const int: TCon = { tag: "TCon", id: 0, name: "Int", params: [] };
-    const bool: TCon = { tag: "TCon", id: 1, name: "Bool", params: [] };
+  test.only("infer union of function types", () => {
     const foo: Scheme = {
       tag: "Forall",
       qualifiers: [],
@@ -109,8 +107,8 @@ describe("Union types and type widening", () => {
     env = env.set("foo", foo);
     env = env.set("bar", bar);
 
-    const result = inferExpr(env, expr, {count: 4});
-    expect(print(result)).toMatchInlineSnapshot(`"(Bool | Int) => (Int | Bool) => Bool | Int"`)
+    const result = inferExpr(env, expr, {count: 6});
+    expect(print(result)).toMatchInlineSnapshot(`"(Bool) => (Int | Bool) => Bool | Int"`)
   });
 
   test("widen existing union type", () => {

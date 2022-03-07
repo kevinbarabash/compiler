@@ -286,8 +286,8 @@ const infer = (
       const [t2, c2] = infer(th, ctx);
       const [t3, c3] = infer(el, ctx);
       // This is similar how we'll handle n-ary apply
-      // Why do we have to do [t2, t3] before [t1, freshTCon(ctx, "Bool")]?
-      return [t2, [...c1, ...c2, ...c3, [t2, t3], [t1, freshTCon(ctx, "Bool")]]];
+      const bool = freshTCon(ctx, "Bool");
+      return [t2, [...c1, ...c2, ...c3, [t1, bool], [t2, t3]]];
     }
 
     case "Await": {
