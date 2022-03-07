@@ -8,3 +8,17 @@ https://github.com/sdiehl/write-you-a-haskell/blob/master/chapter7/poly_constrai
 281 lines (not including helper files)
 
 After that, tackle thih.
+
+
+## Notes
+
+Destructuring:
+- `let Promise<a> = foo()`, should this desugar to `const a = await foo()`?
+- What about other type constructors, e.g. `Maybe<a>` or `Pair<a, b>`?
+  - `Maybe<a>` can be either `Some<a>` or `None` so `Maybe<a>` is not a
+    type constructor, but actually a parametric type
+    - How do we differentiat `Maybe<a>` from `Some<a>`?
+    - It seems like `Promise<a>` is also a pametric type and not a type
+      constructor
+- We should probably introduce tuple and record types to support destructuring
+  

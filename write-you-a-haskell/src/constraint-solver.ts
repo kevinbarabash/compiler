@@ -1,6 +1,6 @@
 import { Map } from "immutable";
 
-import { Type, TVar, Subst, Constraint, Unifier, equal, TUnion } from "./type";
+import { Type, TVar, Subst, Constraint, Unifier, equal, TUnion, Context } from "./type";
 import { isTCon, isTVar, isTFun, isTUnion } from "./type";
 import { InfiniteType, UnificationFail, UnificationMismatch } from "./errors";
 import { apply, ftv } from "./util";
@@ -11,11 +11,11 @@ import { apply, ftv } from "./util";
 
 const emptySubst: Subst = Map();
 
-export const runSolve = (cs: readonly Constraint[]): Subst => {
-  return solver([emptySubst, cs]);
+export const runSolve = (cs: readonly Constraint[], ctx: Context): Subst => {
+  return solver([emptySubst, cs], ctx);
 };
 
-const unifyMany = (ts1: readonly Type[], ts2: readonly Type[]): Subst => {
+const unifyMany = (ts1: readonly Type[], ts2: readonly Type[], ctx: Context): Subst => {
   if (ts1.length !== ts2.length) {
     throw new UnificationMismatch(ts1, ts2);
   }
@@ -24,12 +24,12 @@ const unifyMany = (ts1: readonly Type[], ts2: readonly Type[]): Subst => {
   }
   const [t1, ...rest1] = ts1;
   const [t2, ...rest2] = ts2;
-  const su1 = unifies(t1, t2);
-  const su2 = unifyMany(apply(su1, rest1), apply(su1, rest2));
+  const su1 = unifies(t1, t2, ctx);
+  const su2 = unifyMany(apply(su1, rest1), apply(su1, rest2), ctx);
   return composeSubs(su2, su1);
 };
 
-export const unifies = (t1: Type, t2: Type): Subst => {
+export const unifies = (t1: Type, t2: Type, ctx: Context): Subst => {
   if (equal(t1, t2)) {
     return emptySubst;
   } else if (isTVar(t1)) {
@@ -42,11 +42,14 @@ export const unifies = (t1: Type, t2: Type): Subst => {
     if (t1.src === "Lam" && t2.src === "App") {
       // partial application
       if (t1.args.length > t2.args.length) {
+        ctx.state.count++;
         const t1_partial: Type = {
           tag: "TFun",
+          id: t1.id, // is it safe to reuse `id` here?
           args: t1.args.slice(0, t2.args.length),
           ret: {
             tag: "TFun",
+            id: ctx.state.count,
             args: t1.args.slice(t2.args.length),
             ret: t1.ret,
           },
@@ -54,7 +57,8 @@ export const unifies = (t1: Type, t2: Type): Subst => {
         };
         return unifyMany(
           [...t1_partial.args, t1_partial.ret],
-          [...t2.args, t2.ret]
+          [...t2.args, t2.ret],
+          ctx
         );
       }
 
@@ -64,13 +68,15 @@ export const unifies = (t1: Type, t2: Type): Subst => {
       if (t1.args.length < t2.args.length) {
         const t2_without_extra_args: Type = {
           tag: "TFun",
+          id: t2.id, // is it safe to reuse `id` here?
           args: t2.args.slice(0, t1.args.length),
           ret: t2.ret,
           src: t2.src,
         };
         return unifyMany(
           [...t1.args, t1.ret],
-          [...t2_without_extra_args.args, t2_without_extra_args.ret]
+          [...t2_without_extra_args.args, t2_without_extra_args.ret],
+          ctx
         );
       }
     }
@@ -85,36 +91,55 @@ export const unifies = (t1: Type, t2: Type): Subst => {
       if (t1.args.length > t2.args.length) {
         const t1_without_extra_args: Type = {
           tag: "TFun",
+          id: t1.id, // is it safe to reuse `id` here?
           args: t1.args.slice(0, t2.args.length),
           ret: t1.ret,
           src: t1.src,
         };
         return unifyMany(
           [...t1_without_extra_args.args, t1_without_extra_args.ret],
-          [...t2.args, t2.ret]
+          [...t2.args, t2.ret],
+          ctx
         );
       }
     }
 
     // TODO: add support for optional params
     // we can model optional params as union types, e.g. int | void
-
-    return unifyMany([...t1.args, t1.ret], [...t2.args, t2.ret]);
+    return unifyMany([...t1.args, t1.ret], [...t2.args, t2.ret], ctx);
   } else if (isTCon(t1) && isTCon(t2) && t1.name === t2.name) {
-    return unifyMany(t1.params, t2.params);
+    return unifyMany(t1.params, t2.params, ctx);
   } else if (isTUnion(t1) && isTUnion(t2)) {
     // Assume that the union types have been normalized by this point
     // This only works if the types that make up the unions are ordered
     // consistently.  Is there a way to do this?
-    return unifyMany(t1.types, t2.types);
+    return unifyMany(t1.types, t2.types, ctx);
   } else {
     // As long as the types haven't been frozen then this is okay
     // NOTE: We may need to add .src info in the future if we notice
     // any places where expected type widening is occurring.
     if ("id" in t1 && "id" in t2 && !t1.frozen && !t2.frozen) {
+      ctx.state.count++;
+      const names: string[] = [];
+      // Flattens types
+      const types = [
+        ...(isTUnion(t1) ? t1.types : [t1]),
+        ...(isTUnion(t2) ? t2.types : [t2]),
+      ].filter(type => {
+        // Removes duplicate TCons
+        // TODO: handle TCons with params
+        if (isTCon(type) && type.params.length === 0) {
+          if (names.includes(type.name)) {
+            return false;
+          }
+          names.push(type.name);
+        }
+        return true;
+      });
       const union: TUnion = {
         tag: "TUnion",
-        types: [t1, t2],
+        id: ctx.state.count,
+        types,
       };
       const result: Subst = Map([
         [t1.id, union],
@@ -132,14 +157,14 @@ const composeSubs = (s1: Subst, s2: Subst): Subst => {
 };
 
 // Unification solver
-const solver = (u: Unifier): Subst => {
+const solver = (u: Unifier, ctx: Context): Subst => {
   const [su, cs] = u;
   if (cs.length === 0) {
     return su;
   }
   const [[t1, t2], ...cs0] = cs;
-  const su1 = unifies(t1, t2);
-  return solver([composeSubs(su1, su), apply(su1, cs0)]);
+  const su1 = unifies(t1, t2, ctx);
+  return solver([composeSubs(su1, su), apply(su1, cs0)], ctx);
 };
 
 const bind = (tv: TVar, t: Type): Subst => {

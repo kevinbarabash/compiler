@@ -183,8 +183,9 @@ describe("inferExpr", () => {
         qualifiers: [aVar],
         type: {
           tag: "TFun",
+          id: 1,
           args: [aVar],
-          ret: { tag: "TCon", id: 1, name: "Promise", params: [aVar] },
+          ret: { tag: "TCon", id: 2, name: "Promise", params: [aVar] },
           src: "Lam",
         },
       };
@@ -193,14 +194,14 @@ describe("inferExpr", () => {
 
       env = env.set("promisify", promisifyScheme);
       const intCall: Binding = ["call", b.app(b._var("promisify"), [b.int(5)])];
-      const intResult = inferExpr(env, intCall[1], { count: 2 });
+      const intResult = inferExpr(env, intCall[1], { count: 3 });
       expect(print(intResult)).toEqual("Promise<Int>");
 
       const boolCall: Binding = [
         "call",
         b.app(b._var("promisify"), [b.bool(true)]),
       ];
-      const boolResult = inferExpr(env, boolCall[1], { count: 2 });
+      const boolResult = inferExpr(env, boolCall[1], { count: 3 });
       expect(print(boolResult)).toEqual("Promise<Bool>");
     });
 
@@ -212,6 +213,7 @@ describe("inferExpr", () => {
         qualifiers: [aVar],
         type: {
           tag: "TFun",
+          id: 1,
           args: [{ tag: "TCon", id: 2, name: "Foo", params: [aVar] }],
           ret: aVar,
           src: "Lam",
@@ -242,7 +244,8 @@ describe("inferExpr", () => {
         qualifiers: [aVar],
         type: {
           tag: "TFun",
-          args: [{ tag: "TCon", id: 1, name: "Foo", params: [aVar] }],
+          id: 1,
+          args: [{ tag: "TCon", id: 2, name: "Foo", params: [aVar] }],
           ret: aVar,
           src: "Lam",
         },
@@ -257,15 +260,15 @@ describe("inferExpr", () => {
         qualifiers: [],
         type: {
           tag: "TCon",
-          id: 2,
+          id: 3,
           name: "Foo",
-          params: [{ tag: "TCon", id: 3, name: "Int", params: [] }],
+          params: [{ tag: "TCon", id: 4, name: "Int", params: [] }],
         },
       });
 
       const extractedX = b.app(b._var("extract"), [b._var("x")]);
 
-      const result = inferExpr(env, extractedX, { count: 4 });
+      const result = inferExpr(env, extractedX, { count: 5 });
       expect(print(result)).toEqual("Int");
     });
   });

@@ -295,11 +295,12 @@ describe("function subtyping", () => {
       qualifiers: [aVar, bVar],
       type: {
         tag: "TFun",
+        id: 2,
         args: [
-          { tag: "TCon", id: 2, name: "Array", params: [aVar] },
-          { tag: "TFun", args: [aVar, tInt], ret: bVar, src: "App" },
+          { tag: "TCon", id: 3, name: "Array", params: [aVar] },
+          { tag: "TFun", id: 4, args: [aVar, tInt], ret: bVar, src: "App" },
         ],
-        ret: { tag: "TCon", id: 3, name: "Array", params: [bVar] },
+        ret: { tag: "TCon", id: 5, name: "Array", params: [bVar] },
       },
     };
 
@@ -309,7 +310,7 @@ describe("function subtyping", () => {
     const intArray: Scheme = {
       tag: "Forall",
       qualifiers: [],
-      type: { tag: "TCon", id: 4, name: "Array", params: [tInt] },
+      type: { tag: "TCon", id: 6, name: "Array", params: [tInt] },
     };
 
     env = env.set("array", intArray);
@@ -334,11 +335,12 @@ describe("function subtyping", () => {
       qualifiers: [aVar, bVar],
       type: {
         tag: "TFun",
+        id: 3,
         args: [
-          { tag: "TCon", id: 3, name: "Array", params: [aVar] },
-          { tag: "TFun", args: [aVar, tInt], ret: bVar, src: "App" },
+          { tag: "TCon", id: 4, name: "Array", params: [aVar] },
+          { tag: "TFun", id: 5, args: [aVar, tInt], ret: bVar, src: "App" },
         ],
-        ret: { tag: "TCon", id: 4, name: "Array", params: [bVar] },
+        ret: { tag: "TCon", id: 6, name: "Array", params: [bVar] },
       },
     };
 
@@ -348,7 +350,7 @@ describe("function subtyping", () => {
     const intArray: Scheme = {
       tag: "Forall",
       qualifiers: [],
-      type: { tag: "TCon", id: 5, name: "Array", params: [tInt] },
+      type: { tag: "TCon", id: 7, name: "Array", params: [tInt] },
     };
 
     env = env.set("array", intArray);
@@ -368,7 +370,7 @@ describe("function subtyping", () => {
       ],
     };
 
-    const result = inferExpr(env, call, { count: 6 });
+    const result = inferExpr(env, call, { count: 8 });
 
     expect(print(result)).toEqual("Array<(Int) => Int>");
   });

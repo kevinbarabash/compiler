@@ -29,6 +29,9 @@ export function apply(s: Subst, a: any): any {
     return s.get(a.id) || a;
   }
   if (isTFun(a)) {
+    if (a.id && s.has(a.id)) {
+      return s.get(a.id)
+    }
     return {
       ...a,
       args: apply(s, a.args),
@@ -36,6 +39,9 @@ export function apply(s: Subst, a: any): any {
     };
   }
   if (isTUnion(a)) {
+    if (a.id && s.has(a.id)) {
+      return s.get(a.id);
+    }
     return {
       ...a,
       types: apply(s, a.types),

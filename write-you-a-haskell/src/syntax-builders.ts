@@ -31,6 +31,10 @@ export const bool = (value: boolean): Expr => ({
   tag: "Lit",
   value: { tag: "LBool", value },
 });
+export const str = (value: string): Expr => ({
+  tag: "Lit",
+  value: { tag: "LStr", value },
+})
 
 export const add = (left: Expr, right: Expr): Expr => ({
   tag: "Op",

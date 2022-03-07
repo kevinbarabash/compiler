@@ -11,7 +11,8 @@ export type Expr =
 
 export type Lit =
   | { tag: "LInt"; value: number }
-  | { tag: "LBool"; value: boolean };
+  | { tag: "LBool"; value: boolean }
+  | { tag: "LStr"; value: string };
 
 export type Binop = "Add" | "Sub" | "Mul" | "Eql";
 

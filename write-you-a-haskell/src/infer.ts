@@ -2,20 +2,10 @@ import { Map } from "immutable";
 
 import { UnboundVariable } from "./errors";
 import { freeze, scheme, tBool, tInt } from "./type";
-import { Constraint, Env, Scheme, Subst, TCon, TVar, Type } from "./type";
+import { Constraint, Env, Scheme, Subst, TCon, TVar, Type, Context, State } from "./type";
 import { Binop, Expr } from "./syntax-types";
 import { zip, apply, ftv, assertUnreachable } from "./util";
 import { runSolve } from "./constraint-solver";
-
-type State = {
-  count: number;
-};
-
-type Context = {
-  env: Env;
-  state: State;
-  async?: boolean;
-};
 
 const emptyEnv: Env = Map();
 
@@ -25,7 +15,7 @@ export const inferExpr = (env: Env, expr: Expr, state?: State): Scheme => {
     state: state || { count: 0 },
   };
   const [ty, cs] = infer(expr, initCtx);
-  const subs = runSolve(cs);
+  const subs = runSolve(cs, initCtx);
   return closeOver(apply(subs, ty));
 };
 
@@ -39,7 +29,7 @@ export const constraintsExpr = (
     state: { count: 0 },
   };
   const [ty, cs] = infer(expr, initCtx);
-  const subst = runSolve(cs);
+  const subst = runSolve(cs, initCtx);
   const sc = closeOver(apply(subst, ty));
   return [cs, subst, ty, sc];
 };
@@ -54,7 +44,7 @@ const closeOver = (t: Type): Scheme => {
 };
 
 // remove duplicates from the array
-function nub(array: readonly TVar[]): readonly TVar[] {
+function nub<T extends {id: number}>(array: readonly T[]): readonly T[] {
   const ids: number[] = [];
   return array.filter((tv) => {
     if (!ids.includes(tv.id)) {
@@ -94,12 +84,11 @@ const normalize = (sc: Scheme): Scheme => {
   const normType = (type: Type): Type => {
     switch (type.tag) {
       case "TFun": {
-        const { args, ret, src } = type;
+        const { args, ret } = type;
         return {
-          tag: "TFun",
+          ...type,
           args: args.map(normType),
           ret: normType(ret),
-          src,
         };
       }
       case "TCon":
@@ -117,7 +106,7 @@ const normalize = (sc: Scheme): Scheme => {
       }
       case "TUnion": {
         return {
-          tag: "TUnion",
+          ...type,
           types: type.types.map(normType),
         };
       }
@@ -191,6 +180,8 @@ const infer = (
           return [freshTCon(ctx, "Int"), []];
         case "LBool":
           return [freshTCon(ctx, "Bool"), []];
+        case "LStr":
+          return [freshTCon(ctx, "Str"), []];
       }
     }
 
@@ -220,7 +211,9 @@ const infer = (
       // TODO: add more general support for conditional types
       const ret = !expr.async || t.tag === "TCon" && t.name === "Promise"
         ? t : freshTCon(ctx, "Promise", [t]);
-      return [{ tag: "TFun", args: tvs, ret, src: "Lam" }, c];
+
+      ctx.state.count++;
+      return [{ tag: "TFun", id: ctx.state.count, args: tvs, ret, src: "Lam" }, c];
     }
 
     case "App": {
@@ -234,13 +227,14 @@ const infer = (
         c_args.push(c_arg);
       }
       const tv = fresh(ctx);
+      ctx.state.count++;
       return [
         tv,
         [
           ...c_fn,
           ...c_args.flat(),
           // This is almost the reverse of what we return from the "Lam" case
-          [t_fn, { tag: "TFun", args: t_args, ret: tv, src: "App" }],
+          [t_fn, { tag: "TFun", id: ctx.state.count, args: t_args, ret: tv, src: "App" }],
         ],
       ];
     }
@@ -249,7 +243,7 @@ const infer = (
       const { name, value, body } = expr;
       const { env } = ctx;
       const [t1, c1] = infer(value, ctx);
-      const subs = runSolve(c1);
+      const subs = runSolve(c1, ctx);
       const sc = generalize(apply(subs, env), apply(subs, t1));
       // (t2, c2) <- inEnv (x, sc) $ local (apply sub) (infer e2)
       const newCtx = { ...ctx, env: ctx.env.set(name, sc) };
@@ -263,9 +257,10 @@ const infer = (
       const { expr: e } = expr;
       let [t1, c1] = infer(e, ctx);
       const tv = fresh(ctx);
+      ctx.state.count++;
       return [
         tv,
-        [...c1, [{ tag: "TFun", args: [tv], ret: tv, src: "Fix" }, t1]],
+        [...c1, [{ tag: "TFun", id: ctx.state.count, args: [tv], ret: tv, src: "Fix" }, t1]],
       ];
     }
 
@@ -274,8 +269,10 @@ const infer = (
       const [lt, lc] = infer(left, ctx);
       const [rt, rc] = infer(right, ctx);
       const tv = fresh(ctx);
+      ctx.state.count++;
       const u1: Type = {
         tag: "TFun",
+        id: ctx.state.count,
         args: [lt, rt],
         ret: tv,
       };
@@ -289,7 +286,8 @@ const infer = (
       const [t2, c2] = infer(th, ctx);
       const [t3, c3] = infer(el, ctx);
       // This is similar how we'll handle n-ary apply
-      return [t2, [...c1, ...c2, ...c3, [t1, tBool], [t2, t3]]];
+      const bool = freshTCon(ctx, "Bool");
+      return [t2, [...c1, ...c2, ...c3, [t1, bool], [t2, t3]]];
     }
 
     case "Await": {
@@ -324,24 +322,28 @@ const ops = (op: Binop): Type => {
     case "Add":
       return {
         tag: "TFun",
+        id: -10,
         args: [tInt, tInt],
         ret: tInt,
       };
     case "Mul":
       return {
         tag: "TFun",
+        id: -11,
         args: [tInt, tInt],
         ret: tInt,
       };
     case "Sub":
       return {
         tag: "TFun",
+        id: -12,
         args: [tInt, tInt],
         ret: tInt,
       };
     case "Eql":
       return {
         tag: "TFun",
+        id: -13,
         args: [tInt, tInt],
         ret: tBool,
       };
