@@ -2,12 +2,13 @@ import { Map } from "immutable";
 
 import { inferExpr } from "../infer";
 import { Expr } from "../syntax-types";
-import { Env, print, Scheme, Type, tInt } from "../type";
-import * as b from "../syntax-builders";
+import { Env, print, scheme } from "../type-types";
+import * as sb from "../syntax-builders";
+import * as tb from "../type-builders";
 
 type Binding = [string, Expr];
 
-const _const: Binding = ["const", b.lam(["x", "y"], b._var("x"))];
+const _const: Binding = ["const", sb.lam(["x", "y"], sb._var("x"))];
 
 describe("Functions", () => {
   test("let rec fib = (n) => ...", () => {
@@ -17,24 +18,24 @@ describe("Functions", () => {
     // `let fib = fix((fib) => (n) => ...)`
     const fib: Binding = [
       "fib",
-      b.fix(
-        b.lam(
+      sb.fix(
+        sb.lam(
           ["fib"],
-          b.lam(
+          sb.lam(
             ["n"],
-            b._if(
-              b.eql(b._var("n"), b.int(0)),
+            sb._if(
+              sb.eql(sb._var("n"), sb.int(0)),
               // then
-              b.int(0),
+              sb.int(0),
               // else
-              b._if(
-                b.eql(b._var("n"), b.int(1)),
+              sb._if(
+                sb.eql(sb._var("n"), sb.int(1)),
                 // then
-                b.int(1),
+                sb.int(1),
                 // else
-                b.add(
-                  b.app(b._var("fib"), [b.sub(b._var("n"), b.int(1))]),
-                  b.app(b._var("fib"), [b.sub(b._var("n"), b.int(2))])
+                sb.add(
+                  sb.app(sb._var("fib"), [sb.sub(sb._var("n"), sb.int(1))]),
+                  sb.app(sb._var("fib"), [sb.sub(sb._var("n"), sb.int(2))])
                 )
               )
             )
@@ -62,29 +63,29 @@ describe("Functions", () => {
     // }
     const y: Binding = [
       "y",
-      b.lam(
+      sb.lam(
         ["y"],
-        b._let(
+        sb._let(
           "f",
-          b.lam(["x"], b._if(b._var("x"), b.bool(true), b.bool(false))),
-          b.app(b._var("const"), [
-            b.app(b._var("f"), [b._var("y")]),
-            b._var("y"),
+          sb.lam(["x"], sb._if(sb._var("x"), sb.bool(true), sb.bool(false))),
+          sb.app(sb._var("const"), [
+            sb.app(sb._var("f"), [sb._var("y")]),
+            sb._var("y"),
           ])
         )
       ),
     ];
     // let id x = x;
-    const id: Binding = ["id", b.lam(["x"], b._var("x"))];
+    const id: Binding = ["id", sb.lam(["x"], sb._var("x"))];
     // let foo x = let y = id x in y + 1;
     const foo: Binding = [
       "foo",
-      b.lam(
+      sb.lam(
         ["x"],
-        b._let(
+        sb._let(
           "y",
-          b.app(b._var("id"), [b._var("x")]),
-          b.add(b._var("y"), b.int(1))
+          sb.app(sb._var("id"), [sb._var("x")]),
+          sb.add(sb._var("y"), sb.int(1))
         )
       ),
     ];
@@ -114,11 +115,11 @@ describe("Functions", () => {
     // compose f g x == g (f x)
     const compose: Binding = [
       "compose",
-      b.lam(
+      sb.lam(
         ["f"],
-        b.lam(
+        sb.lam(
           ["g"],
-          b.lam(["x"], b.app(b._var("g"), [b.app(b._var("f"), [b._var("x")])]))
+          sb.lam(["x"], sb.app(sb._var("g"), [sb.app(sb._var("f"), [sb._var("x")])]))
         )
       ),
     ];
@@ -134,13 +135,13 @@ describe("Functions", () => {
   test("let on = (g, f) => (x, y) => g(f(x), f(y))", () => {
     const on: Binding = [
       "on",
-      b.lam(
+      sb.lam(
         ["g", "f"],
-        b.lam(
+        sb.lam(
           ["x", "y"],
-          b.app(b._var("g"), [
-            b.app(b._var("f"), [b._var("x")]),
-            b.app(b._var("f"), [b._var("y")]),
+          sb.app(sb._var("g"), [
+            sb.app(sb._var("f"), [sb._var("x")]),
+            sb.app(sb._var("f"), [sb._var("y")]),
           ])
         )
       ),
@@ -158,9 +159,9 @@ describe("Functions", () => {
   test("let ap = (f, x) => f(f(x);", () => {
     const ap: Binding = [
       "ap",
-      b.lam(
+      sb.lam(
         ["f", "x"],
-        b.app(b._var("f"), [b.app(b._var("f"), [b._var("x")])])
+        sb.app(sb._var("f"), [sb.app(sb._var("f"), [sb._var("x")])])
       ),
     ];
 
@@ -174,21 +175,21 @@ describe("Functions", () => {
     const until: Binding = [
       "until",
       // let rec until p f x =
-      b.fix(
-        b.lam(
+      sb.fix(
+        sb.lam(
           ["until"],
-          b.lam(
+          sb.lam(
             ["p", "f", "x"],
-            b._if(
+            sb._if(
               //   if (p x)
-              b.app(b._var("p"), [b._var("x")]),
+              sb.app(sb._var("p"), [sb._var("x")]),
               //   then x
-              b._var("x"),
+              sb._var("x"),
               //   else (until p f (f x));
-              b.app(b._var("until"), [
-                b._var("p"),
-                b._var("f"),
-                b.app(b._var("f"), [b._var("x")]),
+              sb.app(sb._var("until"), [
+                sb._var("p"),
+                sb._var("f"),
+                sb.app(sb._var("f"), [sb._var("x")]),
               ])
             )
           )
@@ -203,7 +204,7 @@ describe("Functions", () => {
   });
 
   test("no args", () => {
-    const foo: Binding = ["foo", b.lam([], b.int(5))];
+    const foo: Binding = ["foo", sb.lam([], sb.int(5))];
 
     let env: Env = Map();
     const result = inferExpr(env, foo[1]);
@@ -216,9 +217,9 @@ describe("partial applicaiton", () => {
   test("add5 = add(5)", () => {
     const _add: Binding = [
       "add",
-      b.lam(["a", "b"], b.add(b._var("a"), b._var("b"))),
+      sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
     ];
-    const add5: Binding = ["add5", b.app(b._var("add"), [b.int(5)])];
+    const add5: Binding = ["add5", sb.app(sb._var("add"), [sb.int(5)])];
 
     let env: Env = Map();
     const addScheme = inferExpr(env, _add[1]);
@@ -236,11 +237,11 @@ describe("partial applicaiton", () => {
   test("let sum = add(5)(10)", () => {
     const _add: Binding = [
       "add",
-      b.lam(["a", "b"], b.add(b._var("a"), b._var("b"))),
+      sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
     ];
     const sum: Binding = [
       "sum",
-      b.app(b.app(b._var("add"), [b.int(5)]), [b.int(10)]),
+      sb.app(sb.app(sb._var("add"), [sb.int(5)]), [sb.int(10)]),
     ];
 
     let env: Env = Map();
@@ -259,7 +260,7 @@ describe("partial applicaiton", () => {
   test("((a, b) => a + b)(5)", () => {
     const add5: Binding = [
       "add5",
-      b.app(b.lam(["a", "b"], b.add(b._var("a"), b._var("b"))), [b.int(5)]),
+      sb.app(sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))), [sb.int(5)]),
     ];
 
     const env: Env = Map();
@@ -273,11 +274,11 @@ describe("function subtyping", () => {
   test("extra args are allowed and ignored", () => {
     const _add: Binding = [
       "add",
-      b.lam(["a", "b"], b.add(b._var("a"), b._var("b"))),
+      sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
     ];
     const sum: Binding = [
       "sum",
-      b.app(b._var("add"), [b.int(5), b.int(10), b.int(99)]),
+      sb.app(sb._var("add"), [sb.int(5), sb.int(10), sb.int(99)]),
     ];
 
     let env: Env = Map();
@@ -287,90 +288,95 @@ describe("function subtyping", () => {
   });
 
   test("passing a callback with fewer params is allowed", () => {
-    const aVar: Type = { tag: "TVar", id: 0, name: "a" };
-    const bVar: Type = { tag: "TVar", id: 1, name: "b" };
+    const ctx = tb.createCtx();
+    const aVar = tb.tvar("a", ctx);
+    const bVar = tb.tvar("b", ctx);
 
-    const mapScheme: Scheme = {
-      tag: "Forall",
-      qualifiers: [aVar, bVar],
-      type: {
-        tag: "TFun",
-        id: 2,
-        args: [
-          { tag: "TCon", id: 3, name: "Array", params: [aVar] },
-          { tag: "TFun", id: 4, args: [aVar, tInt], ret: bVar, src: "App" },
+    const mapScheme = scheme(
+      [aVar, bVar],
+      tb.tfun(
+        [
+          tb.tcon("Array", [aVar], ctx),
+          // Why is this TFun's `src` an "App"?
+          tb.tfun(
+            [aVar, tb.tcon("Int", [], ctx)], bVar, ctx
+          )
         ],
-        ret: { tag: "TCon", id: 5, name: "Array", params: [bVar] },
-      },
-    };
+        tb.tcon("Array", [bVar], ctx),
+        ctx,
+      ),
+    );
+
+    // @ts-expect-error
+    mapScheme.type.args[1].src = "App";
 
     let env: Env = Map();
     env = env.set("map", mapScheme);
 
-    const intArray: Scheme = {
-      tag: "Forall",
-      qualifiers: [],
-      type: { tag: "TCon", id: 6, name: "Array", params: [tInt] },
-    };
+    const intArray = scheme(
+      [],
+      tb.tcon("Array", [tb.tcon("Int", [], ctx)], ctx)
+    );
 
     env = env.set("array", intArray);
 
     const call: Expr = {
       tag: "App",
-      fn: b._var("map"),
-      args: [b._var("array"), b.lam(["x"], b.eql(b._var("x"), b.int(0)))],
+      fn: sb._var("map"),
+      args: [sb._var("array"), sb.lam(["x"], sb.eql(sb._var("x"), sb.int(0)))],
     };
 
-    const result = inferExpr(env, call, { count: 5 });
+    const result = inferExpr(env, call, ctx.state);
 
     expect(print(result)).toEqual("Array<Bool>");
   });
 
   test("partial application of a callback", () => {
-    const aVar: Type = { tag: "TVar", id: 0, name: "a" };
-    const bVar: Type = { tag: "TVar", id: 1, name: "b" };
+    const ctx = tb.createCtx();
+    const aVar = tb.tvar("a", ctx);
+    const bVar = tb.tvar("b", ctx);
 
-    const mapScheme: Scheme = {
-      tag: "Forall",
-      qualifiers: [aVar, bVar],
-      type: {
-        tag: "TFun",
-        id: 3,
-        args: [
-          { tag: "TCon", id: 4, name: "Array", params: [aVar] },
-          { tag: "TFun", id: 5, args: [aVar, tInt], ret: bVar, src: "App" },
+    const mapScheme = scheme(
+      [aVar, bVar],
+      tb.tfun(
+        [
+          tb.tcon("Array", [aVar], ctx),
+          tb.tfun([aVar, tb.tcon("Int", [], ctx)], bVar, ctx),
         ],
-        ret: { tag: "TCon", id: 6, name: "Array", params: [bVar] },
-      },
-    };
+        tb.tcon("Array", [bVar], ctx),
+        ctx,
+      )
+    );
+
+    // @ts-expect-error
+    mapScheme.type.args[1].src = "App";
 
     let env: Env = Map();
     env = env.set("map", mapScheme);
 
-    const intArray: Scheme = {
-      tag: "Forall",
-      qualifiers: [],
-      type: { tag: "TCon", id: 7, name: "Array", params: [tInt] },
-    };
+    const intArray = scheme(
+      [],
+      tb.tcon("Array", [tb.tcon("Int", [], ctx)], ctx),
+    );
 
     env = env.set("array", intArray);
 
     const _add: Binding = [
       "add",
-      b.lam(["a", "b"], b.add(b._var("a"), b._var("b"))),
+      sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
     ];
     env = env.set(_add[0], inferExpr(env, _add[1]));
 
     const call: Expr = {
       tag: "App",
-      fn: b._var("map"),
+      fn: sb._var("map"),
       args: [
-        b._var("array"),
-        b.lam(["x"], b.app(b._var("add"), [b._var("x")])),
+        sb._var("array"),
+        sb.lam(["x"], sb.app(sb._var("add"), [sb._var("x")])),
       ],
     };
 
-    const result = inferExpr(env, call, { count: 8 });
+    const result = inferExpr(env, call, ctx.state);
 
     expect(print(result)).toEqual("Array<(Int) => Int>");
   });

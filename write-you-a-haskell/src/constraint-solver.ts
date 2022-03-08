@@ -1,7 +1,7 @@
 import { Map } from "immutable";
 
-import { Type, TVar, Subst, Constraint, Unifier, equal, TUnion, Context } from "./type";
-import { isTCon, isTVar, isTFun, isTUnion } from "./type";
+import { Type, TVar, Subst, Constraint, Unifier, equal, TUnion, Context } from "./type-types";
+import { isTCon, isTVar, isTFun, isTUnion } from "./type-types";
 import { InfiniteType, UnificationFail, UnificationMismatch } from "./errors";
 import { apply, ftv } from "./util";
 

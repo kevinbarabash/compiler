@@ -2,12 +2,13 @@ import { Map } from "immutable";
 
 import { inferExpr } from "../infer";
 import { Expr } from "../syntax-types";
-import { Env, print, Scheme } from "../type";
-import * as b from "../syntax-builders";
+import { Env, print, scheme } from "../type-types";
+import * as sb from "../syntax-builders";
+import * as tb from "../type-builders";
 
 describe("Async/Await", () => {
   test("return value is wrapped in a promise", () => {
-    const expr: Expr = b.lam([], b.int(5), true);
+    const expr: Expr = sb.lam([], sb.int(5), true);
 
     const env: Env = Map();
     const result = inferExpr(env, expr);
@@ -16,17 +17,12 @@ describe("Async/Await", () => {
   });
 
   test("return value is not rewrapped if already a promise", () => {
-    const retVal: Scheme = {
-      tag: "Forall",
-      qualifiers: [],
-      type: {
-        tag: "TCon",
-        id: 0,
-        name: "Promise",
-        params: [{ tag: "TCon", name: "Int", id: 1, params: [] }],
-      },
-    };
-    const expr: Expr = b.lam([], b._var("retVal"), true);
+    const ctx = tb.createCtx();
+    const retVal = scheme(
+      [],
+      tb.tcon("Promise", [tb.tcon("Int", [], ctx)], ctx),
+    );
+    const expr: Expr = sb.lam([], sb._var("retVal"), true);
 
     let env: Env = Map();
     env = env.set("retVal", retVal);
@@ -36,19 +32,14 @@ describe("Async/Await", () => {
   });
 
   test("awaiting a promise will unwrap it", () => {
-    const retVal: Scheme = {
-      tag: "Forall",
-      qualifiers: [],
-      type: {
-        tag: "TCon",
-        id: 0,
-        name: "Promise",
-        params: [{ tag: "TCon", name: "Int", id: 1, params: [] }],
-      },
-    };
+    const ctx = tb.createCtx();
+    const retVal = scheme(
+      [],
+      tb.tcon("Promise", [tb.tcon("Int", [], ctx)], ctx),
+    );
     // Passing an awaited Promise<Int> to add() verifies that we're
     // unwrapping promises.
-    const expr: Expr = b.lam([], b.add(b._await(b._var("retVal")), b.int(5)), true);
+    const expr: Expr = sb.lam([], sb.add(sb._await(sb._var("retVal")), sb.int(5)), true);
 
     let env: Env = Map();
     env = env.set("retVal", retVal);
@@ -60,7 +51,7 @@ describe("Async/Await", () => {
   test("awaiting a non-promise value is a no-op", () => {
     // Passing an awaited Promise<Int> to add() verifies that we're
     // unwrapping promises.
-    const expr: Expr = b.lam([], b.add(b._await(b.int(5)), b.int(10)), true);
+    const expr: Expr = sb.lam([], sb.add(sb._await(sb.int(5)), sb.int(10)), true);
 
     const env: Env = Map();
     const result = inferExpr(env, expr);
@@ -69,7 +60,7 @@ describe("Async/Await", () => {
   });
 
   test("inferring an async function that returns a polymorphic promise", () => {
-    const expr: Expr = b.lam(["x"], b.app(b._var("x"), []), true);
+    const expr: Expr = sb.lam(["x"], sb.app(sb._var("x"), []), true);
 
     const env: Env = Map();
     const result = inferExpr(env, expr);
@@ -78,7 +69,7 @@ describe("Async/Await", () => {
   });
 
   test("awaiting inside a non-async lambda", () => {
-    const expr: Expr = b.lam([], b.add(b._await(b.int(5)), b.int(10)));
+    const expr: Expr = sb.lam([], sb.add(sb._await(sb.int(5)), sb.int(10)));
 
     const env: Env = Map();
     expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
@@ -87,12 +78,12 @@ describe("Async/Await", () => {
   });
 
   test("awaiting inside a nested non-async lambda", () => {
-    const expr: Expr = b.lam(
+    const expr: Expr = sb.lam(
       [],
-      b._let(
+      sb._let(
         "add",
-        b.lam(["a", "b"], b.add(b._await(b._var("a")), b._var("b"))),
-        b.app(b._var("add"), [b.int(5), b.int(10)])
+        sb.lam(["a", "b"], sb.add(sb._await(sb._var("a")), sb._var("b"))),
+        sb.app(sb._var("add"), [sb.int(5), sb.int(10)])
       ),
       true // Even though the outer lambda is async, the inner one isn't
     );
@@ -104,12 +95,12 @@ describe("Async/Await", () => {
   });
 
   test("awaiting inside a nested async lambda", () => {
-    const expr: Expr = b.lam(
+    const expr: Expr = sb.lam(
       [],
-      b._let(
+      sb._let(
         "add",
-        b.lam(["a", "b"], b.add(b._await(b._var("a")), b._var("b")), true),
-        b.app(b._var("add"), [b.int(5), b.int(10)])
+        sb.lam(["a", "b"], sb.add(sb._await(sb._var("a")), sb._var("b")), true),
+        sb.app(sb._var("add"), [sb.int(5), sb.int(10)])
       ),
       false
     );

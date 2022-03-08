@@ -1,4 +1,4 @@
-import { print, TVar, Type, Constraint } from "./type";
+import { print, TVar, Type, Constraint } from "./type-types";
 
 export class UnificationFail extends Error {
   constructor(a: Type, b: Type) {
