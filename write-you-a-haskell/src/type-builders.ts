@@ -1,0 +1,37 @@
+import { Map } from "immutable";
+
+import { Context, TVar, TCon, TFun, TUnion, Type } from "./type-types";
+
+export const tvar = (name: string, ctx: Context): TVar => ({
+  tag: "TVar",
+  id: ctx.state.count++,
+  name,
+});
+
+export const tcon = (name: string, params: Type[], ctx: Context): TCon => ({
+  tag: "TCon",
+  id: ctx.state.count++,
+  name,
+  params,
+});
+
+export const tfun = (args: Type[], ret: Type, ctx: Context): TFun => ({
+  tag: "TFun",
+  id: ctx.state.count++,
+  args,
+  ret,
+});
+
+export const tunion = (types: Type[], ctx: Context): TUnion => ({
+  tag: "TUnion",
+  id: ctx.state.count++,
+  types,
+});
+
+export const createCtx = (): Context => {
+  const ctx: Context = {
+    env: Map(),
+    state: { count: 0 },
+  };
+  return ctx;
+}
