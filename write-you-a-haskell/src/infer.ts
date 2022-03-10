@@ -69,6 +69,10 @@ const normalize = (sc: Scheme): Scheme => {
         return [];
       case "TUnion":
         return type.types.flatMap(fv);
+      case "TRec":
+        throw new Error("STOPSHIP: implement `fv` for TRec");
+      case "TTuple":
+        return type.types.flatMap(fv);
       default:
         assertUnreachable(type);
     }
@@ -105,6 +109,15 @@ const normalize = (sc: Scheme): Scheme => {
         }
       }
       case "TUnion": {
+        return {
+          ...type,
+          types: type.types.map(normType),
+        };
+      }
+      case "TRec": {
+        throw new Error("STOPSHIP: implement `normType` for TRec");
+      }
+      case "TTuple": {
         return {
           ...type,
           types: type.types.map(normType),
@@ -240,12 +253,18 @@ const infer = (
     }
 
     case "Let": {
-      const { name, value, body } = expr;
+      const { pattern, value, body } = expr;
       const { env } = ctx;
       const [t1, c1] = infer(value, ctx);
       const subs = runSolve(c1, ctx);
       const sc = generalize(apply(subs, env), apply(subs, t1));
       // (t2, c2) <- inEnv (x, sc) $ local (apply sub) (infer e2)
+      const name = (() => {
+        if (pattern.tag === "PVar") {
+          return pattern.name;
+        }
+        throw new Error(`We don't handle ${pattern.tag} patterns yet`);
+      })();
       const newCtx = { ...ctx, env: ctx.env.set(name, sc) };
       const [in_t2, in_c2] = infer(body, newCtx);
       const [out_t2, out_c2] = [apply(subs, in_t2), apply(subs, in_c2)];
@@ -285,12 +304,8 @@ const infer = (
       const [t1, c1] = infer(cond, ctx);
       const [t2, c2] = infer(th, ctx);
       const [t3, c3] = infer(el, ctx);
-      t1.id; // ?
-      t2.id; // ?
-      t3.id; // ?
       // This is similar how we'll handle n-ary apply
       const bool = freshTCon(ctx, "Bool");
-      bool.id; // ?
       return [t2, [...c1, ...c2, ...c3, [t1, bool], [t2, t3]]];
     }
 
@@ -314,6 +329,22 @@ const infer = (
       // If the await expression isn't a promise then we return the inferred
       // type and constraints from the awaited expression.
       return [t, c];
+    }
+
+    case "Rec": {
+      throw new Error("STOPSHIP: infer type from record");
+    }
+
+    case "Tuple": {
+      const ts: Type[] = [];
+      const cs: Constraint[] = [];
+      for (const elem of expr.elements) {
+        const [t, c] = infer(elem, ctx);
+        ts.push(t);
+        cs.push(...c);
+      }
+      ctx.state.count++;
+      return [{tag: "TTuple", id: ctx.state.count, types: ts}, cs];
     }
 
     default: 
@@ -353,3 +384,27 @@ const ops = (op: Binop): Type => {
       };
   }
 };
+
+// Destructuring from scratch
+// - RHS should be a sub-type of the LHS
+//   - e.g. let {x} = point2d in ...
+//     where point2d is of the type {x: number, y: number}
+// - destructuring a tuple is safe, because we know how big it is
+//   - it's okay to destructure fewer items, remainder are ignored
+//   - more items can be destructured, but extras end up 
+// - destructuring an array is unsafe
+//   - must be pattern matched
+
+
+// Notes on Algebraic Data Types
+// - could be represented by union types
+// - need a way to define type aliases
+//   - e.g. Option<T> = Some<T> | None
+// - How do we differentiate between Option<T> and Some<T>?
+//   - does there need to be a difference, a function could
+//     return either an Option<T> or a Some<T>
+//   - what about destructuring?
+//     - we can extract the `T` from `Some<T>`, but not `Option<T>`
+//     - because it's a union
+// - Promise<T> isn't a union, but we still want to prevent
+//   destructuring

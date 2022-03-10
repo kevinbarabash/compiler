@@ -21,8 +21,13 @@ export type TFun = TCommon & {
   src?: "App" | "Fix" | "Lam";
 };
 export type TUnion = TCommon & { tag: "TUnion"; types: readonly Type[] };
+export type TRec = TCommon & { tag: "TRec"; properties: readonly TProp[] };
+export type TTuple = TCommon & { tag: "TTuple"; types: readonly Type[] };
 
-export type Type = TVar | TCon | TFun | TUnion;
+// TODO: add `optional: boolean` - equivalent to `T | undefined`
+export type TProp = { tag: "TProp"; name: string; type: Type };
+
+export type Type = TVar | TCon | TFun | TUnion | TTuple | TRec;
 
 export type Scheme = { tag: "Forall"; qualifiers: readonly TVar[]; type: Type };
 
@@ -48,6 +53,12 @@ export function print(t: Type | Scheme): string {
     }
     case "TUnion": {
       return t.types.map(print).join(" | ");
+    }
+    case "TRec": {
+      throw new Error("STOPSHIP: implemnet TRec support");
+    }
+    case "TTuple": {
+      return `[${t.types.map(print).join(", ")}]`;
     }
     case "Forall": {
       const quals = t.qualifiers.map((qual) => print(qual)).join(", ");
@@ -75,8 +86,15 @@ export function equal(a: Type | Scheme, b: Type | Scheme): boolean {
         equal(...pair)
       )
     );
+  } else if (a.tag === "TTuple" && b.tag === "TTuple") {
+    return (
+      a.types.length === b.types.length &&
+      zip(a.types, b.types).every((pair) => equal(...pair))
+    );
   } else if (a.tag === "Forall" && b.tag === "Forall") {
     throw new Error("TODO: implement equal for Schemes");
+  } else if (a.tag === b.tag) {
+    throw new Error(`TODO: implement equal for ${a.tag}`);
   }
   return false;
 }
@@ -101,6 +119,15 @@ export function freeze(t: Type): void {
       t.types.map(freeze);
       break;
     }
+    case "TRec": {
+      throw new Error("STOPSHIP: implement `freeze` for TRec");
+    }
+    case "TTuple": {
+      t.types.map(freeze);
+      break;
+    }
+    default:
+      assertUnreachable(t);
   }
 }
 
@@ -119,6 +146,8 @@ export const isTCon = (t: Type): t is TCon => t.tag === "TCon";
 export const isTVar = (t: Type): t is TVar => t.tag === "TVar";
 export const isTFun = (t: Type): t is TFun => t.tag === "TFun";
 export const isTUnion = (t: Type): t is TUnion => t.tag === "TUnion";
+export const isTRec = (t: Type): t is TRec => t.tag === "TRec";
+export const isTTuple = (t: Type): t is TTuple => t.tag === "TTuple";
 export const isScheme = (t: any): t is Scheme => t.tag === "Forall";
 
 // Env is a map of all the current schemes (qualified types) that

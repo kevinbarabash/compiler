@@ -1,6 +1,6 @@
 import { Map } from "immutable";
 
-import { Type, TVar, Subst, Constraint, Unifier, equal, TUnion, Context } from "./type-types";
+import { Type, TVar, Subst, Constraint, Unifier, equal, TUnion, Context, isTTuple } from "./type-types";
 import { isTCon, isTVar, isTFun, isTUnion } from "./type-types";
 import { InfiniteType, UnificationFail, UnificationMismatch } from "./errors";
 import { apply, ftv } from "./util";
@@ -113,6 +113,8 @@ export const unifies = (t1: Type, t2: Type, ctx: Context): Subst => {
     // Assume that the union types have been normalized by this point
     // This only works if the types that make up the unions are ordered
     // consistently.  Is there a way to do this?
+    return unifyMany(t1.types, t2.types, ctx);
+  } else if (isTTuple(t1) && isTTuple(t2)) {
     return unifyMany(t1.types, t2.types, ctx);
   } else {
     // As long as the types haven't been frozen then this is okay

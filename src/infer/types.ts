@@ -51,7 +51,7 @@ export type TVar = TCommon & {
 };
 
 // TODO: default + optional type args
-export type TCon = TCommon& {
+export type TCon = TCommon & {
   t: "TCon";
   name: string; // how do we disambiguate across files?
   typeArgs: readonly Type[];

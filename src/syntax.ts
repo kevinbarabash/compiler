@@ -1,6 +1,6 @@
-export type Program = { tag: "Program", body: (Expr | Decl)[] };
+export type Program = { tag: "Program"; body: (Expr | Decl)[] };
 
-export type Decl = { tag: "Decl", name: string; value: Expr; };
+export type Decl = { tag: "Decl"; name: string; value: Expr };
 
 export type Expr =
   | { tag: "Var"; name: string }

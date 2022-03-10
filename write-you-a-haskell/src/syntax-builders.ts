@@ -1,4 +1,4 @@
-import { Expr } from "./syntax-types";
+import { Expr, Pattern } from "./syntax-types";
 
 export const app = (fn: Expr, args: Expr[]): Expr => ({ tag: "App", fn, args });
 export const _if = (cond: Expr, th: Expr, el: Expr): Expr => ({
@@ -16,7 +16,7 @@ export const lam = (args: string[], body: Expr, async?: boolean): Expr => ({
 });
 export const _let = (name: string, value: Expr, body: Expr): Expr => ({
   tag: "Let",
-  name,
+  pattern: pvar(name),
   value,
   body,
 });
@@ -59,4 +59,9 @@ export const eql = (left: Expr, right: Expr): Expr => ({
   op: "Eql",
   left,
   right,
+});
+
+export const pvar = (name: string): Pattern => ({
+  tag: "PVar",
+  name,
 });

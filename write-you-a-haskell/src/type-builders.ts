@@ -1,6 +1,6 @@
 import { Map } from "immutable";
 
-import { Context, TVar, TCon, TFun, TUnion, Type } from "./type-types";
+import { Context, TVar, TCon, TFun, TUnion, TTuple, Type } from "./type-types";
 
 export const tvar = (name: string, ctx: Context): TVar => ({
   tag: "TVar",
@@ -24,6 +24,12 @@ export const tfun = (args: Type[], ret: Type, ctx: Context): TFun => ({
 
 export const tunion = (types: Type[], ctx: Context): TUnion => ({
   tag: "TUnion",
+  id: ctx.state.count++,
+  types,
+});
+
+export const ttuple = (types: Type[], ctx: Context): TTuple => ({
+  tag: "TTuple",
   id: ctx.state.count++,
   types,
 });

@@ -6,6 +6,8 @@ import {
   isTVar,
   isTFun,
   isTUnion,
+  isTRec,
+  isTTuple,
   isScheme,
   scheme,
 } from "./type-types";
@@ -43,6 +45,17 @@ export function apply(s: Subst, a: any): any {
     );
   }
   if (isTUnion(a)) {
+    return (
+      s.get(a.id) ?? {
+        ...a,
+        types: apply(s, a.types),
+      }
+    );
+  }
+  if (isTRec(a)) {
+    throw new Error("STOPSHIP: implement TRec support");
+  }
+  if (isTTuple(a)) {
     return (
       s.get(a.id) ?? {
         ...a,
@@ -97,6 +110,12 @@ export function ftv(a: any): any {
     return Set.union([...a.args.map(ftv), ftv(a.ret)]); // ftv t1 `Set.union` ftv t2
   }
   if (isTUnion(a)) {
+    return ftv(a.types);
+  }
+  if (isTRec(a)) {
+    throw new Error("STOPSHIP: implement TRec support");
+  }
+  if (isTTuple(a)) {
     return ftv(a.types);
   }
 
