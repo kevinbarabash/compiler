@@ -1,7 +1,14 @@
 import { Map, Set } from "immutable";
 
-import { Type, TCon, TVar, Subst, Constraint, Scheme, Env } from "./type";
-import { isTCon, isTVar, isTFun, isTUnion, isScheme, scheme } from "./type";
+import { Type, TCon, TVar, Subst, Constraint, Scheme, Env } from "./type-types";
+import {
+  isTCon,
+  isTVar,
+  isTFun,
+  isTUnion,
+  isScheme,
+  scheme,
+} from "./type-types";
 
 export function apply(s: Subst, type: Type): Type;
 export function apply(s: Subst, scheme: Scheme): Scheme;
@@ -15,37 +22,33 @@ export function apply(
 export function apply(s: Subst, env: Env): Env;
 export function apply(s: Subst, a: any): any {
   // instance Substitutable Type
-  if (isTCon(a)) {
-    if (a.id && s.has(a.id)) {
-      return s.get(a.id);
-    }
-    const result: TCon = {
-      ...a,
-      params: apply(s, a.params),
-    };
-    return result;
-  }
   if (isTVar(a)) {
-    return s.get(a.id) || a;
+    return s.get(a.id) ?? a;
+  }
+  if (isTCon(a)) {
+    return (
+      s.get(a.id) ?? {
+        ...a,
+        params: apply(s, a.params),
+      }
+    );
   }
   if (isTFun(a)) {
-    if (a.id && s.has(a.id)) {
-      return s.get(a.id)
-    }
-    return {
-      ...a,
-      args: apply(s, a.args),
-      ret: apply(s, a.ret),
-    };
+    return (
+      s.get(a.id) ?? {
+        ...a,
+        args: apply(s, a.args),
+        ret: apply(s, a.ret),
+      }
+    );
   }
   if (isTUnion(a)) {
-    if (a.id && s.has(a.id)) {
-      return s.get(a.id);
-    }
-    return {
-      ...a,
-      types: apply(s, a.types),
-    };
+    return (
+      s.get(a.id) ?? {
+        ...a,
+        types: apply(s, a.types),
+      }
+    );
   }
 
   // instance Substitutable Scheme
@@ -75,7 +78,6 @@ export function apply(s: Subst, a: any): any {
 
   throw new Error(`apply doesn't handle ${a}`);
 }
-
 
 export function ftv(type: Type): Set<TVar>;
 export function ftv(scheme: Scheme): Set<TVar>;

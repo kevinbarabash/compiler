@@ -2,24 +2,25 @@ import { Map } from "immutable";
 
 import { inferExpr } from "../infer";
 import { Expr } from "../syntax-types";
-import { Env, print, Scheme, TVar } from "../type";
-import * as b from "../syntax-builders";
+import { Env, print, scheme } from "../type-types";
+import * as sb from "../syntax-builders";
+import * as tb from "../type-builders";
 
 type Binding = [string, Expr];
 
-const I: Binding = ["I", b.lam(["x"], b._var("x"))];
-const K: Binding = ["K", b.lam(["x"], b.lam(["y"], b._var("x")))];
+const I: Binding = ["I", sb.lam(["x"], sb._var("x"))];
+const K: Binding = ["K", sb.lam(["x"], sb.lam(["y"], sb._var("x")))];
 // let S = (f) => (g) => (x) => f(x)(g(x))
 const S: Binding = [
   "S",
-  b.lam(
+  sb.lam(
     ["f"],
-    b.lam(
+    sb.lam(
       ["g"],
-      b.lam(
+      sb.lam(
         ["x"],
-        b.app(b.app(b._var("f"), [b._var("x")]), [
-          b.app(b._var("g"), [b._var("x")]),
+        sb.app(sb.app(sb._var("f"), [sb._var("x")]), [
+          sb.app(sb._var("g"), [sb._var("x")]),
         ])
       )
     )
@@ -54,7 +55,7 @@ describe("inferExpr", () => {
     test("SKK", () => {
       const skk: Binding = [
         "skk",
-        b.app(b.app(b._var("S"), [b._var("K")]), [b._var("K")]),
+        sb.app(sb.app(sb._var("S"), [sb._var("K")]), [sb._var("K")]),
       ];
 
       let env: Env = Map();
@@ -73,7 +74,7 @@ describe("inferExpr", () => {
     test("Mu f = f (fix f)", () => {
       const Mu: Binding = [
         "Mu",
-        b.lam(["f"], b.app(b._var("f"), [b.fix(b._var("f"))])),
+        sb.lam(["f"], sb.app(sb._var("f"), [sb.fix(sb._var("f"))])),
       ];
 
       const env: Env = Map();
@@ -87,7 +88,7 @@ describe("inferExpr", () => {
     test("let nsucc x = x + 1", () => {
       const nsucc: Binding = [
         "nsucc",
-        b.lam(["x"], b.add(b._var("x"), b.int(1))),
+        sb.lam(["x"], sb.add(sb._var("x"), sb.int(1))),
       ];
 
       const env: Env = Map();
@@ -99,7 +100,7 @@ describe("inferExpr", () => {
     test("let npred x = x - 1", () => {
       const nsucc: Binding = [
         "nsucc",
-        b.lam(["x"], b.add(b._var("x"), b.int(1))),
+        sb.lam(["x"], sb.add(sb._var("x"), sb.int(1))),
       ];
 
       const env: Env = Map();
@@ -113,7 +114,7 @@ describe("inferExpr", () => {
     test("let poly = I (I I) (I 3);", () => {
       const poly: Binding = [
         "poly",
-        b.app(b.app(I[1], [I[1]]), [b.app(I[1], [b.int(3)])]),
+        sb.app(sb.app(I[1], [I[1]]), [sb.app(I[1], [sb.int(3)])]),
       ];
 
       let env: Env = Map();
@@ -131,7 +132,7 @@ describe("inferExpr", () => {
     test("let self = ((x) => x)((x) => x)", () => {
       const self: Binding = [
         "self",
-        b.app(b.lam(["x"], b._var("x")), [b.lam(["x"], b._var("x"))]),
+        sb.app(sb.lam(["x"], sb._var("x")), [sb.lam(["x"], sb._var("x"))]),
       ];
 
       const env: Env = Map();
@@ -143,7 +144,7 @@ describe("inferExpr", () => {
     test("let innerlet = (x) => (let y = (z) => z in y)", () => {
       const innerlet: Binding = [
         "innerlet",
-        b.lam(["x"], b._let("y", b.lam(["z"], b._var("z")), b._var("y"))),
+        sb.lam(["x"], sb._let("y", sb.lam(["z"], sb._var("z")), sb._var("y"))),
       ];
 
       const env: Env = Map();
@@ -160,10 +161,10 @@ describe("inferExpr", () => {
     test("let f = let add = (a, b) => a + b in add;", () => {
       const f: Binding = [
         "f",
-        b._let(
+        sb._let(
           "add",
-          b.lam(["a", "b"], b.add(b._var("a"), b._var("b"))),
-          b._var("add")
+          sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
+          sb._var("add")
         ),
       ];
 
@@ -176,59 +177,56 @@ describe("inferExpr", () => {
 
   describe("Type Constructors", () => {
     test("infer promise type", () => {
-      const aVar: TVar = { tag: "TVar", id: 0, name: "a" };
+      const ctx = tb.createCtx();
+      const aVar = tb.tvar("a", ctx);
       // <a>(a) => Promise<a>
-      const promisifyScheme: Scheme = {
-        tag: "Forall",
-        qualifiers: [aVar],
-        type: {
-          tag: "TFun",
-          id: 1,
-          args: [aVar],
-          ret: { tag: "TCon", id: 2, name: "Promise", params: [aVar] },
-          src: "Lam",
-        },
-      };
+      const promisifyScheme = scheme(
+        [aVar],
+        tb.tfun([aVar], tb.tcon("Promise", [aVar], ctx), ctx),
+      );
+
+      // @ts-expect-error
+      promisifyScheme.type.src = "Lam";
 
       let env: Env = Map();
 
       env = env.set("promisify", promisifyScheme);
-      const intCall: Binding = ["call", b.app(b._var("promisify"), [b.int(5)])];
-      const intResult = inferExpr(env, intCall[1], { count: 3 });
+      const intCall: Binding = [
+        "call",
+        sb.app(sb._var("promisify"), [sb.int(5)]),
+      ];
+      const intResult = inferExpr(env, intCall[1], ctx.state);
       expect(print(intResult)).toEqual("Promise<Int>");
 
       const boolCall: Binding = [
         "call",
-        b.app(b._var("promisify"), [b.bool(true)]),
+        sb.app(sb._var("promisify"), [sb.bool(true)]),
       ];
-      const boolResult = inferExpr(env, boolCall[1], { count: 3 });
+      const boolResult = inferExpr(env, boolCall[1], ctx.state);
       expect(print(boolResult)).toEqual("Promise<Bool>");
     });
 
     test("extract value from type constructor", () => {
-      const aVar: TVar = { tag: "TVar", id: 0, name: "a" };
+      const ctx = tb.createCtx();
+      const aVar = tb.tvar("a", ctx);
       // <a>(Foo<a>) => a
-      const extractScheme: Scheme = {
-        tag: "Forall",
-        qualifiers: [aVar],
-        type: {
-          tag: "TFun",
-          id: 1,
-          args: [{ tag: "TCon", id: 2, name: "Foo", params: [aVar] }],
-          ret: aVar,
-          src: "Lam",
-        },
-      };
+      const extractScheme = scheme(
+        [aVar],
+        tb.tfun([tb.tcon("Foo", [aVar], ctx)], aVar, ctx),
+      );
+
+      // @ts-expect-error
+      extractScheme.type.src = "Lam";
 
       let env: Env = Map();
 
       env = env.set("extract", extractScheme);
 
-      const addFoos = b.lam(
+      const addFoos = sb.lam(
         ["x", "y"],
-        b.add(
-          b.app(b._var("extract"), [b._var("x")]),
-          b.app(b._var("extract"), [b._var("y")])
+        sb.add(
+          sb.app(sb._var("extract"), [sb._var("x")]),
+          sb.app(sb._var("extract"), [sb._var("y")])
         )
       );
 
@@ -237,19 +235,16 @@ describe("inferExpr", () => {
     });
 
     test("extract value from type constructor 2", () => {
-      const aVar: TVar = { tag: "TVar", id: 0, name: "a" };
+      const ctx = tb.createCtx();
+      const aVar = tb.tvar("a", ctx);
       // <a>(Foo<a>) => a
-      const extractScheme: Scheme = {
-        tag: "Forall",
-        qualifiers: [aVar],
-        type: {
-          tag: "TFun",
-          id: 1,
-          args: [{ tag: "TCon", id: 2, name: "Foo", params: [aVar] }],
-          ret: aVar,
-          src: "Lam",
-        },
-      };
+      const extractScheme = scheme(
+        [aVar],
+        tb.tfun([tb.tcon("Foo", [aVar], ctx)], aVar, ctx),
+      );
+
+      // @ts-expect-error
+      extractScheme.type.src = "Lam";
 
       let env: Env = Map();
 
@@ -266,7 +261,7 @@ describe("inferExpr", () => {
         },
       });
 
-      const extractedX = b.app(b._var("extract"), [b._var("x")]);
+      const extractedX = sb.app(sb._var("extract"), [sb._var("x")]);
 
       const result = inferExpr(env, extractedX, { count: 5 });
       expect(print(result)).toEqual("Int");
@@ -275,7 +270,10 @@ describe("inferExpr", () => {
 
   describe("errors", () => {
     test("UnboundVariable", () => {
-      const unbound: Binding = ["unbound", b.app(b._var("foo"), [b._var("x")])];
+      const unbound: Binding = [
+        "unbound",
+        sb.app(sb._var("foo"), [sb._var("x")]),
+      ];
 
       const env: Env = Map();
       expect(() =>
@@ -286,9 +284,9 @@ describe("inferExpr", () => {
     test("UnificationFail", () => {
       const _add: Binding = [
         "add",
-        b.lam(["a", "b"], b.add(b._var("a"), b._var("b"))),
+        sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
       ];
-      const expr: Expr = b.app(b._var("add"), [b.int(5), b.bool(true)]);
+      const expr: Expr = sb.app(sb._var("add"), [sb.int(5), sb.bool(true)]);
 
       let env: Env = Map();
       env = env.set(_add[0], inferExpr(env, _add[1]));
@@ -301,7 +299,7 @@ describe("inferExpr", () => {
     test("InfiniteType", () => {
       const omega: Binding = [
         "omega",
-        b.lam(["x"], b.app(b._var("x"), [b._var("x")])),
+        sb.lam(["x"], sb.app(sb._var("x"), [sb._var("x")])),
       ];
 
       const env: Env = Map();

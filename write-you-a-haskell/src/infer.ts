@@ -1,8 +1,8 @@
 import { Map } from "immutable";
 
 import { UnboundVariable } from "./errors";
-import { freeze, scheme, tBool, tInt } from "./type";
-import { Constraint, Env, Scheme, Subst, TCon, TVar, Type, Context, State } from "./type";
+import { freeze, scheme, tBool, tInt } from "./type-types";
+import { Constraint, Env, Scheme, Subst, TCon, TVar, Type, Context, State } from "./type-types";
 import { Binop, Expr } from "./syntax-types";
 import { zip, apply, ftv, assertUnreachable } from "./util";
 import { runSolve } from "./constraint-solver";
@@ -144,7 +144,7 @@ export const fresh = (ctx: Context): TVar => {
 };
 
 export const freshTCon = (ctx: Context, name: string, params: Type[] = []): TCon => {
-  ctx.state.count++;
+  ctx.state.count++
   return {
     tag: "TCon",
     id: ctx.state.count,
@@ -285,8 +285,12 @@ const infer = (
       const [t1, c1] = infer(cond, ctx);
       const [t2, c2] = infer(th, ctx);
       const [t3, c3] = infer(el, ctx);
+      t1.id; // ?
+      t2.id; // ?
+      t3.id; // ?
       // This is similar how we'll handle n-ary apply
       const bool = freshTCon(ctx, "Bool");
+      bool.id; // ?
       return [t2, [...c1, ...c2, ...c3, [t1, bool], [t2, t3]]];
     }
 
