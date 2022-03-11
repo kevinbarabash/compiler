@@ -1,6 +1,6 @@
 import { Map, Set } from "immutable";
 
-import { Type, TCon, TVar, Subst, Constraint, Scheme, Env } from "./type-types";
+import { Type, TVar, Subst, Constraint, Scheme, Env } from "./type-types";
 import {
   isTCon,
   isTVar,
@@ -53,7 +53,15 @@ export function apply(s: Subst, a: any): any {
     );
   }
   if (isTRec(a)) {
-    throw new Error("STOPSHIP: implement TRec support");
+    return (
+      s.get(a.id) ?? {
+        ...a,
+        properties: a.properties.map((prop) => ({
+          ...prop,
+          type: apply(s, prop.type),
+        })),
+      }
+    );
   }
   if (isTTuple(a)) {
     return (
@@ -113,7 +121,8 @@ export function ftv(a: any): any {
     return ftv(a.types);
   }
   if (isTRec(a)) {
-    throw new Error("STOPSHIP: implement TRec support");
+    const types = a.properties.map((prop) => prop.type);
+    return ftv(types);
   }
   if (isTTuple(a)) {
     return ftv(a.types);

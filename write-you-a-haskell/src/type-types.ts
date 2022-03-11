@@ -1,4 +1,4 @@
-import { Map } from "immutable";
+import { Map, Set } from "immutable";
 
 import { zip } from "./util";
 
@@ -55,7 +55,9 @@ export function print(t: Type | Scheme): string {
       return t.types.map(print).join(" | ");
     }
     case "TRec": {
-      throw new Error("STOPSHIP: implemnet TRec support");
+      return `{${t.properties
+        .map((prop) => `${prop.name}: ${print(prop.type)}`)
+        .join(", ")}}`;
     }
     case "TTuple": {
       return `[${t.types.map(print).join(", ")}]`;
@@ -91,6 +93,29 @@ export function equal(a: Type | Scheme, b: Type | Scheme): boolean {
       a.types.length === b.types.length &&
       zip(a.types, b.types).every((pair) => equal(...pair))
     );
+  } else if (a.tag === "TRec" && b.tag === "TRec") {
+    if (a.properties.length === b.properties.length) {
+      const aKeys = a.properties.map(prop => prop.name);
+      const bKeys = a.properties.map(prop => prop.name);
+
+      // TODO: warn about
+      // - keys in t1 that aren't in t2
+      // - keys in t2 that aren't in t1
+      // - keys that appear more than once in either t1 or t2
+      const keys = Set.intersect([aKeys, bKeys]).toJS() as string[];
+      
+      const a_obj = Object.fromEntries(
+        a.properties.map(prop => [prop.name, prop.type])
+      );
+      const b_obj = Object.fromEntries(
+        b.properties.map(prop => [prop.name, prop.type])
+      );
+  
+      const ot1 = keys.map(key => a_obj[key]);
+      const ot2 = keys.map(key => b_obj[key]);
+
+      return zip(ot1, ot2).every((pair) => equal(...pair));
+    }
   } else if (a.tag === "Forall" && b.tag === "Forall") {
     throw new Error("TODO: implement equal for Schemes");
   } else if (a.tag === b.tag) {
@@ -120,7 +145,8 @@ export function freeze(t: Type): void {
       break;
     }
     case "TRec": {
-      throw new Error("STOPSHIP: implement `freeze` for TRec");
+      t.properties.map((prop) => freeze(prop.type));
+      break;
     }
     case "TTuple": {
       t.types.map(freeze);

@@ -15,7 +15,7 @@ export type Expr =
   | { tag: "Tuple"; elements: readonly Expr[] }
   | { tag: "Rec"; properties: readonly EProp[] };
 
-type EProp = { tag: "EProp"; name: string; value: Expr }
+export type EProp = { tag: "EProp"; name: string; value: Expr }
 
 export type Literal =
   | { tag: "LInt"; value: number }

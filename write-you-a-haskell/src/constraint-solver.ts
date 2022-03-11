@@ -1,6 +1,6 @@
-import { Map } from "immutable";
+import { Map, Set } from "immutable";
 
-import { Type, TVar, Subst, Constraint, Unifier, equal, TUnion, Context, isTTuple } from "./type-types";
+import { Type, TVar, Subst, Constraint, Unifier, equal, TUnion, Context, isTTuple, isTRec } from "./type-types";
 import { isTCon, isTVar, isTFun, isTUnion } from "./type-types";
 import { InfiniteType, UnificationFail, UnificationMismatch } from "./errors";
 import { apply, ftv } from "./util";
@@ -116,6 +116,27 @@ export const unifies = (t1: Type, t2: Type, ctx: Context): Subst => {
     return unifyMany(t1.types, t2.types, ctx);
   } else if (isTTuple(t1) && isTTuple(t2)) {
     return unifyMany(t1.types, t2.types, ctx);
+  } else if (isTRec(t1) && isTRec(t2)) {
+    const keys1 = t1.properties.map(prop => prop.name);
+    const keys2 = t2.properties.map(prop => prop.name);
+    
+    // TODO: warn about
+    // - keys in t1 that aren't in t2
+    // - keys in t2 that aren't in t1
+    // - keys that appear more than once in either t1 or t2
+    const keys = Set.intersect([keys1, keys2]).toJS() as string[];
+
+    const t1_obj = Object.fromEntries(
+      t1.properties.map(prop => [prop.name, prop.type])
+    );
+    const t2_obj = Object.fromEntries(
+      t2.properties.map(prop => [prop.name, prop.type])
+    );
+
+    const ot1 = keys.map(key => t1_obj[key]);
+    const ot2 = keys.map(key => t2_obj[key]);
+
+    return unifyMany(ot1, ot2, ctx);
   } else {
     // As long as the types haven't been frozen then this is okay
     // NOTE: We may need to add .src info in the future if we notice

@@ -1,6 +1,16 @@
 import { Map } from "immutable";
 
-import { Context, TVar, TCon, TFun, TUnion, TTuple, Type } from "./type-types";
+import {
+  Context,
+  TVar,
+  TCon,
+  TFun,
+  TUnion,
+  TTuple,
+  TRec,
+  TProp,
+  Type,
+} from "./type-types";
 
 export const tvar = (name: string, ctx: Context): TVar => ({
   tag: "TVar",
@@ -34,10 +44,22 @@ export const ttuple = (types: Type[], ctx: Context): TTuple => ({
   types,
 });
 
+export const trec = (properties: TProp[], ctx: Context): TRec => ({
+  tag: "TRec",
+  id: ctx.state.count++,
+  properties,
+});
+
+export const tprop = (name: string, type: Type): TProp => ({
+  tag: "TProp",
+  name,
+  type,
+});
+
 export const createCtx = (): Context => {
   const ctx: Context = {
     env: Map(),
     state: { count: 0 },
   };
   return ctx;
-}
+};

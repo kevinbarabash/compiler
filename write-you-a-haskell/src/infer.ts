@@ -2,8 +2,19 @@ import { Map } from "immutable";
 
 import { UnboundVariable } from "./errors";
 import { freeze, scheme, tBool, tInt } from "./type-types";
-import { Constraint, Env, Scheme, Subst, TCon, TVar, Type, Context, State } from "./type-types";
-import { Binop, Expr } from "./syntax-types";
+import {
+  Constraint,
+  Env,
+  Scheme,
+  Subst,
+  TCon,
+  TVar,
+  Type,
+  Context,
+  State,
+  TProp,
+} from "./type-types";
+import { Binop, Expr, EProp } from "./syntax-types";
 import { zip, apply, ftv, assertUnreachable } from "./util";
 import { runSolve } from "./constraint-solver";
 
@@ -44,7 +55,7 @@ const closeOver = (t: Type): Scheme => {
 };
 
 // remove duplicates from the array
-function nub<T extends {id: number}>(array: readonly T[]): readonly T[] {
+function nub<T extends { id: number }>(array: readonly T[]): readonly T[] {
   const ids: number[] = [];
   return array.filter((tv) => {
     if (!ids.includes(tv.id)) {
@@ -70,7 +81,7 @@ const normalize = (sc: Scheme): Scheme => {
       case "TUnion":
         return type.types.flatMap(fv);
       case "TRec":
-        throw new Error("STOPSHIP: implement `fv` for TRec");
+        return type.properties.flatMap((prop) => fv(prop.type));
       case "TTuple":
         return type.types.flatMap(fv);
       default:
@@ -115,7 +126,13 @@ const normalize = (sc: Scheme): Scheme => {
         };
       }
       case "TRec": {
-        throw new Error("STOPSHIP: implement `normType` for TRec");
+        return {
+          ...type,
+          properties: type.properties.map((prop) => ({
+            ...prop,
+            type: normType(prop.type),
+          })),
+        };
       }
       case "TTuple": {
         return {
@@ -156,8 +173,12 @@ export const fresh = (ctx: Context): TVar => {
   };
 };
 
-export const freshTCon = (ctx: Context, name: string, params: Type[] = []): TCon => {
-  ctx.state.count++
+export const freshTCon = (
+  ctx: Context,
+  name: string,
+  params: Type[] = []
+): TCon => {
+  ctx.state.count++;
   return {
     tag: "TCon",
     id: ctx.state.count,
@@ -222,11 +243,16 @@ const infer = (
       // - the lambda is marked as async
       // - its inferred return value isn't already in a promise
       // TODO: add more general support for conditional types
-      const ret = !expr.async || t.tag === "TCon" && t.name === "Promise"
-        ? t : freshTCon(ctx, "Promise", [t]);
+      const ret =
+        !expr.async || (t.tag === "TCon" && t.name === "Promise")
+          ? t
+          : freshTCon(ctx, "Promise", [t]);
 
       ctx.state.count++;
-      return [{ tag: "TFun", id: ctx.state.count, args: tvs, ret, src: "Lam" }, c];
+      return [
+        { tag: "TFun", id: ctx.state.count, args: tvs, ret, src: "Lam" },
+        c,
+      ];
     }
 
     case "App": {
@@ -247,7 +273,16 @@ const infer = (
           ...c_fn,
           ...c_args.flat(),
           // This is almost the reverse of what we return from the "Lam" case
-          [t_fn, { tag: "TFun", id: ctx.state.count, args: t_args, ret: tv, src: "App" }],
+          [
+            t_fn,
+            {
+              tag: "TFun",
+              id: ctx.state.count,
+              args: t_args,
+              ret: tv,
+              src: "App",
+            },
+          ],
         ],
       ];
     }
@@ -279,7 +314,19 @@ const infer = (
       ctx.state.count++;
       return [
         tv,
-        [...c1, [{ tag: "TFun", id: ctx.state.count, args: [tv], ret: tv, src: "Fix" }, t1]],
+        [
+          ...c1,
+          [
+            {
+              tag: "TFun",
+              id: ctx.state.count,
+              args: [tv],
+              ret: tv,
+              src: "Fix",
+            },
+            t1,
+          ],
+        ],
       ];
     }
 
@@ -332,7 +379,23 @@ const infer = (
     }
 
     case "Rec": {
-      throw new Error("STOPSHIP: infer type from record");
+      ctx.state.count++;
+      const cs: Constraint[] = [];
+      const recType: Type = {
+        tag: "TRec",
+        id: ctx.state.count,
+        properties: expr.properties.map((prop: EProp): TProp => {
+          const [t, c] = infer(prop.value, ctx);
+          cs.push(...c);
+          return {
+            tag: "TProp",
+            name: prop.name,
+            type: t,
+          };
+        }),
+      };
+      recType.properties; // ?
+      return [recType, cs];
     }
 
     case "Tuple": {
@@ -344,10 +407,10 @@ const infer = (
         cs.push(...c);
       }
       ctx.state.count++;
-      return [{tag: "TTuple", id: ctx.state.count, types: ts}, cs];
+      return [{ tag: "TTuple", id: ctx.state.count, types: ts }, cs];
     }
 
-    default: 
+    default:
       assertUnreachable(expr);
   }
 };
@@ -391,10 +454,9 @@ const ops = (op: Binop): Type => {
 //     where point2d is of the type {x: number, y: number}
 // - destructuring a tuple is safe, because we know how big it is
 //   - it's okay to destructure fewer items, remainder are ignored
-//   - more items can be destructured, but extras end up 
+//   - more items can be destructured, but extras end up
 // - destructuring an array is unsafe
 //   - must be pattern matched
-
 
 // Notes on Algebraic Data Types
 // - could be represented by union types
