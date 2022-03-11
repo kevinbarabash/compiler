@@ -2,8 +2,8 @@
 // EVar, EApp, ELam, etc.
 export type Expr =
   | { tag: "Var"; name: string }
-  | { tag: "App"; fn: Expr; args: Expr[] }
-  | { tag: "Lam"; args: string[]; body: Expr; async?: boolean }
+  | { tag: "App"; fn: Expr; args: readonly Expr[] }
+  | { tag: "Lam"; args: readonly string[]; body: Expr; async?: boolean }
   // TODO: support destructuring, this will require replacing `name: string`
   // with `pattern: Pattern`.
   | { tag: "Let"; pattern: Pattern; value: Expr; body: Expr }

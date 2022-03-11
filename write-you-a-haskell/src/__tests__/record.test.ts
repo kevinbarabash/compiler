@@ -8,13 +8,10 @@ import { Env, freeze, print, scheme, Scheme } from "../type-types";
 
 describe("record", () => {
   test("can infer a tuple containing different types", () => {
-    const expr: Expr = {
-      tag: "Rec",
-      properties: [
-        { tag: "EProp", name: "foo", value: sb.str("hello") },
-        { tag: "EProp", name: "bar", value: sb.int(5) },
-      ],
-    };
+    const expr: Expr = sb.rec([
+      sb.prop("foo", sb.str("hello")),
+      sb.prop("bar", sb.int(5)),
+    ]);
 
     const env: Env = Map();
 
@@ -24,13 +21,10 @@ describe("record", () => {
   });
 
   test("can infer a function returning a lambda", () => {
-    const expr: Expr = sb.lam([], {
-      tag: "Rec",
-      properties: [
-        { tag: "EProp", name: "foo", value: sb.str("hello") },
-        { tag: "EProp", name: "bar", value: sb.int(5) },
-      ],
-    });
+    const expr: Expr = sb.lam(
+      [],
+      sb.rec([sb.prop("foo", sb.str("hello")), sb.prop("bar", sb.int(5))])
+    );
 
     const env: Env = Map();
 
@@ -57,13 +51,7 @@ describe("record", () => {
     env = env.set("getFoo", getFoo);
 
     const expr: Expr = sb.app(sb._var("getFoo"), [
-      {
-        tag: "Rec",
-        properties: [
-          { tag: "EProp", name: "foo", value: sb.int(5) },
-          { tag: "EProp", name: "bar", value: sb.str("hello") },
-        ],
-      },
+      sb.rec([sb.prop("foo", sb.int(5)), sb.prop("bar", sb.str("hello"))]),
     ]);
 
     const result = inferExpr(env, expr);

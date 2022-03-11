@@ -1,6 +1,6 @@
-import { Expr, Pattern } from "./syntax-types";
+import { Expr, EProp, Pattern } from "./syntax-types";
 
-export const app = (fn: Expr, args: Expr[]): Expr => ({ tag: "App", fn, args });
+export const app = (fn: Expr, args: readonly Expr[]): Expr => ({ tag: "App", fn, args });
 export const _if = (cond: Expr, th: Expr, el: Expr): Expr => ({
   tag: "If",
   cond,
@@ -8,7 +8,7 @@ export const _if = (cond: Expr, th: Expr, el: Expr): Expr => ({
   el,
 });
 export const fix = (expr: Expr): Expr => ({ tag: "Fix", expr });
-export const lam = (args: string[], body: Expr, async?: boolean): Expr => ({
+export const lam = (args: readonly string[], body: Expr, async?: boolean): Expr => ({
   tag: "Lam",
   args,
   body,
@@ -22,6 +22,19 @@ export const _let = (name: string, value: Expr, body: Expr): Expr => ({
 });
 export const _var = (name: string): Expr => ({ tag: "Var", name });
 export const _await = (expr: Expr): Expr => ({ tag: "Await", expr });
+export const tuple = (elements: readonly Expr[]): Expr => ({
+  tag: "Tuple",
+  elements,
+});
+export const rec = (properties: readonly EProp[]): Expr => ({
+  tag: "Rec",
+  properties,
+});
+export const prop = (name: string, value: Expr): EProp => ({
+  tag: "EProp",
+  name,
+  value,
+});
 
 export const int = (value: number): Expr => ({
   tag: "Lit",
@@ -34,7 +47,7 @@ export const bool = (value: boolean): Expr => ({
 export const str = (value: string): Expr => ({
   tag: "Lit",
   value: { tag: "LStr", value },
-})
+});
 
 export const add = (left: Expr, right: Expr): Expr => ({
   tag: "Op",
