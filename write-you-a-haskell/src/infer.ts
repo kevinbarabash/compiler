@@ -301,6 +301,8 @@ const infer = (
         throw new Error(`We don't handle ${pattern.tag} patterns yet`);
       })();
       const newCtx = { ...ctx, env: ctx.env.set(name, sc) };
+      // we'd like to do `apply(subs, infer(body, newCtx))`, but TypeScript
+      // doesn't support typeclasses
       const [in_t2, in_c2] = infer(body, newCtx);
       const [out_t2, out_c2] = [apply(subs, in_t2), apply(subs, in_c2)];
       // return (t2, c1 ++ c2)
@@ -363,6 +365,7 @@ const infer = (
 
       const [t, c] = infer(expr.expr, ctx);
 
+      // TODO: convert Promise from TCon to TAbs/TGen
       if (t.tag === "TCon" && t.name === "Promise") {
         if (t.params.length !== 1) {
           // TODO: How do we prevent people from overwriting built-in types

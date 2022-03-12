@@ -53,5 +53,64 @@ describe("tuple", () => {
     expect(print(result)).toEqual("Str");
   });
 
+  describe("errors", () => {
+    const ctx = tb.createCtx();
+    const aVar = tb.tvar("a", ctx);
+    const bVar = tb.tvar("b", ctx);
+    const snd: Scheme = scheme(
+      [aVar, bVar],
+      tb.tfun([tb.ttuple([aVar, bVar], ctx)], bVar, ctx)
+    );
+    freeze(snd.type);
+
+    test("arg tuple has too many elements", () => {
+      let env: Env = Map();
+      env = env.set("snd", snd);
+
+      const expr: Expr = sb.app(sb._var("snd"), [
+        sb.tuple([sb.int(5), sb.str("hello"), sb.bool(true)]),
+      ]);
+
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+        `"Couldn't unify [b, c] with [Int, Str, Bool]"`
+      );
+    });
+
+    test("arg tuple has few many elements", () => {
+      let env: Env = Map();
+      env = env.set("snd", snd);
+
+      const expr: Expr = sb.app(sb._var("snd"), [sb.tuple([sb.int(5)])]);
+
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+        `"Couldn't unify [b, c] with [Int]"`
+      );
+    });
+
+    test("element mismatch", () => {
+      const ctx = tb.createCtx();
+      const foo: Scheme = scheme(
+        [],
+        tb.tfun(
+          [tb.ttuple([tb.tcon("Int", [], ctx), tb.tcon("Str", [], ctx)], ctx)],
+          tb.tcon("Str", [], ctx),
+          ctx
+        )
+      );
+      freeze(foo.type);
+
+      let env: Env = Map();
+      env = env.set("foo", foo);
+
+      const expr: Expr = sb.app(sb._var("foo"), [
+        sb.tuple([sb.int(5), sb.bool(true)]),
+      ]);
+
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+        `"Couldn't unify Str with Bool"`
+      );
+    });
+  });
+
   // TODO: tuple subtyping
 });
