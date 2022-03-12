@@ -194,13 +194,7 @@ export const freshTCon = (
   name: string,
   params: Type[] = []
 ): TCon => {
-  ctx.state.count++;
-  return {
-    tag: "TCon",
-    id: ctx.state.count,
-    name,
-    params,
-  };
+  return tb.tcon(name, params, ctx);
 };
 
 const instantiate = (sc: Scheme, ctx: Context): Type => {
@@ -253,7 +247,6 @@ const inferApp = (
     c_args.push(c_arg);
   }
   const tv = fresh(ctx);
-  ctx.state.count++;
   return [
     tv,
     [
@@ -296,19 +289,9 @@ const inferFix = (
   ctx: Context
 ): readonly [Type, readonly Constraint[]] => {
   const { expr: e } = expr;
-  let [t1, c1] = infer(e, ctx);
+  const [t1, c1] = infer(e, ctx);
   const tv = fresh(ctx);
-  ctx.state.count++;
-  return [
-    tv,
-    [
-      ...c1,
-      [
-        tb.tfun([tv], tv, ctx, "Fix"),
-        t1,
-      ],
-    ],
-  ];
+  return [tv, [...c1, [tb.tfun([tv], tv, ctx, "Fix"), t1]]];
 };
 
 const inferIf = (
@@ -351,7 +334,6 @@ const inferLam = (
       ? t
       : freshTCon(ctx, "Promise", [t]);
 
-  ctx.state.count++;
   return [tb.tfun(tvs, ret, ctx, "Lam"), c];
 };
 
@@ -364,6 +346,7 @@ const inferLet = (
   const [t1, c1] = infer(value, ctx);
   const subs = runSolve(c1, ctx);
   const sc = generalize(apply(subs, env), apply(subs, t1));
+
   // (t2, c2) <- inEnv (x, sc) $ local (apply sub) (infer e2)
   const name = (() => {
     if (pattern.tag === "PVar") {
@@ -371,11 +354,13 @@ const inferLet = (
     }
     throw new Error(`We don't handle ${pattern.tag} patterns yet`);
   })();
+
   const newCtx = { ...ctx, env: ctx.env.set(name, sc) };
   // we'd like to do `apply(subs, infer(body, newCtx))`, but TypeScript
   // doesn't support typeclasses
   const [in_t2, in_c2] = infer(body, newCtx);
   const [out_t2, out_c2] = [apply(subs, in_t2), apply(subs, in_c2)];
+
   // return (t2, c1 ++ c2)
   return [out_t2, [...c1, ...out_c2]];
 };
@@ -385,13 +370,11 @@ const inferLit = (
   ctx: Context
 ): readonly [Type, readonly Constraint[]] => {
   const lit = expr.value;
+  // prettier-ignore
   switch (lit.tag) {
-    case "LInt":
-      return [freshTCon(ctx, "Int"), []];
-    case "LBool":
-      return [freshTCon(ctx, "Bool"), []];
-    case "LStr":
-      return [freshTCon(ctx, "Str"), []];
+    case "LInt":  return [freshTCon(ctx, "Int" ), []];
+    case "LBool": return [freshTCon(ctx, "Bool"), []];
+    case "LStr":  return [freshTCon(ctx, "Str" ), []];
   }
 };
 
@@ -403,10 +386,7 @@ const inferOp = (
   const [lt, lc] = infer(left, ctx);
   const [rt, rc] = infer(right, ctx);
   const tv = fresh(ctx);
-  ctx.state.count++;
-  const u1 = tb.tfun([lt, rt], tv, ctx);
-  const u2 = ops(op);
-  return [tv, [...lc, ...rc, [u1, u2]]];
+  return [tv, [...lc, ...rc, [tb.tfun([lt, rt], tv, ctx), ops(op)]]];
 };
 
 const inferRec = (
@@ -419,7 +399,6 @@ const inferRec = (
     cs.push(...c);
     return tb.tprop(prop.name, t);
   });
-  ctx.state.count++;
   return [tb.trec(properties, ctx), cs];
 };
 
@@ -434,7 +413,6 @@ const inferTuple = (
     ts.push(t);
     cs.push(...c);
   }
-  ctx.state.count++;
   return [tb.ttuple(ts, ctx), cs];
 };
 

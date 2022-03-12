@@ -106,6 +106,7 @@ describe("Union types and type widening", () => {
 
     let env: Env = Map();
     env = env.set("union", union);
+    expect(print(union)).toEqual("Int | Bool");
 
     const expr: Expr = sb.lam(
       ["x", "y"],
@@ -116,8 +117,8 @@ describe("Union types and type widening", () => {
       )
     );
 
-    const result = inferExpr(env, expr);
-    expect(print(result)).toEqual("<a>(Bool, Int | Bool | Str) => a");
+    const result = inferExpr(env, expr, ctx.state);
+    expect(print(result)).toEqual("<a>(Bool, (Int | Bool | Str) => a) => a")
   });
 
   test("widen inferred union type", () => {

@@ -13,7 +13,6 @@ import {
   TFun,
   TRec,
   TTuple,
-  TCon,
 } from "./type-types";
 import { isTCon, isTVar, isTFun, isTUnion } from "./type-types";
 import {
@@ -24,6 +23,7 @@ import {
   MissingProperties,
 } from "./errors";
 import { apply, ftv } from "./util";
+import * as tb from "./type-builders";
 
 //
 // Constraint Solver
@@ -69,7 +69,6 @@ export const unifies = (t1: Type, t2: Type, ctx: Context): Subst => {
   // NOTE: We may need to add .src info in the future if we notice
   // any places where expected type widening is occurring.
   if ("id" in t1 && "id" in t2 && !t1.frozen && !t2.frozen) {
-    ctx.state.count++;
     const names: string[] = [];
     // Flattens types
     const types = [
@@ -86,11 +85,7 @@ export const unifies = (t1: Type, t2: Type, ctx: Context): Subst => {
       }
       return true;
     });
-    const union: TUnion = {
-      tag: "TUnion",
-      id: ctx.state.count,
-      types,
-    };
+    const union: TUnion = tb.tunion(types, ctx);
     const result: Subst = Map([
       [t1.id, union],
       [t2.id, union],
@@ -107,17 +102,11 @@ const unifyFuncs = (t1: TFun, t2: TFun, ctx: Context): Subst => {
   if (t1.src === "Lam" && t2.src === "App") {
     // partial application
     if (t1.args.length > t2.args.length) {
-      ctx.state.count++;
       const t1_partial: Type = {
         tag: "TFun",
         id: t1.id, // is it safe to reuse `id` here?
         args: t1.args.slice(0, t2.args.length),
-        ret: {
-          tag: "TFun",
-          id: ctx.state.count,
-          args: t1.args.slice(t2.args.length),
-          ret: t1.ret,
-        },
+        ret: tb.tfun(t1.args.slice(t2.args.length), t1.ret, ctx),
         src: t1.src,
       };
       return unifyMany(
