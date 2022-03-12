@@ -25,7 +25,12 @@ export const tcon = (name: string, params: Type[], ctx: Context): TCon => ({
   params,
 });
 
-export const tfun = (args: Type[], ret: Type, ctx: Context, src?: "App" | "Fix" | "Lam"): TFun => ({
+export const tfun = (
+  args: readonly Type[],
+  ret: Type,
+  ctx: Context,
+  src?: "App" | "Fix" | "Lam"
+): TFun => ({
   tag: "TFun",
   id: ++ctx.state.count,
   args,
@@ -33,19 +38,19 @@ export const tfun = (args: Type[], ret: Type, ctx: Context, src?: "App" | "Fix" 
   src,
 });
 
-export const tunion = (types: Type[], ctx: Context): TUnion => ({
+export const tunion = (types: readonly Type[], ctx: Context): TUnion => ({
   tag: "TUnion",
   id: ++ctx.state.count,
   types,
 });
 
-export const ttuple = (types: Type[], ctx: Context): TTuple => ({
+export const ttuple = (types: readonly Type[], ctx: Context): TTuple => ({
   tag: "TTuple",
   id: ++ctx.state.count,
   types,
 });
 
-export const trec = (properties: TProp[], ctx: Context): TRec => ({
+export const trec = (properties: readonly TProp[], ctx: Context): TRec => ({
   tag: "TRec",
   id: ++ctx.state.count,
   properties,

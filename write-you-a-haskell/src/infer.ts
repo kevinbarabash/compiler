@@ -239,23 +239,10 @@ const inferApp = (
 ): readonly [Type, readonly Constraint[]] => {
   const { fn, args } = expr;
   const [t_fn, c_fn] = infer(fn, ctx);
-  const t_args: Type[] = [];
-  const c_args: (readonly Constraint[])[] = [];
-  for (const arg of args) {
-    const [t_arg, c_arg] = infer(arg, ctx);
-    t_args.push(t_arg);
-    c_args.push(c_arg);
-  }
+  const [t_args, c_args] = inferMany(args, ctx);
   const tv = fresh(ctx);
-  return [
-    tv,
-    [
-      ...c_fn,
-      ...c_args.flat(),
-      // This is almost the reverse of what we return from the "Lam" case
-      [t_fn, tb.tfun(t_args, tv, ctx, "App")],
-    ],
-  ];
+  // This is almost the reverse of what we return from the "Lam" case
+  return [tv, [...c_fn, ...c_args, [t_fn, tb.tfun(t_args, tv, ctx, "App")]]];
 };
 
 const inferAwait = (
@@ -383,10 +370,9 @@ const inferOp = (
   ctx: Context
 ): readonly [Type, readonly Constraint[]] => {
   const { op, left, right } = expr;
-  const [lt, lc] = infer(left, ctx);
-  const [rt, rc] = infer(right, ctx);
+  const [ts, cs] = inferMany([left, right], ctx);
   const tv = fresh(ctx);
-  return [tv, [...lc, ...rc, [tb.tfun([lt, rt], tv, ctx), ops(op)]]];
+  return [tv, [...cs, [tb.tfun(ts, tv, ctx), ops(op)]]];
 };
 
 const inferRec = (
@@ -406,13 +392,7 @@ const inferTuple = (
   expr: ETuple,
   ctx: Context
 ): readonly [Type, readonly Constraint[]] => {
-  const ts: Type[] = [];
-  const cs: Constraint[] = [];
-  for (const elem of expr.elements) {
-    const [t, c] = infer(elem, ctx);
-    ts.push(t);
-    cs.push(...c);
-  }
+  const [ts, cs] = inferMany(expr.elements, ctx);
   return [tb.ttuple(ts, ctx), cs];
 };
 
@@ -422,6 +402,20 @@ const inferVar = (
 ): readonly [Type, readonly Constraint[]] => {
   const t = lookupEnv(expr.name, ctx);
   return [t, []];
+};
+
+const inferMany = (
+  exprs: readonly Expr[],
+  ctx: Context
+): [readonly Type[], readonly Constraint[]] => {
+  const ts: Type[] = [];
+  const cs: Constraint[] = [];
+  for (const elem of exprs) {
+    const [t, c] = infer(elem, ctx);
+    ts.push(t);
+    cs.push(...c);
+  }
+  return [ts, cs];
 };
 
 const ops = (op: Binop): Type => {
