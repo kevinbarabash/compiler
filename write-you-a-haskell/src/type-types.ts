@@ -1,6 +1,4 @@
-import { Map, Set } from "immutable";
-
-import { zip } from "./util";
+import { Map } from "immutable";
 
 function assertUnreachable(x: never): never {
   throw new Error("Didn't expect to get here");
@@ -70,58 +68,6 @@ export function print(t: Type | Scheme): string {
     default:
       assertUnreachable(t);
   }
-}
-
-export function equal(a: Type | Scheme, b: Type | Scheme): boolean {
-  if (a.tag === "TVar" && b.tag === "TVar") {
-    return a.id === b.id; // TODO: use IDs
-  } else if (a.tag === "TCon" && b.tag === "TCon") {
-    return (
-      a.name === b.name &&
-      a.params.length === b.params.length &&
-      zip(a.params, b.params).every((pair) => equal(...pair))
-    );
-  } else if (a.tag === "TFun" && b.tag === "TFun") {
-    return (
-      a.args.length === b.args.length &&
-      zip([...a.args, a.ret], [...b.args, b.ret]).every((pair) =>
-        equal(...pair)
-      )
-    );
-  } else if (a.tag === "TTuple" && b.tag === "TTuple") {
-    return (
-      a.types.length === b.types.length &&
-      zip(a.types, b.types).every((pair) => equal(...pair))
-    );
-  } else if (a.tag === "TRec" && b.tag === "TRec") {
-    if (a.properties.length === b.properties.length) {
-      const aKeys = a.properties.map(prop => prop.name);
-      const bKeys = a.properties.map(prop => prop.name);
-
-      // TODO: warn about
-      // - keys in t1 that aren't in t2
-      // - keys in t2 that aren't in t1
-      // - keys that appear more than once in either t1 or t2
-      const keys = Set.intersect([aKeys, bKeys]).toJS() as string[];
-      
-      const a_obj = Object.fromEntries(
-        a.properties.map(prop => [prop.name, prop.type])
-      );
-      const b_obj = Object.fromEntries(
-        b.properties.map(prop => [prop.name, prop.type])
-      );
-  
-      const ot1 = keys.map(key => a_obj[key]);
-      const ot2 = keys.map(key => b_obj[key]);
-
-      return zip(ot1, ot2).every((pair) => equal(...pair));
-    }
-  } else if (a.tag === "Forall" && b.tag === "Forall") {
-    throw new Error("TODO: implement equal for Schemes");
-  } else if (a.tag === b.tag) {
-    throw new Error(`TODO: implement equal for ${a.tag}`);
-  }
-  return false;
 }
 
 // NOTE: this function mutates its param
