@@ -40,3 +40,20 @@ export class UnificationMismatch extends Error {
     this.name = "UnificationMismatch";
   }
 }
+
+export class ExtraProperties extends Error {
+  constructor(type: Type, extraKeys: string[]) {
+    const message = `${print(type)} has following extra keys: ${extraKeys.join(", ")}`
+    super(message);
+    this.name = "ExtraProperties";
+  }
+}
+
+export class MissingProperties extends Error {
+  constructor(type: Type, extraKeys: string[]) {
+    const message = `${print(type)} is missing the following keys: ${extraKeys.join(", ")}`
+    super(message);
+    this.name = "MissingProperties";
+  }
+}
+
