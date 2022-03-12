@@ -13,6 +13,7 @@ import {
   Context,
   State,
   TProp,
+  print,
 } from "./type-types";
 import {
   Binop,
@@ -234,11 +235,11 @@ const infer = (expr: Expr, ctx: Context): InferResult => {
 
 const inferApp = (expr: EApp, ctx: Context): InferResult => {
   const { fn, args } = expr;
-  const [t_fn, c_fn] = infer(fn, ctx);
-  const [t_args, c_args] = inferMany(args, ctx);
+  const [t_fn, cs_fn] = infer(fn, ctx);
+  const [t_args, cs_args] = inferMany(args, ctx);
   const tv = fresh(ctx);
   // This is almost the reverse of what we return from the "Lam" case
-  return [tv, [...c_fn, ...c_args, [t_fn, tb.tfun(t_args, tv, ctx, "App")]]];
+  return [tv, [...cs_fn, ...cs_args, [t_fn, tb.tfun(t_args, tv, ctx, "App")]]];
 };
 
 const inferAwait = (expr: EAwait, ctx: Context): InferResult => {
@@ -315,17 +316,38 @@ const inferLet = (expr: ELet, ctx: Context): InferResult => {
   const subs = runSolve(cs1, ctx);
   const sc = generalize(apply(subs, env), apply(subs, t1));
 
-  // (t2, c2) <- inEnv (x, sc) $ local (apply sub) (infer e2)
-  const name = (() => {
-    if (pattern.tag === "PVar") {
-      return pattern.name;
+  let newCtx = ctx;
+
+  if (pattern.tag === "PVar") {
+    newCtx = { ...newCtx, env: newCtx.env.set(pattern.name, sc) };
+  } else if (pattern.tag === "PRec" && t1.tag === "TRec") {
+    for (const pprop of pattern.properties) {
+      const tprop = t1.properties.find(prop => prop.name === pprop.name);
+      if (!tprop) {
+        throw new Error(`${print(t1)} doesn't contain ${pprop.name} property`);
+      }
+      // How do we handle a situation where the top-level scheme has
+      // type params?  How do we make sure that the schemes at lower
+      // levels have the type params that they need and that they're
+      // the same type params listed at the top-level?
+      const sc = scheme([], tprop.type);
+
+      // How do we make this recursive so that we can match nested
+      // structures?
+      if (pprop.pattern.tag === "PVar") {
+        const {name} = pprop.pattern;
+        newCtx = { ...newCtx, env: newCtx.env.set(name, sc) };
+      } else if (pattern.tag === "PRec" && tprop.type.tag === "TRec") {
+        // TODO: this should be recursive
+      }
     }
+  } else {
     throw new Error(`We don't handle ${pattern.tag} patterns yet`);
-  })();
-  const newCtx = { ...ctx, env: ctx.env.set(name, sc) };
+  }
+
   const [t2, cs2] = infer(body, newCtx);
 
-  // return (t2, c1 ++ c2)
+  // We apply subs from let's `value` to its `body`, namely t2 and cs2 
   return [apply(subs, t2), [...cs1, ...apply(subs, cs2)]];
 };
 

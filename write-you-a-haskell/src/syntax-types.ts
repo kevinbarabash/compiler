@@ -72,4 +72,4 @@ export type Pattern =
 
 // `pattern` is option in PProp so that we can extract a property whose type
 // is an object, or a sub-property within that property's object.
-type PProp = { tag: "PProp"; name: string; pattern?: Pattern };
+type PProp = { tag: "PProp"; name: string; pattern: Pattern };
