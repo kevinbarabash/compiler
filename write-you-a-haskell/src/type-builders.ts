@@ -25,11 +25,12 @@ export const tcon = (name: string, params: Type[], ctx: Context): TCon => ({
   params,
 });
 
-export const tfun = (args: Type[], ret: Type, ctx: Context): TFun => ({
+export const tfun = (args: Type[], ret: Type, ctx: Context, src?: "App" | "Fix" | "Lam"): TFun => ({
   tag: "TFun",
   id: ctx.state.count++,
   args,
   ret,
+  src,
 });
 
 export const tunion = (types: Type[], ctx: Context): TUnion => ({

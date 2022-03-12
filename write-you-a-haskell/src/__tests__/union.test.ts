@@ -91,7 +91,7 @@ describe("Union types and type widening", () => {
     env = env.set("foo", foo);
     env = env.set("bar", bar);
 
-    const result = inferExpr(env, expr, { count: 6 });
+    const result = inferExpr(env, expr, ctx.state);
     expect(print(result)).toMatchInlineSnapshot(
       `"(Bool) => (Int | Bool) => Bool | Int"`
     );

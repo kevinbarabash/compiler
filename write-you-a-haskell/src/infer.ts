@@ -14,9 +14,25 @@ import {
   State,
   TProp,
 } from "./type-types";
-import { Binop, Expr, EProp } from "./syntax-types";
+import {
+  Binop,
+  Expr,
+  ELam,
+  EProp,
+  EApp,
+  ELit,
+  ELet,
+  ERec,
+  ETuple,
+  EFix,
+  EAwait,
+  EOp,
+  EIf,
+  EVar,
+} from "./syntax-types";
 import { zip, apply, ftv, assertUnreachable } from "./util";
 import { runSolve } from "./constraint-solver";
+import * as tb from "./type-builders";
 
 const emptyEnv: Env = Map();
 
@@ -206,216 +222,228 @@ const infer = (
   expr: Expr,
   ctx: Context
 ): readonly [Type, readonly Constraint[]] => {
+  // prettier-ignore
   switch (expr.tag) {
-    case "Lit": {
-      const lit = expr.value;
-      switch (lit.tag) {
-        case "LInt":
-          return [freshTCon(ctx, "Int"), []];
-        case "LBool":
-          return [freshTCon(ctx, "Bool"), []];
-        case "LStr":
-          return [freshTCon(ctx, "Str"), []];
-      }
-    }
-
-    case "Var": {
-      const t = lookupEnv(expr.name, ctx);
-      return [t, []];
-    }
-
-    case "Lam": {
-      const { args, body } = expr;
-      // newCtx introduces a new scope
-      const tvs = args.map(() => fresh(ctx));
-      const newCtx: Context = {
-        ...ctx,
-        env: ctx.env.withMutations((env) => {
-          for (const [arg, tv] of zip(args, tvs)) {
-            // scheme([], tv) is a type variable without any qualifiers
-            env.set(arg, scheme([], tv));
-          }
-        }),
-        async: expr.async,
-      };
-      const [t, c] = infer(body, newCtx);
-      // We wrap the return value in a promise if:
-      // - the lambda is marked as async
-      // - its inferred return value isn't already in a promise
-      // TODO: add more general support for conditional types
-      const ret =
-        !expr.async || (t.tag === "TCon" && t.name === "Promise")
-          ? t
-          : freshTCon(ctx, "Promise", [t]);
-
-      ctx.state.count++;
-      return [
-        { tag: "TFun", id: ctx.state.count, args: tvs, ret, src: "Lam" },
-        c,
-      ];
-    }
-
-    case "App": {
-      const { fn, args } = expr;
-      const [t_fn, c_fn] = infer(fn, ctx);
-      const t_args: Type[] = [];
-      const c_args: (readonly Constraint[])[] = [];
-      for (const arg of args) {
-        const [t_arg, c_arg] = infer(arg, ctx);
-        t_args.push(t_arg);
-        c_args.push(c_arg);
-      }
-      const tv = fresh(ctx);
-      ctx.state.count++;
-      return [
-        tv,
-        [
-          ...c_fn,
-          ...c_args.flat(),
-          // This is almost the reverse of what we return from the "Lam" case
-          [
-            t_fn,
-            {
-              tag: "TFun",
-              id: ctx.state.count,
-              args: t_args,
-              ret: tv,
-              src: "App",
-            },
-          ],
-        ],
-      ];
-    }
-
-    case "Let": {
-      const { pattern, value, body } = expr;
-      const { env } = ctx;
-      const [t1, c1] = infer(value, ctx);
-      const subs = runSolve(c1, ctx);
-      const sc = generalize(apply(subs, env), apply(subs, t1));
-      // (t2, c2) <- inEnv (x, sc) $ local (apply sub) (infer e2)
-      const name = (() => {
-        if (pattern.tag === "PVar") {
-          return pattern.name;
-        }
-        throw new Error(`We don't handle ${pattern.tag} patterns yet`);
-      })();
-      const newCtx = { ...ctx, env: ctx.env.set(name, sc) };
-      // we'd like to do `apply(subs, infer(body, newCtx))`, but TypeScript
-      // doesn't support typeclasses
-      const [in_t2, in_c2] = infer(body, newCtx);
-      const [out_t2, out_c2] = [apply(subs, in_t2), apply(subs, in_c2)];
-      // return (t2, c1 ++ c2)
-      return [out_t2, [...c1, ...out_c2]];
-    }
-
-    case "Fix": {
-      const { expr: e } = expr;
-      let [t1, c1] = infer(e, ctx);
-      const tv = fresh(ctx);
-      ctx.state.count++;
-      return [
-        tv,
-        [
-          ...c1,
-          [
-            {
-              tag: "TFun",
-              id: ctx.state.count,
-              args: [tv],
-              ret: tv,
-              src: "Fix",
-            },
-            t1,
-          ],
-        ],
-      ];
-    }
-
-    case "Op": {
-      const { op, left, right } = expr;
-      const [lt, lc] = infer(left, ctx);
-      const [rt, rc] = infer(right, ctx);
-      const tv = fresh(ctx);
-      ctx.state.count++;
-      const u1: Type = {
-        tag: "TFun",
-        id: ctx.state.count,
-        args: [lt, rt],
-        ret: tv,
-      };
-      const u2 = ops(op);
-      return [tv, [...lc, ...rc, [u1, u2]]];
-    }
-
-    case "If": {
-      const { cond, th, el } = expr;
-      const [t1, c1] = infer(cond, ctx);
-      const [t2, c2] = infer(th, ctx);
-      const [t3, c3] = infer(el, ctx);
-      // This is similar how we'll handle n-ary apply
-      const bool = freshTCon(ctx, "Bool");
-      return [t2, [...c1, ...c2, ...c3, [t1, bool], [t2, t3]]];
-    }
-
-    case "Await": {
-      if (!ctx.async) {
-        throw new Error("Can't use `await` inside non-async lambda");
-      }
-
-      const [t, c] = infer(expr.expr, ctx);
-
-      // TODO: convert Promise from TCon to TAbs/TGen
-      if (t.tag === "TCon" && t.name === "Promise") {
-        if (t.params.length !== 1) {
-          // TODO: How do we prevent people from overwriting built-in types
-          // TODO: How do we allow local shadowing of other types within a module?
-          //       Do we even want to?
-          throw new Error("Invalid Promise type");
-        }
-        return [t.params[0], c];
-      }
-
-      // If the await expression isn't a promise then we return the inferred
-      // type and constraints from the awaited expression.
-      return [t, c];
-    }
-
-    case "Rec": {
-      ctx.state.count++;
-      const cs: Constraint[] = [];
-      const recType: Type = {
-        tag: "TRec",
-        id: ctx.state.count,
-        properties: expr.properties.map((prop: EProp): TProp => {
-          const [t, c] = infer(prop.value, ctx);
-          cs.push(...c);
-          return {
-            tag: "TProp",
-            name: prop.name,
-            type: t,
-          };
-        }),
-      };
-      recType.properties; // ?
-      return [recType, cs];
-    }
-
-    case "Tuple": {
-      const ts: Type[] = [];
-      const cs: Constraint[] = [];
-      for (const elem of expr.elements) {
-        const [t, c] = infer(elem, ctx);
-        ts.push(t);
-        cs.push(...c);
-      }
-      ctx.state.count++;
-      return [{ tag: "TTuple", id: ctx.state.count, types: ts }, cs];
-    }
-
-    default:
-      assertUnreachable(expr);
+    case "Lit":   return inferLit  (expr, ctx);
+    case "Var":   return inferVar  (expr, ctx);
+    case "Lam":   return inferLam  (expr, ctx);
+    case "App":   return inferApp  (expr, ctx);
+    case "Let":   return inferLet  (expr, ctx);
+    case "Fix":   return inferFix  (expr, ctx);
+    case "Op":    return inferOp   (expr, ctx);
+    case "If":    return inferIf   (expr, ctx);
+    case "Await": return inferAwait(expr, ctx);
+    case "Rec":   return inferRec  (expr, ctx);
+    case "Tuple": return inferTuple(expr, ctx);
+    default: assertUnreachable(expr);
   }
+};
+
+const inferApp = (
+  expr: EApp,
+  ctx: Context
+): readonly [Type, readonly Constraint[]] => {
+  const { fn, args } = expr;
+  const [t_fn, c_fn] = infer(fn, ctx);
+  const t_args: Type[] = [];
+  const c_args: (readonly Constraint[])[] = [];
+  for (const arg of args) {
+    const [t_arg, c_arg] = infer(arg, ctx);
+    t_args.push(t_arg);
+    c_args.push(c_arg);
+  }
+  const tv = fresh(ctx);
+  ctx.state.count++;
+  return [
+    tv,
+    [
+      ...c_fn,
+      ...c_args.flat(),
+      // This is almost the reverse of what we return from the "Lam" case
+      [t_fn, tb.tfun(t_args, tv, ctx, "App")],
+    ],
+  ];
+};
+
+const inferAwait = (
+  expr: EAwait,
+  ctx: Context
+): readonly [Type, readonly Constraint[]] => {
+  if (!ctx.async) {
+    throw new Error("Can't use `await` inside non-async lambda");
+  }
+
+  const [t, c] = infer(expr.expr, ctx);
+
+  // TODO: convert Promise from TCon to TAbs/TGen
+  if (t.tag === "TCon" && t.name === "Promise") {
+    if (t.params.length !== 1) {
+      // TODO: How do we prevent people from overwriting built-in types
+      // TODO: How do we allow local shadowing of other types within a module?
+      //       Do we even want to?
+      throw new Error("Invalid Promise type");
+    }
+    return [t.params[0], c];
+  }
+
+  // If the await expression isn't a promise then we return the inferred
+  // type and constraints from the awaited expression.
+  return [t, c];
+};
+
+const inferFix = (
+  expr: EFix,
+  ctx: Context
+): readonly [Type, readonly Constraint[]] => {
+  const { expr: e } = expr;
+  let [t1, c1] = infer(e, ctx);
+  const tv = fresh(ctx);
+  ctx.state.count++;
+  return [
+    tv,
+    [
+      ...c1,
+      [
+        tb.tfun([tv], tv, ctx, "Fix"),
+        t1,
+      ],
+    ],
+  ];
+};
+
+const inferIf = (
+  expr: EIf,
+  ctx: Context
+): readonly [Type, readonly Constraint[]] => {
+  const { cond, th, el } = expr;
+  const [t1, c1] = infer(cond, ctx);
+  const [t2, c2] = infer(th, ctx);
+  const [t3, c3] = infer(el, ctx);
+  // This is similar how we'll handle n-ary apply
+  const bool = freshTCon(ctx, "Bool");
+  return [t2, [...c1, ...c2, ...c3, [t1, bool], [t2, t3]]];
+};
+
+const inferLam = (
+  expr: ELam,
+  ctx: Context
+): readonly [Type, readonly Constraint[]] => {
+  const { args, body } = expr;
+  // newCtx introduces a new scope
+  const tvs = args.map(() => fresh(ctx));
+  const newCtx: Context = {
+    ...ctx,
+    env: ctx.env.withMutations((env) => {
+      for (const [arg, tv] of zip(args, tvs)) {
+        // scheme([], tv) is a type variable without any qualifiers
+        env.set(arg, scheme([], tv));
+      }
+    }),
+    async: expr.async,
+  };
+  const [t, c] = infer(body, newCtx);
+  // We wrap the return value in a promise if:
+  // - the lambda is marked as async
+  // - its inferred return value isn't already in a promise
+  // TODO: add more general support for conditional types
+  const ret =
+    !expr.async || (t.tag === "TCon" && t.name === "Promise")
+      ? t
+      : freshTCon(ctx, "Promise", [t]);
+
+  ctx.state.count++;
+  return [tb.tfun(tvs, ret, ctx, "Lam"), c];
+};
+
+const inferLet = (
+  expr: ELet,
+  ctx: Context
+): readonly [Type, readonly Constraint[]] => {
+  const { pattern, value, body } = expr;
+  const { env } = ctx;
+  const [t1, c1] = infer(value, ctx);
+  const subs = runSolve(c1, ctx);
+  const sc = generalize(apply(subs, env), apply(subs, t1));
+  // (t2, c2) <- inEnv (x, sc) $ local (apply sub) (infer e2)
+  const name = (() => {
+    if (pattern.tag === "PVar") {
+      return pattern.name;
+    }
+    throw new Error(`We don't handle ${pattern.tag} patterns yet`);
+  })();
+  const newCtx = { ...ctx, env: ctx.env.set(name, sc) };
+  // we'd like to do `apply(subs, infer(body, newCtx))`, but TypeScript
+  // doesn't support typeclasses
+  const [in_t2, in_c2] = infer(body, newCtx);
+  const [out_t2, out_c2] = [apply(subs, in_t2), apply(subs, in_c2)];
+  // return (t2, c1 ++ c2)
+  return [out_t2, [...c1, ...out_c2]];
+};
+
+const inferLit = (
+  expr: ELit,
+  ctx: Context
+): readonly [Type, readonly Constraint[]] => {
+  const lit = expr.value;
+  switch (lit.tag) {
+    case "LInt":
+      return [freshTCon(ctx, "Int"), []];
+    case "LBool":
+      return [freshTCon(ctx, "Bool"), []];
+    case "LStr":
+      return [freshTCon(ctx, "Str"), []];
+  }
+};
+
+const inferOp = (
+  expr: EOp,
+  ctx: Context
+): readonly [Type, readonly Constraint[]] => {
+  const { op, left, right } = expr;
+  const [lt, lc] = infer(left, ctx);
+  const [rt, rc] = infer(right, ctx);
+  const tv = fresh(ctx);
+  ctx.state.count++;
+  const u1 = tb.tfun([lt, rt], tv, ctx);
+  const u2 = ops(op);
+  return [tv, [...lc, ...rc, [u1, u2]]];
+};
+
+const inferRec = (
+  expr: ERec,
+  ctx: Context
+): readonly [Type, readonly Constraint[]] => {
+  const cs: Constraint[] = [];
+  const properties = expr.properties.map((prop: EProp): TProp => {
+    const [t, c] = infer(prop.value, ctx);
+    cs.push(...c);
+    return tb.tprop(prop.name, t);
+  });
+  ctx.state.count++;
+  return [tb.trec(properties, ctx), cs];
+};
+
+const inferTuple = (
+  expr: ETuple,
+  ctx: Context
+): readonly [Type, readonly Constraint[]] => {
+  const ts: Type[] = [];
+  const cs: Constraint[] = [];
+  for (const elem of expr.elements) {
+    const [t, c] = infer(elem, ctx);
+    ts.push(t);
+    cs.push(...c);
+  }
+  ctx.state.count++;
+  return [tb.ttuple(ts, ctx), cs];
+};
+
+const inferVar = (
+  expr: EVar,
+  ctx: Context
+): readonly [Type, readonly Constraint[]] => {
+  const t = lookupEnv(expr.name, ctx);
+  return [t, []];
 };
 
 const ops = (op: Binop): Type => {
