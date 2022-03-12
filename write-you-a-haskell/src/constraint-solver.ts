@@ -1,6 +1,18 @@
-import { Map } from "immutable";
+import { Map, Set } from "immutable";
 
-import { Type, TVar, Subst, Constraint, Unifier, equal, TUnion, Context } from "./type-types";
+import {
+  Type,
+  TVar,
+  Subst,
+  Constraint,
+  Unifier,
+  equal,
+  TUnion,
+  Context,
+  isTTuple,
+  isTRec,
+  print,
+} from "./type-types";
 import { isTCon, isTVar, isTFun, isTUnion } from "./type-types";
 import { InfiniteType, UnificationFail, UnificationMismatch } from "./errors";
 import { apply, ftv } from "./util";
@@ -15,7 +27,11 @@ export const runSolve = (cs: readonly Constraint[], ctx: Context): Subst => {
   return solver([emptySubst, cs], ctx);
 };
 
-const unifyMany = (ts1: readonly Type[], ts2: readonly Type[], ctx: Context): Subst => {
+const unifyMany = (
+  ts1: readonly Type[],
+  ts2: readonly Type[],
+  ctx: Context
+): Subst => {
   if (ts1.length !== ts2.length) {
     throw new UnificationMismatch(ts1, ts2);
   }
@@ -25,6 +41,7 @@ const unifyMany = (ts1: readonly Type[], ts2: readonly Type[], ctx: Context): Su
   const [t1, ...rest1] = ts1;
   const [t2, ...rest2] = ts2;
   const su1 = unifies(t1, t2, ctx);
+  // TODO: figure out how to make this step non recursive
   const su2 = unifyMany(apply(su1, rest1), apply(su1, rest2), ctx);
   return composeSubs(su2, su1);
 };
@@ -114,6 +131,68 @@ export const unifies = (t1: Type, t2: Type, ctx: Context): Subst => {
     // This only works if the types that make up the unions are ordered
     // consistently.  Is there a way to do this?
     return unifyMany(t1.types, t2.types, ctx);
+  } else if (
+    isTTuple(t1) &&
+    isTTuple(t2) &&
+    t1.types.length === t2.types.length
+  ) {
+    // TODO: create a custom fork unifyMany() that can report which elements
+    // failed to unify within t1 and t2
+    return unifyMany(t1.types, t2.types, ctx);
+  } else if (isTRec(t1) && isTRec(t2)) {
+    const keys1 = t1.properties.map((prop) => prop.name);
+    const keys2 = t2.properties.map((prop) => prop.name);
+
+    let missingKeys: Set<string>;
+
+    missingKeys = Set(keys1).subtract(keys2);
+    if (missingKeys.size > 0) {
+      if (t2.frozen) {
+        throw new Error(
+          `${print(t1)} has the following extra keys: ${missingKeys.join(", ")}`
+        );
+      } else {
+        throw new Error(
+          `${print(t2)} is missing the following keys: ${missingKeys.join(
+            ", "
+          )}`
+        );
+      }
+    }
+
+    missingKeys = Set(keys2).subtract(keys1);
+    if (missingKeys.size > 0) {
+      if (t1.frozen) {
+        throw new Error(
+          `${print(t2)} has following extra keys: ${missingKeys.join(", ")}`
+        );
+      } else {
+        throw new Error(
+          `${print(t1)} is missing the following keys: ${missingKeys.join(
+            ", "
+          )}`
+        );
+      }
+    }
+
+    // TODO: warn about:
+    // - keys that appear more than once in either t1 or t2
+    //   (this should probably be a parse error)
+    const keys = Set.intersect([keys1, keys2]).toJS() as string[];
+
+    const t1_obj = Object.fromEntries(
+      t1.properties.map((prop) => [prop.name, prop.type])
+    );
+    const t2_obj = Object.fromEntries(
+      t2.properties.map((prop) => [prop.name, prop.type])
+    );
+
+    const ot1 = keys.map((key) => t1_obj[key]);
+    const ot2 = keys.map((key) => t2_obj[key]);
+
+    // TODO: create a custom fork unifyMany() that knows how to report
+    // errors from individual properties failing to unify.
+    return unifyMany(ot1, ot2, ctx);
   } else {
     // As long as the types haven't been frozen then this is okay
     // NOTE: We may need to add .src info in the future if we notice
@@ -125,7 +204,7 @@ export const unifies = (t1: Type, t2: Type, ctx: Context): Subst => {
       const types = [
         ...(isTUnion(t1) ? t1.types : [t1]),
         ...(isTUnion(t2) ? t2.types : [t2]),
-      ].filter(type => {
+      ].filter((type) => {
         // Removes duplicate TCons
         // TODO: handle TCons with params
         if (isTCon(type) && type.params.length === 0) {
