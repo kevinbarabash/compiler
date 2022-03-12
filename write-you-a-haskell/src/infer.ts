@@ -212,10 +212,9 @@ const generalize = (env: Env, type: Type): Scheme => {
   return scheme(ftv(type).subtract(ftv(env)).toArray(), type);
 };
 
-const infer = (
-  expr: Expr,
-  ctx: Context
-): readonly [Type, readonly Constraint[]] => {
+type InferResult = readonly [Type, readonly Constraint[]];
+
+const infer = (expr: Expr, ctx: Context): InferResult => {
   // prettier-ignore
   switch (expr.tag) {
     case "Lit":   return inferLit  (expr, ctx);
@@ -233,10 +232,7 @@ const infer = (
   }
 };
 
-const inferApp = (
-  expr: EApp,
-  ctx: Context
-): readonly [Type, readonly Constraint[]] => {
+const inferApp = (expr: EApp, ctx: Context): InferResult => {
   const { fn, args } = expr;
   const [t_fn, c_fn] = infer(fn, ctx);
   const [t_args, c_args] = inferMany(args, ctx);
@@ -245,10 +241,7 @@ const inferApp = (
   return [tv, [...c_fn, ...c_args, [t_fn, tb.tfun(t_args, tv, ctx, "App")]]];
 };
 
-const inferAwait = (
-  expr: EAwait,
-  ctx: Context
-): readonly [Type, readonly Constraint[]] => {
+const inferAwait = (expr: EAwait, ctx: Context): InferResult => {
   if (!ctx.async) {
     throw new Error("Can't use `await` inside non-async lambda");
   }
@@ -271,20 +264,14 @@ const inferAwait = (
   return [t, c];
 };
 
-const inferFix = (
-  expr: EFix,
-  ctx: Context
-): readonly [Type, readonly Constraint[]] => {
+const inferFix = (expr: EFix, ctx: Context): InferResult => {
   const { expr: e } = expr;
   const [t1, c1] = infer(e, ctx);
   const tv = fresh(ctx);
   return [tv, [...c1, [tb.tfun([tv], tv, ctx, "Fix"), t1]]];
 };
 
-const inferIf = (
-  expr: EIf,
-  ctx: Context
-): readonly [Type, readonly Constraint[]] => {
+const inferIf = (expr: EIf, ctx: Context): InferResult => {
   const { cond, th, el } = expr;
   const [t1, c1] = infer(cond, ctx);
   const [t2, c2] = infer(th, ctx);
@@ -294,10 +281,7 @@ const inferIf = (
   return [t2, [...c1, ...c2, ...c3, [t1, bool], [t2, t3]]];
 };
 
-const inferLam = (
-  expr: ELam,
-  ctx: Context
-): readonly [Type, readonly Constraint[]] => {
+const inferLam = (expr: ELam, ctx: Context): InferResult => {
   const { args, body } = expr;
   // newCtx introduces a new scope
   const tvs = args.map(() => fresh(ctx));
@@ -324,10 +308,7 @@ const inferLam = (
   return [tb.tfun(tvs, ret, ctx, "Lam"), c];
 };
 
-const inferLet = (
-  expr: ELet,
-  ctx: Context
-): readonly [Type, readonly Constraint[]] => {
+const inferLet = (expr: ELet, ctx: Context): InferResult => {
   const { pattern, value, body } = expr;
   const { env } = ctx;
   const [t1, c1] = infer(value, ctx);
@@ -352,10 +333,7 @@ const inferLet = (
   return [out_t2, [...c1, ...out_c2]];
 };
 
-const inferLit = (
-  expr: ELit,
-  ctx: Context
-): readonly [Type, readonly Constraint[]] => {
+const inferLit = (expr: ELit, ctx: Context): InferResult => {
   const lit = expr.value;
   // prettier-ignore
   switch (lit.tag) {
@@ -365,20 +343,14 @@ const inferLit = (
   }
 };
 
-const inferOp = (
-  expr: EOp,
-  ctx: Context
-): readonly [Type, readonly Constraint[]] => {
+const inferOp = (expr: EOp, ctx: Context): InferResult => {
   const { op, left, right } = expr;
   const [ts, cs] = inferMany([left, right], ctx);
   const tv = fresh(ctx);
   return [tv, [...cs, [tb.tfun(ts, tv, ctx), ops(op)]]];
 };
 
-const inferRec = (
-  expr: ERec,
-  ctx: Context
-): readonly [Type, readonly Constraint[]] => {
+const inferRec = (expr: ERec, ctx: Context): InferResult => {
   const cs: Constraint[] = [];
   const properties = expr.properties.map((prop: EProp): TProp => {
     const [t, c] = infer(prop.value, ctx);
@@ -388,18 +360,12 @@ const inferRec = (
   return [tb.trec(properties, ctx), cs];
 };
 
-const inferTuple = (
-  expr: ETuple,
-  ctx: Context
-): readonly [Type, readonly Constraint[]] => {
+const inferTuple = (expr: ETuple, ctx: Context): InferResult => {
   const [ts, cs] = inferMany(expr.elements, ctx);
   return [tb.ttuple(ts, ctx), cs];
 };
 
-const inferVar = (
-  expr: EVar,
-  ctx: Context
-): readonly [Type, readonly Constraint[]] => {
+const inferVar = (expr: EVar, ctx: Context): InferResult => {
   const t = lookupEnv(expr.name, ctx);
   return [t, []];
 };
