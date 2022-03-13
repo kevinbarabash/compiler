@@ -392,7 +392,7 @@ const inferLit = (expr: ELit, ctx: Context): InferResult => {
   const lit = expr.value;
   // prettier-ignore
   switch (lit.tag) {
-    case "LNum":       return [freshTCon(ctx, "Int" ), []];
+    case "LNum":       return [freshTCon(ctx, "Num" ), []];
     case "LBool":      return [freshTCon(ctx, "Bool"), []];
     case "LStr":       return [freshTCon(ctx, "Str" ), []];
   }
