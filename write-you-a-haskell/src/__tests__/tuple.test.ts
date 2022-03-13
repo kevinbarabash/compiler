@@ -14,7 +14,7 @@ describe("tuple", () => {
 
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("[Int, Bool, Str]");
+    expect(print(result)).toEqual("[Num, Bool, Str]");
   });
 
   test("can infer a function returning a lambda", () => {
@@ -27,7 +27,7 @@ describe("tuple", () => {
 
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("() => [Int, Bool, Str]");
+    expect(print(result)).toEqual("() => [Num, Bool, Str]");
   });
 
   test("snd (function)", () => {
@@ -72,7 +72,7 @@ describe("tuple", () => {
       ]);
 
       expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Couldn't unify [b, c] with [Int, Str, Bool]"`
+        `"Couldn't unify [b, c] with [Num, Str, Bool]"`
       );
     });
 
@@ -83,7 +83,7 @@ describe("tuple", () => {
       const expr: Expr = sb.app(sb._var("snd"), [sb.tuple([sb.num(5)])]);
 
       expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Couldn't unify [b, c] with [Int]"`
+        `"Couldn't unify [b, c] with [Num]"`
       );
     });
 
@@ -92,7 +92,7 @@ describe("tuple", () => {
       const foo: Scheme = scheme(
         [],
         tb.tfun(
-          [tb.ttuple([tb.tcon("Int", [], ctx), tb.tcon("Str", [], ctx)], ctx)],
+          [tb.ttuple([tb.tcon("Num", [], ctx), tb.tcon("Str", [], ctx)], ctx)],
           tb.tcon("Str", [], ctx),
           ctx
         )

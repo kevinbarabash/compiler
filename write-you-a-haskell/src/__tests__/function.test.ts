@@ -47,7 +47,7 @@ describe("Functions", () => {
     const env: Env = Map();
     const result = inferExpr(env, fib[1]);
 
-    expect(print(result)).toEqual("(Int) => Int");
+    expect(print(result)).toEqual("(Num) => Num");
   });
 
   test("let const = (x) => (y) => x", () => {
@@ -101,7 +101,7 @@ describe("Functions", () => {
       throw new Error("foo is undefined");
     }
 
-    expect(print(fooType)).toEqual("(Int) => Int");
+    expect(print(fooType)).toEqual("(Num) => Num");
 
     const yType = env.get("y");
     if (!yType) {
@@ -212,7 +212,7 @@ describe("Functions", () => {
     let env: Env = Map();
     const result = inferExpr(env, foo[1]);
 
-    expect(print(result)).toEqual("() => Int");
+    expect(print(result)).toEqual("() => Num");
   });
 });
 
@@ -234,7 +234,7 @@ describe("partial applicaiton", () => {
       throw new Error("add5 is undefined");
     }
 
-    expect(print(result)).toEqual("(Int) => Int");
+    expect(print(result)).toEqual("(Num) => Num");
   });
 
   test("let sum = add(5)(10)", () => {
@@ -257,7 +257,7 @@ describe("partial applicaiton", () => {
       throw new Error("sum is undefined");
     }
 
-    expect(print(result)).toEqual("Int");
+    expect(print(result)).toEqual("Num");
   });
 
   test("((a, b) => a + b)(5)", () => {
@@ -271,7 +271,7 @@ describe("partial applicaiton", () => {
     const env: Env = Map();
     const result = inferExpr(env, add5[1]);
 
-    expect(print(result)).toEqual("(Int) => Int");
+    expect(print(result)).toEqual("(Num) => Num");
   });
 });
 
@@ -303,7 +303,7 @@ describe("function subtyping", () => {
         [
           tb.tcon("Array", [aVar], ctx),
           // Why is this TFun's `src` an "App"?
-          tb.tfun([aVar, tb.tcon("Int", [], ctx)], bVar, ctx, "App"),
+          tb.tfun([aVar, tb.tcon("Num", [], ctx)], bVar, ctx, "App"),
         ],
         tb.tcon("Array", [bVar], ctx),
         ctx
@@ -315,7 +315,7 @@ describe("function subtyping", () => {
 
     const intArray = scheme(
       [],
-      tb.tcon("Array", [tb.tcon("Int", [], ctx)], ctx)
+      tb.tcon("Array", [tb.tcon("Num", [], ctx)], ctx)
     );
 
     env = env.set("array", intArray);
@@ -341,7 +341,7 @@ describe("function subtyping", () => {
       tb.tfun(
         [
           tb.tcon("Array", [aVar], ctx),
-          tb.tfun([aVar, tb.tcon("Int", [], ctx)], bVar, ctx, "App"),
+          tb.tfun([aVar, tb.tcon("Num", [], ctx)], bVar, ctx, "App"),
         ],
         tb.tcon("Array", [bVar], ctx),
         ctx
@@ -353,7 +353,7 @@ describe("function subtyping", () => {
 
     const intArray = scheme(
       [],
-      tb.tcon("Array", [tb.tcon("Int", [], ctx)], ctx)
+      tb.tcon("Array", [tb.tcon("Num", [], ctx)], ctx)
     );
 
     env = env.set("array", intArray);
@@ -375,6 +375,6 @@ describe("function subtyping", () => {
 
     const result = inferExpr(env, call, ctx.state);
 
-    expect(print(result)).toEqual("Array<(Int) => Int>");
+    expect(print(result)).toEqual("Array<(Num) => Num>");
   });
 });

@@ -94,7 +94,7 @@ describe("inferExpr", () => {
       const env: Env = Map();
       const result = inferExpr(env, nsucc[1]);
 
-      expect(print(result)).toEqual("(Int) => Int");
+      expect(print(result)).toEqual("(Num) => Num");
     });
 
     test("let npred x = x - 1", () => {
@@ -106,7 +106,7 @@ describe("inferExpr", () => {
       const env: Env = Map();
       const result = inferExpr(env, nsucc[1]);
 
-      expect(print(result)).toEqual("(Int) => Int");
+      expect(print(result)).toEqual("(Num) => Num");
     });
   });
 
@@ -126,7 +126,7 @@ describe("inferExpr", () => {
         throw new Error("poly is undefined");
       }
 
-      expect(print(result)).toEqual("Int");
+      expect(print(result)).toEqual("Num");
     });
 
     test("let self = ((x) => x)((x) => x)", () => {
@@ -171,7 +171,7 @@ describe("inferExpr", () => {
       const env: Env = Map();
       const result = inferExpr(env, f[1]);
 
-      expect(print(result)).toEqual("(Int, Int) => Int");
+      expect(print(result)).toEqual("(Num, Num) => Num");
     });
   });
 
@@ -193,7 +193,7 @@ describe("inferExpr", () => {
         sb.app(sb._var("promisify"), [sb.num(5)]),
       ];
       const intResult = inferExpr(env, intCall[1], ctx.state);
-      expect(print(intResult)).toEqual("Promise<Int>");
+      expect(print(intResult)).toEqual("Promise<Num>");
 
       const boolCall: Binding = [
         "call",
@@ -225,7 +225,7 @@ describe("inferExpr", () => {
       );
 
       const result = inferExpr(env, addFoos, { count: 3 });
-      expect(print(result)).toEqual("(Foo<Int>, Foo<Int>) => Int");
+      expect(print(result)).toEqual("(Foo<Num>, Foo<Num>) => Num");
     });
 
     test("extract value from type constructor 2", () => {
@@ -240,7 +240,7 @@ describe("inferExpr", () => {
       let env: Env = Map();
 
       env = env.set("extract", extractScheme);
-      // x is of type Foo<Int>
+      // x is of type Foo<Num>
       env = env.set("x", {
         tag: "Forall",
         qualifiers: [],
@@ -248,14 +248,14 @@ describe("inferExpr", () => {
           tag: "TCon",
           id: 3,
           name: "Foo",
-          params: [{ tag: "TCon", id: 4, name: "Int", params: [] }],
+          params: [{ tag: "TCon", id: 4, name: "Num", params: [] }],
         },
       });
 
       const extractedX = sb.app(sb._var("extract"), [sb._var("x")]);
 
       const result = inferExpr(env, extractedX, { count: 5 });
-      expect(print(result)).toEqual("Int");
+      expect(print(result)).toEqual("Num");
     });
   });
 
@@ -283,7 +283,7 @@ describe("inferExpr", () => {
       env = env.set(_add[0], inferExpr(env, _add[1]));
 
       expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Couldn't unify Int with Bool"`
+        `"Couldn't unify Num with Bool"`
       );
     });
 

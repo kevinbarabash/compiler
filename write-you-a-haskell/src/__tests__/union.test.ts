@@ -39,7 +39,7 @@ describe("Union types and type widening", () => {
 
     const result1 = inferExpr(env, call, ctx.state);
 
-    expect(print(result1)).toEqual("Int | Bool");
+    expect(print(result1)).toEqual("Num | Bool");
 
     const call2: Expr = {
       tag: "App",
@@ -50,7 +50,7 @@ describe("Union types and type widening", () => {
     env = env.set("retUnion", retUnion);
     const result2 = inferExpr(env, call2, ctx.state);
 
-    expect(print(result2)).toEqual("Bool | Int");
+    expect(print(result2)).toEqual("Bool | Num");
   });
 
   // TODO: figure out a way to normalize union types.
@@ -69,18 +69,18 @@ describe("Union types and type widening", () => {
     const env: Env = Map();
 
     const result = inferExpr(env, expr);
-    expect(print(result)).toEqual("<a>(Bool, (Int | Bool) => a) => a");
+    expect(print(result)).toEqual("<a>(Bool, (Num | Bool) => a) => a");
   });
 
   test("infer union of function types", () => {
     const ctx = tb.createCtx();
     const foo = scheme(
       [],
-      tb.tfun([tb.tcon("Int", [], ctx)], tb.tcon("Bool", [], ctx), ctx)
+      tb.tfun([tb.tcon("Num", [], ctx)], tb.tcon("Bool", [], ctx), ctx)
     );
     const bar = scheme(
       [],
-      tb.tfun([tb.tcon("Bool", [], ctx)], tb.tcon("Int", [], ctx), ctx)
+      tb.tfun([tb.tcon("Bool", [], ctx)], tb.tcon("Num", [], ctx), ctx)
     );
     const expr: Expr = sb.lam(
       ["x"],
@@ -93,7 +93,7 @@ describe("Union types and type widening", () => {
 
     const result = inferExpr(env, expr, ctx.state);
     expect(print(result)).toMatchInlineSnapshot(
-      `"(Bool) => (Int | Bool) => Bool | Int"`
+      `"(Bool) => (Num | Bool) => Bool | Num"`
     );
   });
 
@@ -101,12 +101,12 @@ describe("Union types and type widening", () => {
     const ctx = tb.createCtx();
     const union = scheme(
       [],
-      tb.tunion([tb.tcon("Int", [], ctx), tb.tcon("Bool", [], ctx)], ctx)
+      tb.tunion([tb.tcon("Num", [], ctx), tb.tcon("Bool", [], ctx)], ctx)
     );
 
     let env: Env = Map();
     env = env.set("union", union);
-    expect(print(union)).toEqual("Int | Bool");
+    expect(print(union)).toEqual("Num | Bool");
 
     const expr: Expr = sb.lam(
       ["x", "y"],
@@ -118,7 +118,7 @@ describe("Union types and type widening", () => {
     );
 
     const result = inferExpr(env, expr, ctx.state);
-    expect(print(result)).toEqual("<a>(Bool, (Int | Bool | Str) => a) => a")
+    expect(print(result)).toEqual("<a>(Bool, (Num | Bool | Str) => a) => a")
   });
 
   test("widen inferred union type", () => {
@@ -138,7 +138,7 @@ describe("Union types and type widening", () => {
     const env: Env = Map();
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("<a>((Int | Bool | Str) => a) => a");
+    expect(print(result)).toEqual("<a>((Num | Bool | Str) => a) => a");
   });
 
   test("should not widen frozen types", () => {
@@ -152,7 +152,7 @@ describe("Union types and type widening", () => {
     env = env.set(_add[0], inferExpr(env, _add[1]));
 
     expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
-      `"Couldn't unify Int with Bool"`
+      `"Couldn't unify Num with Bool"`
     );
   });
 });

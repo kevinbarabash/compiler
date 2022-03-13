@@ -50,8 +50,8 @@ export type Pattern =
   | { tag: "PLit"; value: ELit };
 // TODO:
 // - PCon, need to wait until the introduction of opaque types and/or type aliases
-//   since it doesn't make sense for Array<Int> to be modeled as a type constructor
-//   since it doesn't make sense to destructure the `Int` from the Array...
+//   since it doesn't make sense for Array<Num> to be modeled as a type constructor
+//   since it doesn't make sense to destructure the `Num` from the Array...
 // - we can look at the rescript AST to see how they handle this
 /*
     Pstr_type Nonrec

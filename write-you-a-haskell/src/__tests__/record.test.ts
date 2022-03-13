@@ -17,7 +17,7 @@ describe("record", () => {
 
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("{foo: Str, bar: Int}");
+    expect(print(result)).toEqual("{foo: Str, bar: Num}");
   });
 
   test("can infer a function returning a lambda", () => {
@@ -30,7 +30,7 @@ describe("record", () => {
 
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("() => {foo: Str, bar: Int}");
+    expect(print(result)).toEqual("() => {foo: Str, bar: Num}");
   });
 
   test("get foo", () => {
@@ -57,7 +57,7 @@ describe("record", () => {
     const result = inferExpr(env, expr);
 
     expect(print(getFoo)).toEqual("<a, b>({foo: a, bar: b}) => a");
-    expect(print(result)).toEqual("Int");
+    expect(print(result)).toEqual("Num");
   });
 
   describe("errors", () => {
@@ -87,7 +87,7 @@ describe("record", () => {
       ]);
 
       expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
-        `"{foo: Int, bar: Str, baz: Bool} has following extra keys: baz"`
+        `"{foo: Num, bar: Str, baz: Bool} has following extra keys: baz"`
       );
     });
 
@@ -113,7 +113,7 @@ describe("record", () => {
       ]);
 
       expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
-        `"{foo: Int} is missing the following keys: bar"`
+        `"{foo: Num} is missing the following keys: bar"`
       );
     });
 
@@ -125,7 +125,7 @@ describe("record", () => {
           [
             tb.trec(
               [
-                tb.tprop("foo", tb.tcon("Int", [], ctx)),
+                tb.tprop("foo", tb.tcon("Num", [], ctx)),
                 tb.tprop("bar", tb.tcon("Str", [], ctx)),
               ],
               ctx
