@@ -47,7 +47,7 @@ describe("Functions", () => {
     const env: Env = Map();
     const result = inferExpr(env, fib[1]);
 
-    expect(print(result)).toEqual("(Num) => Num");
+    expect(print(result)).toEqual("(number) => number");
   });
 
   test("let const = (x) => (y) => x", () => {
@@ -101,14 +101,14 @@ describe("Functions", () => {
       throw new Error("foo is undefined");
     }
 
-    expect(print(fooType)).toEqual("(Num) => Num");
+    expect(print(fooType)).toEqual("(number) => number");
 
     const yType = env.get("y");
     if (!yType) {
       throw new Error("y is undefined");
     }
 
-    expect(print(yType)).toEqual("(Bool) => Bool");
+    expect(print(yType)).toEqual("(boolean) => boolean");
   });
 
   test("let compose = (f) => (g) => (x) => g(f(x))", () => {
@@ -203,7 +203,7 @@ describe("Functions", () => {
     let env: Env = Map();
     const result = inferExpr(env, until[1]);
 
-    expect(print(result)).toEqual("<a>((a) => Bool, (a) => a, a) => a");
+    expect(print(result)).toEqual("<a>((a) => boolean, (a) => a, a) => a");
   });
 
   test("no args", () => {
@@ -212,7 +212,7 @@ describe("Functions", () => {
     let env: Env = Map();
     const result = inferExpr(env, foo[1]);
 
-    expect(print(result)).toEqual("() => Num");
+    expect(print(result)).toEqual("() => number");
   });
 });
 
@@ -234,7 +234,7 @@ describe("partial applicaiton", () => {
       throw new Error("add5 is undefined");
     }
 
-    expect(print(result)).toEqual("(Num) => Num");
+    expect(print(result)).toEqual("(number) => number");
   });
 
   test("let sum = add(5)(10)", () => {
@@ -257,7 +257,7 @@ describe("partial applicaiton", () => {
       throw new Error("sum is undefined");
     }
 
-    expect(print(result)).toEqual("Num");
+    expect(print(result)).toEqual("number");
   });
 
   test("((a, b) => a + b)(5)", () => {
@@ -271,7 +271,7 @@ describe("partial applicaiton", () => {
     const env: Env = Map();
     const result = inferExpr(env, add5[1]);
 
-    expect(print(result)).toEqual("(Num) => Num");
+    expect(print(result)).toEqual("(number) => number");
   });
 });
 
@@ -303,7 +303,7 @@ describe("function subtyping", () => {
         [
           tb.tcon("Array", [aVar], ctx),
           // Why is this TFun's `src` an "App"?
-          tb.tfun([aVar, tb.tcon("Num", [], ctx)], bVar, ctx, "App"),
+          tb.tfun([aVar, tb.tprim("number", ctx)], bVar, ctx, "App"),
         ],
         tb.tcon("Array", [bVar], ctx),
         ctx
@@ -315,7 +315,7 @@ describe("function subtyping", () => {
 
     const intArray = scheme(
       [],
-      tb.tcon("Array", [tb.tcon("Num", [], ctx)], ctx)
+      tb.tcon("Array", [tb.tprim("number", ctx)], ctx)
     );
 
     env = env.set("array", intArray);
@@ -328,7 +328,7 @@ describe("function subtyping", () => {
 
     const result = inferExpr(env, call, ctx.state);
 
-    expect(print(result)).toEqual("Array<Bool>");
+    expect(print(result)).toEqual("Array<boolean>");
   });
 
   test("partial application of a callback", () => {
@@ -341,7 +341,7 @@ describe("function subtyping", () => {
       tb.tfun(
         [
           tb.tcon("Array", [aVar], ctx),
-          tb.tfun([aVar, tb.tcon("Num", [], ctx)], bVar, ctx, "App"),
+          tb.tfun([aVar, tb.tprim("number", ctx)], bVar, ctx, "App"),
         ],
         tb.tcon("Array", [bVar], ctx),
         ctx
@@ -353,7 +353,7 @@ describe("function subtyping", () => {
 
     const intArray = scheme(
       [],
-      tb.tcon("Array", [tb.tcon("Num", [], ctx)], ctx)
+      tb.tcon("Array", [tb.tprim("number", ctx)], ctx)
     );
 
     env = env.set("array", intArray);
@@ -375,6 +375,6 @@ describe("function subtyping", () => {
 
     const result = inferExpr(env, call, ctx.state);
 
-    expect(print(result)).toEqual("Array<(Num) => Num>");
+    expect(print(result)).toEqual("Array<(number) => number>");
   });
 });

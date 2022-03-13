@@ -2,15 +2,21 @@ import { Map } from "immutable";
 
 import * as t from "./type-types";
 
+const newId = (ctx: t.Context): number => ++ctx.state.count;
+
 export const tvar = (name: string, ctx: t.Context): t.TVar => ({
   tag: "TVar",
-  id: ++ctx.state.count,
+  id: newId(ctx),
   name,
 });
 
-export const tcon = (name: string, params: readonly t.Type[], ctx: t.Context): t.TCon => ({
+export const tcon = (
+  name: string,
+  params: readonly t.Type[],
+  ctx: t.Context
+): t.TCon => ({
   tag: "TCon",
-  id: ++ctx.state.count,
+  id: newId(ctx),
   name,
   params,
 });
@@ -22,7 +28,7 @@ export const tfun = (
   src?: "App" | "Fix" | "Lam"
 ): t.TFun => ({
   tag: "TFun",
-  id: ++ctx.state.count,
+  id: newId(ctx),
   args,
   ret,
   src,
@@ -30,19 +36,22 @@ export const tfun = (
 
 export const tunion = (types: readonly t.Type[], ctx: t.Context): t.TUnion => ({
   tag: "TUnion",
-  id: ++ctx.state.count,
+  id: newId(ctx),
   types,
 });
 
 export const ttuple = (types: readonly t.Type[], ctx: t.Context): t.TTuple => ({
   tag: "TTuple",
-  id: ++ctx.state.count,
+  id: newId(ctx),
   types,
 });
 
-export const trec = (properties: readonly t.TProp[], ctx: t.Context): t.TRec => ({
+export const trec = (
+  properties: readonly t.TProp[],
+  ctx: t.Context
+): t.TRec => ({
   tag: "TRec",
-  id: ++ctx.state.count,
+  id: newId(ctx),
   properties,
 });
 
@@ -59,3 +68,13 @@ export const createCtx = (): t.Context => {
   };
   return ctx;
 };
+
+export const tprim = (name: t.PrimName, ctx: t.Context): t.TPrim => ({
+  tag: "TPrim",
+  id: newId(ctx),
+  name,
+});
+
+export const tNum = (ctx: t.Context): t.TPrim => tprim("number", ctx);
+export const tStr = (ctx: t.Context): t.TPrim => tprim("string", ctx);
+export const tBool = (ctx: t.Context): t.TPrim => tprim("boolean", ctx);

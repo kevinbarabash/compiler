@@ -8,6 +8,7 @@ import {
   isTUnion,
   isTRec,
   isTTuple,
+  isTPrim,
   isScheme,
   scheme,
 } from "./type-types";
@@ -25,6 +26,9 @@ export function apply(s: Subst, env: Env): Env;
 export function apply(s: Subst, a: any): any {
   // instance Substitutable Type
   if (isTVar(a)) {
+    return s.get(a.id) ?? a;
+  }
+  if (isTPrim(a)) {
     return s.get(a.id) ?? a;
   }
   if (isTCon(a)) {
@@ -113,6 +117,9 @@ export function ftv(a: any): any {
   }
   if (isTVar(a)) {
     return Set([a]); // Set.singleton a
+  }
+  if (isTPrim(a)) {
+    return Set([]);
   }
   if (isTFun(a)) {
     return Set.union([...a.args.map(ftv), ftv(a.ret)]); // ftv t1 `Set.union` ftv t2

@@ -1,14 +1,16 @@
+import { PrimName } from "./type-types";
+
+// TODO: provide a way to declare types as part of the syntax AST
+// We'll need this eventually to support defining bindings to external libraries.
+// It will also help simplify writing tests where we need to define the type of
+// of something that we can't easily infer from an expression.
+
 // TODO: update tags to match type name
 export type EApp = { tag: "App"; fn: Expr; args: readonly Expr[] };
 export type EAwait = { tag: "Await"; expr: Expr };
 export type EFix = { tag: "Fix"; expr: Expr };
 export type EIf = { tag: "If"; cond: Expr; th: Expr; el: Expr };
-export type ELam = {
-  tag: "Lam";
-  args: readonly string[];
-  body: Expr;
-  async?: boolean;
-};
+export type ELam = { tag: "Lam"; args: readonly string[]; body: Expr; async?: boolean }; // prettier-ignore
 export type ELet = { tag: "Let"; pattern: Pattern; value: Expr; body: Expr };
 export type ELit = { tag: "Lit"; value: Literal };
 export type EOp = { tag: "Op"; op: Binop; left: Expr; right: Expr };
@@ -42,12 +44,15 @@ export type Program = { tag: "Program"; decls: readonly Decl[]; expr: Expr };
 
 export type Decl = [string, Expr];
 
-export type Pattern =
-  | { tag: "PVar"; name: string } // treat this the same was a `name: string` in Let
-  | { tag: "PWild" } // corresponds to `_`
-  | { tag: "PRec"; properties: readonly PProp[] }
-  | { tag: "PTuple"; patterns: readonly Pattern[] }
-  | { tag: "PLit"; value: ELit };
+export type PVar = { tag: "PVar"; name: string }; // treat this the same was a `name: string` in Let
+export type PWild = { tag: "PWild" }; // corresponds to `_`
+export type PRec = { tag: "PRec"; properties: readonly PProp[] };
+export type PTuple = { tag: "PTuple"; patterns: readonly Pattern[] };
+export type PLit = { tag: "PLit"; value: ELit };
+export type PPrim = { tag: "PPrim"; name?: string; primName: PrimName };
+
+export type Pattern = PVar | PWild | PRec | PTuple | PLit | PPrim;
+
 // TODO:
 // - PCon, need to wait until the introduction of opaque types and/or type aliases
 //   since it doesn't make sense for Array<Num> to be modeled as a type constructor

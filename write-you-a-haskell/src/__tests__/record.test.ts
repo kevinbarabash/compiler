@@ -17,7 +17,7 @@ describe("record", () => {
 
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("{foo: Str, bar: Num}");
+    expect(print(result)).toEqual("{foo: string, bar: number}");
   });
 
   test("can infer a function returning a lambda", () => {
@@ -30,7 +30,7 @@ describe("record", () => {
 
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("() => {foo: Str, bar: Num}");
+    expect(print(result)).toEqual("() => {foo: string, bar: number}");
   });
 
   test("get foo", () => {
@@ -57,7 +57,7 @@ describe("record", () => {
     const result = inferExpr(env, expr);
 
     expect(print(getFoo)).toEqual("<a, b>({foo: a, bar: b}) => a");
-    expect(print(result)).toEqual("Num");
+    expect(print(result)).toEqual("number");
   });
 
   describe("errors", () => {
@@ -86,9 +86,7 @@ describe("record", () => {
         ]),
       ]);
 
-      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
-        `"{foo: Num, bar: Str, baz: Bool} has following extra keys: baz"`
-      );
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(`"{foo: number, bar: string, baz: boolean} has following extra keys: baz"`);
     });
 
     test("missing property", () => {
@@ -112,9 +110,7 @@ describe("record", () => {
         sb.rec([sb.prop("foo", sb.num(5))]),
       ]);
 
-      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
-        `"{foo: Num} is missing the following keys: bar"`
-      );
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(`"{foo: number} is missing the following keys: bar"`);
     });
 
     test("property has wrong type", () => {
@@ -125,13 +121,13 @@ describe("record", () => {
           [
             tb.trec(
               [
-                tb.tprop("foo", tb.tcon("Num", [], ctx)),
-                tb.tprop("bar", tb.tcon("Str", [], ctx)),
+                tb.tprop("foo", tb.tprim("number", ctx)),
+                tb.tprop("bar", tb.tprim("string", ctx)),
               ],
               ctx
             ),
           ],
-          tb.tcon("Bool", [], ctx),
+          tb.tprim("boolean", ctx),
           ctx
         )
       );
@@ -144,9 +140,7 @@ describe("record", () => {
         sb.rec([sb.prop("foo", sb.num(5)), sb.prop("bar", sb.bool(true))]),
       ]);
 
-      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Couldn't unify Str with Bool"`
-      );
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(`"Couldn't unify string with boolean"`);
     });
   });
 
