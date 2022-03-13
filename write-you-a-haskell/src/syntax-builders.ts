@@ -1,6 +1,10 @@
-import { Expr, EProp, ELit, Pattern } from "./syntax-types";
+import { Expr, EProp, ELit, Pattern, PProp } from "./syntax-types";
 
-export const app = (fn: Expr, args: readonly Expr[]): Expr => ({ tag: "App", fn, args });
+export const app = (fn: Expr, args: readonly Expr[]): Expr => ({
+  tag: "App",
+  fn,
+  args,
+});
 export const _if = (cond: Expr, th: Expr, el: Expr): Expr => ({
   tag: "If",
   cond,
@@ -8,7 +12,11 @@ export const _if = (cond: Expr, th: Expr, el: Expr): Expr => ({
   el,
 });
 export const fix = (expr: Expr): Expr => ({ tag: "Fix", expr });
-export const lam = (args: readonly string[], body: Expr, async?: boolean): Expr => ({
+export const lam = (
+  args: readonly string[],
+  body: Expr,
+  async?: boolean
+): Expr => ({
   tag: "Lam",
   args,
   body,
@@ -79,9 +87,25 @@ export const pvar = (name: string): Pattern => ({
   name,
 });
 
-export const pwild = (): Pattern => ({tag: "PWild"});
+export const pwild = (): Pattern => ({ tag: "PWild" });
 
 export const plit = (lit: ELit): Pattern => ({
   tag: "PLit",
   value: lit,
+});
+
+export const prec = (properties: readonly PProp[]): Pattern => ({
+  tag: "PRec",
+  properties,
+});
+
+export const ptuple = (patterns: readonly Pattern[]): Pattern => ({
+  tag: "PTuple",
+  patterns,
+});
+
+export const pprop = (name: string, pattern?: Pattern): PProp => ({
+  tag: "PProp",
+  name,
+  pattern: pattern ?? pvar(name),
 });

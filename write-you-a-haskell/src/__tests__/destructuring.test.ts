@@ -2,24 +2,14 @@ import { Map } from "immutable";
 
 import { inferExpr } from "../infer";
 import { Expr } from "../syntax-types";
-import { Env, print, scheme } from "../type-types";
+import { Env, print } from "../type-types";
 import * as sb from "../syntax-builders";
-import * as tb from "../type-builders";
 
 describe("destructuring", () => {
   test("single property - let {x} = {x: 5, y: true} in x", () => {
     let expr: Expr = {
       tag: "Let",
-      pattern: {
-        tag: "PRec",
-        properties: [
-          {
-            tag: "PProp",
-            name: "x",
-            pattern: sb.pvar("x"),
-          },
-        ],
-      },
+      pattern: sb.prec([sb.pprop("x")]),
       value: sb.rec([sb.prop("x", sb.int(5)), sb.prop("y", sb.bool(true))]),
       body: sb._var("x"),
     };
@@ -41,16 +31,7 @@ describe("destructuring", () => {
 
     let expr: Expr = {
       tag: "Let",
-      pattern: {
-        tag: "PRec",
-        properties: [
-          {
-            tag: "PProp",
-            name: "x",
-            pattern: sb.pvar("x"),
-          },
-        ],
-      },
+      pattern: sb.prec([sb.pprop("x")]),
       value: sb._var("myRec"),
       body: sb._var("x"),
     };
@@ -63,21 +44,7 @@ describe("destructuring", () => {
   test("multiple properties - let {x, y} = {x: 5, y: 10} in x + y", () => {
     let expr: Expr = {
       tag: "Let",
-      pattern: {
-        tag: "PRec",
-        properties: [
-          {
-            tag: "PProp",
-            name: "x",
-            pattern: sb.pvar("x"),
-          },
-          {
-            tag: "PProp",
-            name: "y",
-            pattern: sb.pvar("y"),
-          },
-        ],
-      },
+      pattern: sb.prec([sb.pprop("x"), sb.pprop("y")]),
       value: sb.rec([sb.prop("x", sb.int(5)), sb.prop("y", sb.int(10))]),
       body: sb.add(sb._var("x"), sb._var("y")),
     };
@@ -91,16 +58,7 @@ describe("destructuring", () => {
   test("renaming a property - let {x: a} = {x: 5, y: 10} in a", () => {
     let expr: Expr = {
       tag: "Let",
-      pattern: {
-        tag: "PRec",
-        properties: [
-          {
-            tag: "PProp",
-            name: "x",
-            pattern: sb.pvar("a"),
-          },
-        ],
-      },
+      pattern: sb.prec([sb.pprop("x", sb.pvar("a"))]),
       value: sb.rec([sb.prop("x", sb.int(5)), sb.prop("y", sb.int(10))]),
       body: sb._var("a"),
     };
@@ -114,21 +72,10 @@ describe("destructuring", () => {
   test("record with wildcard - let {x: a, y: _} = {x: 5, y: 10} in a", () => {
     let expr: Expr = {
       tag: "Let",
-      pattern: {
-        tag: "PRec",
-        properties: [
-          {
-            tag: "PProp",
-            name: "x",
-            pattern: sb.pvar("a"),
-          },
-          {
-            tag: "PProp",
-            name: "y",
-            pattern: sb.pwild(),
-          },
-        ],
-      },
+      pattern: sb.prec([
+        sb.pprop("x", sb.pvar("a")),
+        sb.pprop("y", sb.pwild()),
+      ]),
       value: sb.rec([sb.prop("x", sb.int(5)), sb.prop("y", sb.int(10))]),
       body: sb._var("a"),
     };
@@ -142,25 +89,7 @@ describe("destructuring", () => {
   test("nested record - let {p:{x: a}} = {p:{x: 5, y: 10}} in a", () => {
     let expr: Expr = {
       tag: "Let",
-      pattern: {
-        tag: "PRec",
-        properties: [
-          {
-            tag: "PProp",
-            name: "p",
-            pattern: {
-              tag: "PRec",
-              properties: [
-                {
-                  tag: "PProp",
-                  name: "x",
-                  pattern: sb.pvar("a"),
-                },
-              ],
-            },
-          },
-        ],
-      },
+      pattern: sb.prec([sb.pprop("p", sb.prec([sb.pprop("x", sb.pvar("a"))]))]),
       value: sb.rec([
         sb.prop(
           "p",
@@ -179,21 +108,7 @@ describe("destructuring", () => {
   test("matching literal - let {x, y: 10} = {x: 5, y: 10} in x + y", () => {
     let expr: Expr = {
       tag: "Let",
-      pattern: {
-        tag: "PRec",
-        properties: [
-          {
-            tag: "PProp",
-            name: "x",
-            pattern: sb.pvar("x"),
-          },
-          {
-            tag: "PProp",
-            name: "y",
-            pattern: sb.plit(sb.int(10)),
-          },
-        ],
-      },
+      pattern: sb.prec([sb.pprop("x"), sb.pprop("y", sb.plit(sb.int(10)))]),
       value: sb.rec([sb.prop("x", sb.int(5)), sb.prop("y", sb.int(10))]),
       body: sb._var("x"),
     };
@@ -207,21 +122,7 @@ describe("destructuring", () => {
   test("mismatched literal - let {x, y: true} = {x: 5, y: 10} in x", () => {
     let expr: Expr = {
       tag: "Let",
-      pattern: {
-        tag: "PRec",
-        properties: [
-          {
-            tag: "PProp",
-            name: "x",
-            pattern: sb.pvar("x"),
-          },
-          {
-            tag: "PProp",
-            name: "y",
-            pattern: sb.plit(sb.bool(true)),
-          },
-        ],
-      },
+      pattern: sb.prec([sb.pprop("x"), sb.pprop("y", sb.plit(sb.bool(true)))]),
       value: sb.rec([sb.prop("x", sb.int(5)), sb.prop("y", sb.int(10))]),
       body: sb._var("x"),
     };
@@ -235,21 +136,7 @@ describe("destructuring", () => {
   test("missing property - let {x, z} = {x: 5, y: 10} in x", () => {
     let expr: Expr = {
       tag: "Let",
-      pattern: {
-        tag: "PRec",
-        properties: [
-          {
-            tag: "PProp",
-            name: "x",
-            pattern: sb.pvar("x"),
-          },
-          {
-            tag: "PProp",
-            name: "z",
-            pattern: sb.pvar("z"),
-          },
-        ],
-      },
+      pattern: sb.prec([sb.pprop("x"), sb.pprop("z")]),
       value: sb.rec([sb.prop("x", sb.int(5)), sb.prop("y", sb.int(10))]),
       body: sb._var("x"),
     };
@@ -268,13 +155,7 @@ describe("destructuring", () => {
 
     let expr: Expr = {
       tag: "Let",
-      pattern: {
-        tag: "PTuple",
-        patterns: [
-          { tag: "PVar", name: "x" },
-          { tag: "PVar", name: "y" },
-        ],
-      },
+      pattern: sb.ptuple([sb.pvar("x"), sb.pvar("y")]),
       value: sb._var("myTuple"),
       body: sb._var("x"),
     };
@@ -292,10 +173,7 @@ describe("destructuring", () => {
 
     let expr: Expr = {
       tag: "Let",
-      pattern: {
-        tag: "PTuple",
-        patterns: [{ tag: "PVar", name: "x" }],
-      },
+      pattern: sb.ptuple([sb.pvar("x")]),
       value: sb._var("myTuple"),
       body: sb._var("x"),
     };
@@ -316,13 +194,7 @@ describe("destructuring", () => {
 
     let expr: Expr = {
       tag: "Let",
-      pattern: {
-        tag: "PTuple",
-        patterns: [
-          { tag: "PVar", name: "x" },
-          { tag: "PVar", name: "y" },
-        ],
-      },
+      pattern: sb.ptuple([sb.pvar("x"), sb.pvar("y")]),
       value: sb._var("myRec"),
       body: sb._var("x"),
     };
@@ -340,21 +212,7 @@ describe("destructuring", () => {
 
     let expr: Expr = {
       tag: "Let",
-      pattern: {
-        tag: "PRec",
-        properties: [
-          {
-            tag: "PProp",
-            name: "x",
-            pattern: sb.pvar("x"),
-          },
-          {
-            tag: "PProp",
-            name: "y",
-            pattern: sb.pvar("y"),
-          },
-        ],
-      },
+      pattern: sb.prec([sb.pprop("x"), sb.pprop("y")]),
       value: sb._var("myTuple"),
       body: sb._var("x"),
     };
@@ -362,5 +220,33 @@ describe("destructuring", () => {
     expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
       `"type doesn't match pattern"`
     );
+  });
+
+  test("parametrized record", () => {
+    const expr: Expr = sb.lam(["x"], {
+      tag: "Let",
+      pattern: sb.prec([sb.pprop("x", sb.pvar("a"))]),
+      value: sb.rec([sb.prop("x", sb._var("x"))]),
+      body: sb._var("a"),
+    });
+
+    const env: Env = Map();
+    const result = inferExpr(env, expr);
+
+    expect(print(result)).toEqual("<a>(a) => a");
+  });
+
+  test("parametrized tuple", () => {
+    const expr: Expr = sb.lam(["x"], {
+      tag: "Let",
+      pattern: sb.ptuple([sb.pvar("a")]),
+      value: sb.tuple([sb._var("x")]),
+      body: sb._var("a"),
+    });
+
+    const env: Env = Map();
+    const result = inferExpr(env, expr);
+
+    expect(print(result)).toEqual("<a>(a) => a");
   });
 });

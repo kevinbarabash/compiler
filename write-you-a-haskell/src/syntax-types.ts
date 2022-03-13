@@ -45,8 +45,8 @@ export type Decl = [string, Expr];
 export type Pattern =
   | { tag: "PVar"; name: string } // treat this the same was a `name: string` in Let
   | { tag: "PWild" } // corresponds to `_`
-  | { tag: "PRec"; properties: PProp[] }
-  | { tag: "PTuple"; patterns: Pattern[] }
+  | { tag: "PRec"; properties: readonly PProp[] }
+  | { tag: "PTuple"; patterns: readonly Pattern[] }
   | { tag: "PLit"; value: ELit };
 // TODO:
 // - PCon, need to wait until the introduction of opaque types and/or type aliases
@@ -72,4 +72,4 @@ export type Pattern =
 
 // `pattern` is option in PProp so that we can extract a property whose type
 // is an object, or a sub-property within that property's object.
-type PProp = { tag: "PProp"; name: string; pattern: Pattern };
+export type PProp = { tag: "PProp"; name: string; pattern: Pattern };
