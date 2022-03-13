@@ -8,22 +8,17 @@ function assertUnreachable(x: never): never {
 
 type TCommon = { frozen?: boolean; id: number };
 
+export type Src = "App" | "Fix" | "Lam";
+export type PrimName = "boolean" | "number" | "string" | "null" | "undefined"; 
+
 export type TVar = TCommon & { tag: "TVar"; name: string };
-export type TCon = TCommon & {
-  tag: "TCon";
-  name: string;
-  params: readonly Type[];
-};
-export type TFun = TCommon & {
-  tag: "TFun";
-  args: readonly Type[];
-  ret: Type;
-  src?: "App" | "Fix" | "Lam";
-};
+export type TCon = TCommon & { tag: "TCon"; name: string; params: readonly Type[] }; // prettier-ignore
+export type TFun = TCommon & { tag: "TFun"; args: readonly Type[]; ret: Type; src?: Src }; // prettier-ignore
 export type TUnion = TCommon & { tag: "TUnion"; types: readonly Type[] };
 export type TRec = TCommon & { tag: "TRec"; properties: readonly TProp[] };
 export type TTuple = TCommon & { tag: "TTuple"; types: readonly Type[] };
 export type TLit = TCommon & { tag: "TLit"; value: Literal };
+export type TPrim = TCommon & { tag: "TPrim"; name: PrimName };
 // TODO: add TPrim to model the following primitive types:
 // - string, boolean, number, null, undefined, symbol, bigint
 // Each TLit must belong to at least one TPrimitive type
@@ -40,17 +35,8 @@ export type TLit = TCommon & { tag: "TLit"; value: Literal };
 // TODO: add `optional: boolean` - equivalent to `T | undefined`
 export type TProp = { tag: "TProp"; name: string; type: Type };
 
-export type Type = TVar | TCon | TFun | TUnion | TTuple | TRec;
-
+export type Type = TVar | TCon | TFun | TUnion | TTuple | TRec | TPrim;
 export type Scheme = { tag: "Forall"; qualifiers: readonly TVar[]; type: Type };
-
-// TODO: provide a way to declare types as part of the syntax AST
-// We'll need this eventually to support defining bindings to external libraries.
-// It will also help simplify writing tests where we need to define the type of
-// of something that we can't easily infer from an expression.
-export const tNum: TCon = { tag: "TCon", id: -1, name: "Num", params: [] };
-export const tBool: TCon = { tag: "TCon", id: -1, name: "Bool", params: [] };
-export const tStr: TCon = { tag: "TCon", id: -1, name: "Str", params: [] };
 
 export function print(t: Type | Scheme): string {
   switch (t.tag) {
@@ -74,6 +60,9 @@ export function print(t: Type | Scheme): string {
     }
     case "TTuple": {
       return `[${t.types.map(print).join(", ")}]`;
+    }
+    case "TPrim": {
+      return t.name;
     }
     case "Forall": {
       const quals = t.qualifiers.map((qual) => print(qual)).join(", ");
@@ -113,6 +102,9 @@ export function freeze(t: Type): void {
       t.types.map(freeze);
       break;
     }
+    case "TPrim": {
+      break;
+    }
     default:
       assertUnreachable(t);
   }
@@ -135,6 +127,7 @@ export const isTFun = (t: Type): t is TFun => t.tag === "TFun";
 export const isTUnion = (t: Type): t is TUnion => t.tag === "TUnion";
 export const isTRec = (t: Type): t is TRec => t.tag === "TRec";
 export const isTTuple = (t: Type): t is TTuple => t.tag === "TTuple";
+export const isTPrim = (t: Type): t is TPrim => t.tag === "TPrim";
 export const isScheme = (t: any): t is Scheme => t.tag === "Forall";
 
 // Env is a map of all the current schemes (qualified types) that

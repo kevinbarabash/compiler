@@ -17,7 +17,7 @@ describe("destructuring", () => {
     const env: Env = Map();
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("Num");
+    expect(print(result)).toEqual("number");
   });
 
   test("single property from a variable - let {x} = {x: 5, y: true} in x", () => {
@@ -38,7 +38,7 @@ describe("destructuring", () => {
 
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("Num");
+    expect(print(result)).toEqual("number");
   });
 
   test("multiple properties - let {x, y} = {x: 5, y: 10} in x + y", () => {
@@ -52,7 +52,7 @@ describe("destructuring", () => {
     const env: Env = Map();
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("Num");
+    expect(print(result)).toEqual("number");
   });
 
   test("renaming a property - let {x: a} = {x: 5, y: 10} in a", () => {
@@ -66,7 +66,7 @@ describe("destructuring", () => {
     const env: Env = Map();
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("Num");
+    expect(print(result)).toEqual("number");
   });
 
   test("record with wildcard - let {x: a, y: _} = {x: 5, y: 10} in a", () => {
@@ -83,7 +83,7 @@ describe("destructuring", () => {
     const env: Env = Map();
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("Num");
+    expect(print(result)).toEqual("number");
   });
 
   test("nested record - let {p:{x: a}} = {p:{x: 5, y: 10}} in a", () => {
@@ -102,7 +102,7 @@ describe("destructuring", () => {
     const env: Env = Map();
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("Num");
+    expect(print(result)).toEqual("number");
   });
 
   test("matching literal - let {x, y: 10} = {x: 5, y: 10} in x + y", () => {
@@ -116,7 +116,7 @@ describe("destructuring", () => {
     const env: Env = Map();
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("Num");
+    expect(print(result)).toEqual("number");
   });
 
   test("mismatched literal - let {x, y: true} = {x: 5, y: 10} in x", () => {
@@ -129,7 +129,7 @@ describe("destructuring", () => {
 
     const env: Env = Map();
     expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
-      `"Couldn't unify Bool with Num"`
+      `"Couldn't unify boolean with number"`
     );
   });
 
@@ -143,7 +143,7 @@ describe("destructuring", () => {
 
     const env: Env = Map();
     expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
-      `"{x: Num, y: Num} doesn't contain z property"`
+      `"{x: number, y: number} doesn't contain z property"`
     );
   });
 
@@ -162,7 +162,7 @@ describe("destructuring", () => {
 
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("Num");
+    expect(print(result)).toEqual("number");
   });
 
   test("tuple (wrong length) - let [x] = [5, true] in x", () => {

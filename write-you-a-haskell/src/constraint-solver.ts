@@ -10,6 +10,7 @@ import {
   Context,
   isTTuple,
   isTRec,
+  isTPrim,
   TFun,
   TRec,
   TTuple,
@@ -58,6 +59,7 @@ export const unifies = (t1: Type, t2: Type, ctx: Context): Subst => {
   if (isTVar(t1)) return bind(t1, t2);
   if (isTVar(t2)) return bind(t2, t1);
   if (isTFun(t1) && isTFun(t2)) return unifyFuncs(t1, t2, ctx);
+  if (isTPrim(t1) && isTPrim(t2) && t1.name === t2.name) return emptySubst;
   if (isTCon(t1) && isTCon(t2) && t1.name === t2.name) {
     return unifyMany(t1.params, t2.params, ctx);
   }

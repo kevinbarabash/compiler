@@ -1,7 +1,7 @@
 import { Map } from "immutable";
 
 import { UnboundVariable } from "./errors";
-import { freeze, scheme, tBool, tNum } from "./type-types";
+import { freeze, scheme } from "./type-types";
 import {
   Constraint,
   Env,
@@ -13,6 +13,7 @@ import {
   Context,
   State,
   TProp,
+  TPrim,
   print,
 } from "./type-types";
 import {
@@ -95,13 +96,15 @@ const normalize = (sc: Scheme): Scheme => {
       case "TFun":
         return [...type.args.flatMap(fv), ...fv(type.ret)];
       case "TCon":
-        return [];
+        return []; // TODO: handle type params
       case "TUnion":
         return type.types.flatMap(fv);
       case "TRec":
         return type.properties.flatMap((prop) => fv(prop.type));
       case "TTuple":
         return type.types.flatMap(fv);
+      case "TPrim":
+        return [];
       default:
         assertUnreachable(type);
     }
@@ -157,6 +160,9 @@ const normalize = (sc: Scheme): Scheme => {
           ...type,
           types: type.types.map(normType),
         };
+      }
+      case "TPrim": {
+        return type;
       }
       default:
         assertUnreachable(type);
@@ -279,7 +285,7 @@ const inferIf = (expr: EIf, ctx: Context): InferResult => {
   const [t2, cs2] = infer(th, ctx);
   const [t3, cs3] = infer(el, ctx);
   // This is similar how we'll handle n-ary apply
-  const bool = freshTCon(ctx, "Bool");
+  const bool = tb.tprim("boolean", ctx);
   return [t2, [...cs1, ...cs2, ...cs3, [t1, bool], [t2, t3]]];
 };
 
@@ -348,6 +354,22 @@ const inferPattern = (
       freeze(t); // prevents widening of inferred type
       return [ctx, [...cs, [t, type]]]; // doesn't affect binding
     }
+    // NOTE: it only makes sense to infer PPrim patterns as part of pattern matching
+    // since destructuring number | string to number isn't sound
+    case "PPrim": {
+      let t: TPrim;
+      if (pattern.primName === "boolean") {
+        t = tb.tBool(ctx);
+      } else if (pattern.primName === "number") {
+        t = tb.tNum(ctx);
+      } else if (pattern.primName === "string") {
+        t = tb.tStr(ctx);
+      } else {
+        throw new Error(`TODO: handle ${pattern.primName} when inferring type from PPrim`);
+      }
+      freeze(t);
+      return [ctx, [[t, type]]];
+    }
     case "PRec": {
       if (type.tag !== "TRec") {
         throw new Error("type doesn't match pattern");
@@ -392,9 +414,9 @@ const inferLit = (expr: ELit, ctx: Context): InferResult => {
   const lit = expr.value;
   // prettier-ignore
   switch (lit.tag) {
-    case "LNum":       return [freshTCon(ctx, "Num" ), []];
-    case "LBool":      return [freshTCon(ctx, "Bool"), []];
-    case "LStr":       return [freshTCon(ctx, "Str" ), []];
+    case "LNum":  return [tb.tprim("number", ctx), []];
+    case "LBool": return [tb.tprim("boolean", ctx), []];
+    case "LStr":  return [tb.tprim("string", ctx), []];
   }
 };
 
@@ -439,6 +461,23 @@ const inferMany = (
   return [ts, all_cs];
 };
 
+const tNum: TPrim = {
+  tag: "TPrim",
+  id: -1,
+  name: "number",
+  frozen: true,
+};
+
+const tBool: TPrim = {
+  tag: "TPrim",
+  id: -1,
+  name: "boolean",
+  frozen: true,
+};
+
+// NOTE: It's okay for tNum and tBool to share the same id because
+// they only used in the ops which are all frozen.
+
 const ops = (op: Binop): Type => {
   switch (op) {
     case "Add":
@@ -447,6 +486,7 @@ const ops = (op: Binop): Type => {
         id: -10,
         args: [tNum, tNum],
         ret: tNum,
+        frozen: true,
       };
     case "Mul":
       return {
@@ -454,6 +494,7 @@ const ops = (op: Binop): Type => {
         id: -11,
         args: [tNum, tNum],
         ret: tNum,
+        frozen: true,
       };
     case "Sub":
       return {
@@ -461,6 +502,7 @@ const ops = (op: Binop): Type => {
         id: -12,
         args: [tNum, tNum],
         ret: tNum,
+        frozen: true,
       };
     case "Eql":
       return {
@@ -468,6 +510,7 @@ const ops = (op: Binop): Type => {
         id: -13,
         args: [tNum, tNum],
         ret: tBool,
+        frozen: true,
       };
   }
 };

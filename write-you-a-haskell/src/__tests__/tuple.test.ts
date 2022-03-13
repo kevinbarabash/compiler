@@ -14,7 +14,7 @@ describe("tuple", () => {
 
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("[Num, Bool, Str]");
+    expect(print(result)).toEqual("[number, boolean, string]");
   });
 
   test("can infer a function returning a lambda", () => {
@@ -27,7 +27,7 @@ describe("tuple", () => {
 
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("() => [Num, Bool, Str]");
+    expect(print(result)).toEqual("() => [number, boolean, string]");
   });
 
   test("snd (function)", () => {
@@ -50,7 +50,7 @@ describe("tuple", () => {
     const result = inferExpr(env, expr);
 
     expect(print(snd)).toEqual("<a, b>([a, b]) => b");
-    expect(print(result)).toEqual("Str");
+    expect(print(result)).toEqual("string");
   });
 
   describe("errors", () => {
@@ -71,9 +71,7 @@ describe("tuple", () => {
         sb.tuple([sb.num(5), sb.str("hello"), sb.bool(true)]),
       ]);
 
-      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Couldn't unify [b, c] with [Num, Str, Bool]"`
-      );
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(`"Couldn't unify [b, c] with [number, string, boolean]"`);
     });
 
     test("arg tuple has few many elements", () => {
@@ -82,9 +80,7 @@ describe("tuple", () => {
 
       const expr: Expr = sb.app(sb._var("snd"), [sb.tuple([sb.num(5)])]);
 
-      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Couldn't unify [b, c] with [Num]"`
-      );
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(`"Couldn't unify [b, c] with [number]"`);
     });
 
     test("element mismatch", () => {
@@ -92,8 +88,8 @@ describe("tuple", () => {
       const foo: Scheme = scheme(
         [],
         tb.tfun(
-          [tb.ttuple([tb.tcon("Num", [], ctx), tb.tcon("Str", [], ctx)], ctx)],
-          tb.tcon("Str", [], ctx),
+          [tb.ttuple([tb.tprim("number", ctx), tb.tprim("string", ctx)], ctx)],
+          tb.tprim("string", ctx),
           ctx
         )
       );
@@ -106,9 +102,7 @@ describe("tuple", () => {
         sb.tuple([sb.num(5), sb.bool(true)]),
       ]);
 
-      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Couldn't unify Str with Bool"`
-      );
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(`"Couldn't unify string with boolean"`);
     });
   });
 

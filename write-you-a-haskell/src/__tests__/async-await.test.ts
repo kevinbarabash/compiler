@@ -13,14 +13,14 @@ describe("Async/Await", () => {
     const env: Env = Map();
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("() => Promise<Num>");
+    expect(print(result)).toEqual("() => Promise<number>");
   });
 
   test("return value is not rewrapped if already a promise", () => {
     const ctx = tb.createCtx();
     const retVal = scheme(
       [],
-      tb.tcon("Promise", [tb.tcon("Num", [], ctx)], ctx),
+      tb.tcon("Promise", [tb.tprim("number", ctx)], ctx),
     );
     const expr: Expr = sb.lam([], sb._var("retVal"), true);
 
@@ -28,16 +28,16 @@ describe("Async/Await", () => {
     env = env.set("retVal", retVal);
     const result = inferExpr(env, expr, { count: 2 });
 
-    expect(print(result)).toEqual("() => Promise<Num>");
+    expect(print(result)).toEqual("() => Promise<number>");
   });
 
   test("awaiting a promise will unwrap it", () => {
     const ctx = tb.createCtx();
     const retVal = scheme(
       [],
-      tb.tcon("Promise", [tb.tcon("Num", [], ctx)], ctx),
+      tb.tcon("Promise", [tb.tprim("number", ctx)], ctx),
     );
-    // Passing an awaited Promise<Num> to add() verifies that we're
+    // Passing an awaited Promise<number> to add() verifies that we're
     // unwrapping promises.
     const expr: Expr = sb.lam([], sb.add(sb._await(sb._var("retVal")), sb.num(5)), true);
 
@@ -45,18 +45,18 @@ describe("Async/Await", () => {
     env = env.set("retVal", retVal);
     const result = inferExpr(env, expr, { count: 2 });
 
-    expect(print(result)).toEqual("() => Promise<Num>");
+    expect(print(result)).toEqual("() => Promise<number>");
   });
 
   test("awaiting a non-promise value is a no-op", () => {
-    // Passing an awaited Promise<Num> to add() verifies that we're
+    // Passing an awaited Promise<number> to add() verifies that we're
     // unwrapping promises.
     const expr: Expr = sb.lam([], sb.add(sb._await(sb.num(5)), sb.num(10)), true);
 
     const env: Env = Map();
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("() => Promise<Num>");
+    expect(print(result)).toEqual("() => Promise<number>");
   });
 
   test("inferring an async function that returns a polymorphic promise", () => {
@@ -108,6 +108,6 @@ describe("Async/Await", () => {
     const env: Env = Map();
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("() => Promise<Num>");
+    expect(print(result)).toEqual("() => Promise<number>");
   });
 });
