@@ -182,11 +182,8 @@ describe("inferExpr", () => {
       // <a>(a) => Promise<a>
       const promisifyScheme = scheme(
         [aVar],
-        tb.tfun([aVar], tb.tcon("Promise", [aVar], ctx), ctx),
+        tb.tfun([aVar], tb.tcon("Promise", [aVar], ctx), ctx, "Lam"),
       );
-
-      // @ts-expect-error
-      promisifyScheme.type.src = "Lam";
 
       let env: Env = Map();
 
@@ -212,11 +209,8 @@ describe("inferExpr", () => {
       // <a>(Foo<a>) => a
       const extractScheme = scheme(
         [aVar],
-        tb.tfun([tb.tcon("Foo", [aVar], ctx)], aVar, ctx),
+        tb.tfun([tb.tcon("Foo", [aVar], ctx)], aVar, ctx, "Lam"),
       );
-
-      // @ts-expect-error
-      extractScheme.type.src = "Lam";
 
       let env: Env = Map();
 
@@ -240,11 +234,8 @@ describe("inferExpr", () => {
       // <a>(Foo<a>) => a
       const extractScheme = scheme(
         [aVar],
-        tb.tfun([tb.tcon("Foo", [aVar], ctx)], aVar, ctx),
+        tb.tfun([tb.tcon("Foo", [aVar], ctx)], aVar, ctx, "Lam"),
       );
-
-      // @ts-expect-error
-      extractScheme.type.src = "Lam";
 
       let env: Env = Map();
 

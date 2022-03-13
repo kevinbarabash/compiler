@@ -119,7 +119,10 @@ describe("Functions", () => {
         ["f"],
         sb.lam(
           ["g"],
-          sb.lam(["x"], sb.app(sb._var("g"), [sb.app(sb._var("f"), [sb._var("x")])]))
+          sb.lam(
+            ["x"],
+            sb.app(sb._var("g"), [sb.app(sb._var("f"), [sb._var("x")])])
+          )
         )
       ),
     ];
@@ -260,7 +263,9 @@ describe("partial applicaiton", () => {
   test("((a, b) => a + b)(5)", () => {
     const add5: Binding = [
       "add5",
-      sb.app(sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))), [sb.int(5)]),
+      sb.app(sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))), [
+        sb.int(5),
+      ]),
     ];
 
     const env: Env = Map();
@@ -298,17 +303,12 @@ describe("function subtyping", () => {
         [
           tb.tcon("Array", [aVar], ctx),
           // Why is this TFun's `src` an "App"?
-          tb.tfun(
-            [aVar, tb.tcon("Int", [], ctx)], bVar, ctx
-          )
+          tb.tfun([aVar, tb.tcon("Int", [], ctx)], bVar, ctx, "App"),
         ],
         tb.tcon("Array", [bVar], ctx),
-        ctx,
-      ),
+        ctx
+      )
     );
-
-    // @ts-expect-error
-    mapScheme.type.args[1].src = "App";
 
     let env: Env = Map();
     env = env.set("map", mapScheme);
@@ -341,22 +341,19 @@ describe("function subtyping", () => {
       tb.tfun(
         [
           tb.tcon("Array", [aVar], ctx),
-          tb.tfun([aVar, tb.tcon("Int", [], ctx)], bVar, ctx),
+          tb.tfun([aVar, tb.tcon("Int", [], ctx)], bVar, ctx, "App"),
         ],
         tb.tcon("Array", [bVar], ctx),
-        ctx,
+        ctx
       )
     );
-
-    // @ts-expect-error
-    mapScheme.type.args[1].src = "App";
 
     let env: Env = Map();
     env = env.set("map", mapScheme);
 
     const intArray = scheme(
       [],
-      tb.tcon("Array", [tb.tcon("Int", [], ctx)], ctx),
+      tb.tcon("Array", [tb.tcon("Int", [], ctx)], ctx)
     );
 
     env = env.set("array", intArray);
