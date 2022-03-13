@@ -8,7 +8,7 @@ import * as tb from "../type-builders";
 
 describe("Async/Await", () => {
   test("return value is wrapped in a promise", () => {
-    const expr: Expr = sb.lam([], sb.int(5), true);
+    const expr: Expr = sb.lam([], sb.num(5), true);
 
     const env: Env = Map();
     const result = inferExpr(env, expr);
@@ -39,7 +39,7 @@ describe("Async/Await", () => {
     );
     // Passing an awaited Promise<Int> to add() verifies that we're
     // unwrapping promises.
-    const expr: Expr = sb.lam([], sb.add(sb._await(sb._var("retVal")), sb.int(5)), true);
+    const expr: Expr = sb.lam([], sb.add(sb._await(sb._var("retVal")), sb.num(5)), true);
 
     let env: Env = Map();
     env = env.set("retVal", retVal);
@@ -51,7 +51,7 @@ describe("Async/Await", () => {
   test("awaiting a non-promise value is a no-op", () => {
     // Passing an awaited Promise<Int> to add() verifies that we're
     // unwrapping promises.
-    const expr: Expr = sb.lam([], sb.add(sb._await(sb.int(5)), sb.int(10)), true);
+    const expr: Expr = sb.lam([], sb.add(sb._await(sb.num(5)), sb.num(10)), true);
 
     const env: Env = Map();
     const result = inferExpr(env, expr);
@@ -69,7 +69,7 @@ describe("Async/Await", () => {
   });
 
   test("awaiting inside a non-async lambda", () => {
-    const expr: Expr = sb.lam([], sb.add(sb._await(sb.int(5)), sb.int(10)));
+    const expr: Expr = sb.lam([], sb.add(sb._await(sb.num(5)), sb.num(10)));
 
     const env: Env = Map();
     expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
@@ -83,7 +83,7 @@ describe("Async/Await", () => {
       sb._let(
         "add",
         sb.lam(["a", "b"], sb.add(sb._await(sb._var("a")), sb._var("b"))),
-        sb.app(sb._var("add"), [sb.int(5), sb.int(10)])
+        sb.app(sb._var("add"), [sb.num(5), sb.num(10)])
       ),
       true // Even though the outer lambda is async, the inner one isn't
     );
@@ -100,7 +100,7 @@ describe("Async/Await", () => {
       sb._let(
         "add",
         sb.lam(["a", "b"], sb.add(sb._await(sb._var("a")), sb._var("b")), true),
-        sb.app(sb._var("add"), [sb.int(5), sb.int(10)])
+        sb.app(sb._var("add"), [sb.num(5), sb.num(10)])
       ),
       false
     );

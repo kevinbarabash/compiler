@@ -88,7 +88,7 @@ describe("inferExpr", () => {
     test("let nsucc x = x + 1", () => {
       const nsucc: Binding = [
         "nsucc",
-        sb.lam(["x"], sb.add(sb._var("x"), sb.int(1))),
+        sb.lam(["x"], sb.add(sb._var("x"), sb.num(1))),
       ];
 
       const env: Env = Map();
@@ -100,7 +100,7 @@ describe("inferExpr", () => {
     test("let npred x = x - 1", () => {
       const nsucc: Binding = [
         "nsucc",
-        sb.lam(["x"], sb.add(sb._var("x"), sb.int(1))),
+        sb.lam(["x"], sb.add(sb._var("x"), sb.num(1))),
       ];
 
       const env: Env = Map();
@@ -114,7 +114,7 @@ describe("inferExpr", () => {
     test("let poly = I (I I) (I 3);", () => {
       const poly: Binding = [
         "poly",
-        sb.app(sb.app(I[1], [I[1]]), [sb.app(I[1], [sb.int(3)])]),
+        sb.app(sb.app(I[1], [I[1]]), [sb.app(I[1], [sb.num(3)])]),
       ];
 
       let env: Env = Map();
@@ -190,7 +190,7 @@ describe("inferExpr", () => {
       env = env.set("promisify", promisifyScheme);
       const intCall: Binding = [
         "call",
-        sb.app(sb._var("promisify"), [sb.int(5)]),
+        sb.app(sb._var("promisify"), [sb.num(5)]),
       ];
       const intResult = inferExpr(env, intCall[1], ctx.state);
       expect(print(intResult)).toEqual("Promise<Int>");
@@ -277,7 +277,7 @@ describe("inferExpr", () => {
         "add",
         sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
       ];
-      const expr: Expr = sb.app(sb._var("add"), [sb.int(5), sb.bool(true)]);
+      const expr: Expr = sb.app(sb._var("add"), [sb.num(5), sb.bool(true)]);
 
       let env: Env = Map();
       env = env.set(_add[0], inferExpr(env, _add[1]));

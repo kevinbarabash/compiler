@@ -25,7 +25,7 @@ describe("Union types and type widening", () => {
     const call: Expr = {
       tag: "App",
       fn: sb._var("retUnion"),
-      args: [sb.int(5), sb.bool(true)],
+      args: [sb.num(5), sb.bool(true)],
     };
     let env: Env = Map();
 
@@ -44,7 +44,7 @@ describe("Union types and type widening", () => {
     const call2: Expr = {
       tag: "App",
       fn: sb._var("retUnion"),
-      args: [sb.bool(false), sb.int(10)],
+      args: [sb.bool(false), sb.num(10)],
     };
 
     env = env.set("retUnion", retUnion);
@@ -61,7 +61,7 @@ describe("Union types and type widening", () => {
       ["x", "y"],
       sb._if(
         sb._var("x"),
-        sb.app(sb._var("y"), [sb.int(5)]),
+        sb.app(sb._var("y"), [sb.num(5)]),
         sb.app(sb._var("y"), [sb.bool(true)])
       )
     );
@@ -126,7 +126,7 @@ describe("Union types and type widening", () => {
       ["x"],
       sb._let(
         "a",
-        sb.app(sb._var("x"), [sb.int(5)]),
+        sb.app(sb._var("x"), [sb.num(5)]),
         sb._let(
           "b",
           sb.app(sb._var("x"), [sb.bool(true)]),
@@ -146,7 +146,7 @@ describe("Union types and type widening", () => {
       "add",
       sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
     ];
-    const expr: Expr = sb.app(sb._var("add"), [sb.int(5), sb.bool(true)]);
+    const expr: Expr = sb.app(sb._var("add"), [sb.num(5), sb.bool(true)]);
 
     let env: Env = Map();
     env = env.set(_add[0], inferExpr(env, _add[1]));

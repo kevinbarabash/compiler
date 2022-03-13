@@ -1,5 +1,7 @@
 import { Map } from "immutable";
 
+import { Literal } from "./syntax-types";
+
 function assertUnreachable(x: never): never {
   throw new Error("Didn't expect to get here");
 }
@@ -21,6 +23,7 @@ export type TFun = TCommon & {
 export type TUnion = TCommon & { tag: "TUnion"; types: readonly Type[] };
 export type TRec = TCommon & { tag: "TRec"; properties: readonly TProp[] };
 export type TTuple = TCommon & { tag: "TTuple"; types: readonly Type[] };
+export type TLit = TCommon & { tag: "TLit"; value: Literal };
 
 // TODO: add `optional: boolean` - equivalent to `T | undefined`
 export type TProp = { tag: "TProp"; name: string; type: Type };

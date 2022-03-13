@@ -10,7 +10,7 @@ describe("destructuring", () => {
     let expr: Expr = {
       tag: "Let",
       pattern: sb.prec([sb.pprop("x")]),
-      value: sb.rec([sb.prop("x", sb.int(5)), sb.prop("y", sb.bool(true))]),
+      value: sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.bool(true))]),
       body: sb._var("x"),
     };
 
@@ -22,7 +22,7 @@ describe("destructuring", () => {
 
   test("single property from a variable - let {x} = {x: 5, y: true} in x", () => {
     const myRec: Expr = sb.rec([
-      sb.prop("x", sb.int(5)),
+      sb.prop("x", sb.num(5)),
       sb.prop("y", sb.bool(true)),
     ]);
     let env: Env = Map();
@@ -45,7 +45,7 @@ describe("destructuring", () => {
     let expr: Expr = {
       tag: "Let",
       pattern: sb.prec([sb.pprop("x"), sb.pprop("y")]),
-      value: sb.rec([sb.prop("x", sb.int(5)), sb.prop("y", sb.int(10))]),
+      value: sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))]),
       body: sb.add(sb._var("x"), sb._var("y")),
     };
 
@@ -59,7 +59,7 @@ describe("destructuring", () => {
     let expr: Expr = {
       tag: "Let",
       pattern: sb.prec([sb.pprop("x", sb.pvar("a"))]),
-      value: sb.rec([sb.prop("x", sb.int(5)), sb.prop("y", sb.int(10))]),
+      value: sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))]),
       body: sb._var("a"),
     };
 
@@ -76,7 +76,7 @@ describe("destructuring", () => {
         sb.pprop("x", sb.pvar("a")),
         sb.pprop("y", sb.pwild()),
       ]),
-      value: sb.rec([sb.prop("x", sb.int(5)), sb.prop("y", sb.int(10))]),
+      value: sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))]),
       body: sb._var("a"),
     };
 
@@ -93,7 +93,7 @@ describe("destructuring", () => {
       value: sb.rec([
         sb.prop(
           "p",
-          sb.rec([sb.prop("x", sb.int(5)), sb.prop("y", sb.int(10))])
+          sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))])
         ),
       ]),
       body: sb._var("a"),
@@ -108,8 +108,8 @@ describe("destructuring", () => {
   test("matching literal - let {x, y: 10} = {x: 5, y: 10} in x + y", () => {
     let expr: Expr = {
       tag: "Let",
-      pattern: sb.prec([sb.pprop("x"), sb.pprop("y", sb.plit(sb.int(10)))]),
-      value: sb.rec([sb.prop("x", sb.int(5)), sb.prop("y", sb.int(10))]),
+      pattern: sb.prec([sb.pprop("x"), sb.pprop("y", sb.plit(sb.num(10)))]),
+      value: sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))]),
       body: sb._var("x"),
     };
 
@@ -123,7 +123,7 @@ describe("destructuring", () => {
     let expr: Expr = {
       tag: "Let",
       pattern: sb.prec([sb.pprop("x"), sb.pprop("y", sb.plit(sb.bool(true)))]),
-      value: sb.rec([sb.prop("x", sb.int(5)), sb.prop("y", sb.int(10))]),
+      value: sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))]),
       body: sb._var("x"),
     };
 
@@ -137,7 +137,7 @@ describe("destructuring", () => {
     let expr: Expr = {
       tag: "Let",
       pattern: sb.prec([sb.pprop("x"), sb.pprop("z")]),
-      value: sb.rec([sb.prop("x", sb.int(5)), sb.prop("y", sb.int(10))]),
+      value: sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))]),
       body: sb._var("x"),
     };
 
@@ -148,7 +148,7 @@ describe("destructuring", () => {
   });
 
   test("tuple - let [x, y] = [5, true] in x", () => {
-    const myTuple: Expr = sb.tuple([sb.int(5), sb.bool(true)]);
+    const myTuple: Expr = sb.tuple([sb.num(5), sb.bool(true)]);
     let env: Env = Map();
 
     env = env.set("myTuple", inferExpr(env, myTuple));
@@ -166,7 +166,7 @@ describe("destructuring", () => {
   });
 
   test("tuple (wrong length) - let [x] = [5, true] in x", () => {
-    const myTuple: Expr = sb.tuple([sb.int(5), sb.bool(true)]);
+    const myTuple: Expr = sb.tuple([sb.num(5), sb.bool(true)]);
     let env: Env = Map();
 
     env = env.set("myTuple", inferExpr(env, myTuple));
@@ -185,8 +185,8 @@ describe("destructuring", () => {
 
   test("tuple/record - let [x, y] = {x:5, y:true} in x", () => {
     const myRec: Expr = sb.rec([
-      sb.prop("x", sb.int(5)),
-      sb.prop("y", sb.int(10)),
+      sb.prop("x", sb.num(5)),
+      sb.prop("y", sb.num(10)),
     ]);
     let env: Env = Map();
 
@@ -205,7 +205,7 @@ describe("destructuring", () => {
   });
 
   test("record/tuple - let {x, y} = [5, true] in x", () => {
-    const myTuple: Expr = sb.tuple([sb.int(5), sb.bool(true)]);
+    const myTuple: Expr = sb.tuple([sb.num(5), sb.bool(true)]);
     let env: Env = Map();
 
     env = env.set("myTuple", inferExpr(env, myTuple));

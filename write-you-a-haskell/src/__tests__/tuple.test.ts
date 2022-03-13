@@ -8,7 +8,7 @@ import { Env, freeze, print, scheme, Scheme } from "../type-types";
 
 describe("tuple", () => {
   test("can infer a tuple containing different types", () => {
-    const expr: Expr = sb.tuple([sb.int(5), sb.bool(true), sb.str("hello")]);
+    const expr: Expr = sb.tuple([sb.num(5), sb.bool(true), sb.str("hello")]);
 
     const env: Env = Map();
 
@@ -20,7 +20,7 @@ describe("tuple", () => {
   test("can infer a function returning a lambda", () => {
     const expr: Expr = sb.lam(
       [],
-      sb.tuple([sb.int(5), sb.bool(true), sb.str("hello")])
+      sb.tuple([sb.num(5), sb.bool(true), sb.str("hello")])
     );
 
     const env: Env = Map();
@@ -44,7 +44,7 @@ describe("tuple", () => {
     env = env.set("snd", snd);
 
     const expr: Expr = sb.app(sb._var("snd"), [
-      sb.tuple([sb.int(5), sb.str("hello")]),
+      sb.tuple([sb.num(5), sb.str("hello")]),
     ]);
 
     const result = inferExpr(env, expr);
@@ -68,7 +68,7 @@ describe("tuple", () => {
       env = env.set("snd", snd);
 
       const expr: Expr = sb.app(sb._var("snd"), [
-        sb.tuple([sb.int(5), sb.str("hello"), sb.bool(true)]),
+        sb.tuple([sb.num(5), sb.str("hello"), sb.bool(true)]),
       ]);
 
       expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
@@ -80,7 +80,7 @@ describe("tuple", () => {
       let env: Env = Map();
       env = env.set("snd", snd);
 
-      const expr: Expr = sb.app(sb._var("snd"), [sb.tuple([sb.int(5)])]);
+      const expr: Expr = sb.app(sb._var("snd"), [sb.tuple([sb.num(5)])]);
 
       expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
         `"Couldn't unify [b, c] with [Int]"`
@@ -103,7 +103,7 @@ describe("tuple", () => {
       env = env.set("foo", foo);
 
       const expr: Expr = sb.app(sb._var("foo"), [
-        sb.tuple([sb.int(5), sb.bool(true)]),
+        sb.tuple([sb.num(5), sb.bool(true)]),
       ]);
 
       expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(

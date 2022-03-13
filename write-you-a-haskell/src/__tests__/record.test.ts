@@ -10,7 +10,7 @@ describe("record", () => {
   test("can infer a tuple containing different types", () => {
     const expr: Expr = sb.rec([
       sb.prop("foo", sb.str("hello")),
-      sb.prop("bar", sb.int(5)),
+      sb.prop("bar", sb.num(5)),
     ]);
 
     const env: Env = Map();
@@ -23,7 +23,7 @@ describe("record", () => {
   test("can infer a function returning a lambda", () => {
     const expr: Expr = sb.lam(
       [],
-      sb.rec([sb.prop("foo", sb.str("hello")), sb.prop("bar", sb.int(5))])
+      sb.rec([sb.prop("foo", sb.str("hello")), sb.prop("bar", sb.num(5))])
     );
 
     const env: Env = Map();
@@ -51,7 +51,7 @@ describe("record", () => {
     env = env.set("getFoo", getFoo);
 
     const expr: Expr = sb.app(sb._var("getFoo"), [
-      sb.rec([sb.prop("foo", sb.int(5)), sb.prop("bar", sb.str("hello"))]),
+      sb.rec([sb.prop("foo", sb.num(5)), sb.prop("bar", sb.str("hello"))]),
     ]);
 
     const result = inferExpr(env, expr);
@@ -80,7 +80,7 @@ describe("record", () => {
 
       const expr: Expr = sb.app(sb._var("getFoo"), [
         sb.rec([
-          sb.prop("foo", sb.int(5)),
+          sb.prop("foo", sb.num(5)),
           sb.prop("bar", sb.str("hello")),
           sb.prop("baz", sb.bool(true)),
         ]),
@@ -109,7 +109,7 @@ describe("record", () => {
       env = env.set("getFoo", getFoo);
 
       const expr: Expr = sb.app(sb._var("getFoo"), [
-        sb.rec([sb.prop("foo", sb.int(5))]),
+        sb.rec([sb.prop("foo", sb.num(5))]),
       ]);
 
       expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
@@ -141,7 +141,7 @@ describe("record", () => {
       env = env.set("getFoo", getFoo);
 
       const expr: Expr = sb.app(sb._var("getFoo"), [
-        sb.rec([sb.prop("foo", sb.int(5)), sb.prop("bar", sb.bool(true))]),
+        sb.rec([sb.prop("foo", sb.num(5)), sb.prop("bar", sb.bool(true))]),
       ]);
 
       expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(

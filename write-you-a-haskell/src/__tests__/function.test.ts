@@ -24,18 +24,18 @@ describe("Functions", () => {
           sb.lam(
             ["n"],
             sb._if(
-              sb.eql(sb._var("n"), sb.int(0)),
+              sb.eql(sb._var("n"), sb.num(0)),
               // then
-              sb.int(0),
+              sb.num(0),
               // else
               sb._if(
-                sb.eql(sb._var("n"), sb.int(1)),
+                sb.eql(sb._var("n"), sb.num(1)),
                 // then
-                sb.int(1),
+                sb.num(1),
                 // else
                 sb.add(
-                  sb.app(sb._var("fib"), [sb.sub(sb._var("n"), sb.int(1))]),
-                  sb.app(sb._var("fib"), [sb.sub(sb._var("n"), sb.int(2))])
+                  sb.app(sb._var("fib"), [sb.sub(sb._var("n"), sb.num(1))]),
+                  sb.app(sb._var("fib"), [sb.sub(sb._var("n"), sb.num(2))])
                 )
               )
             )
@@ -85,7 +85,7 @@ describe("Functions", () => {
         sb._let(
           "y",
           sb.app(sb._var("id"), [sb._var("x")]),
-          sb.add(sb._var("y"), sb.int(1))
+          sb.add(sb._var("y"), sb.num(1))
         )
       ),
     ];
@@ -207,7 +207,7 @@ describe("Functions", () => {
   });
 
   test("no args", () => {
-    const foo: Binding = ["foo", sb.lam([], sb.int(5))];
+    const foo: Binding = ["foo", sb.lam([], sb.num(5))];
 
     let env: Env = Map();
     const result = inferExpr(env, foo[1]);
@@ -222,7 +222,7 @@ describe("partial applicaiton", () => {
       "add",
       sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
     ];
-    const add5: Binding = ["add5", sb.app(sb._var("add"), [sb.int(5)])];
+    const add5: Binding = ["add5", sb.app(sb._var("add"), [sb.num(5)])];
 
     let env: Env = Map();
     const addScheme = inferExpr(env, _add[1]);
@@ -244,7 +244,7 @@ describe("partial applicaiton", () => {
     ];
     const sum: Binding = [
       "sum",
-      sb.app(sb.app(sb._var("add"), [sb.int(5)]), [sb.int(10)]),
+      sb.app(sb.app(sb._var("add"), [sb.num(5)]), [sb.num(10)]),
     ];
 
     let env: Env = Map();
@@ -264,7 +264,7 @@ describe("partial applicaiton", () => {
     const add5: Binding = [
       "add5",
       sb.app(sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))), [
-        sb.int(5),
+        sb.num(5),
       ]),
     ];
 
@@ -283,7 +283,7 @@ describe("function subtyping", () => {
     ];
     const sum: Binding = [
       "sum",
-      sb.app(sb._var("add"), [sb.int(5), sb.int(10), sb.int(99)]),
+      sb.app(sb._var("add"), [sb.num(5), sb.num(10), sb.num(99)]),
     ];
 
     let env: Env = Map();
@@ -323,7 +323,7 @@ describe("function subtyping", () => {
     const call: Expr = {
       tag: "App",
       fn: sb._var("map"),
-      args: [sb._var("array"), sb.lam(["x"], sb.eql(sb._var("x"), sb.int(0)))],
+      args: [sb._var("array"), sb.lam(["x"], sb.eql(sb._var("x"), sb.num(0)))],
     };
 
     const result = inferExpr(env, call, ctx.state);

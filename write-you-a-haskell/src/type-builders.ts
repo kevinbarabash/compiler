@@ -8,7 +8,7 @@ export const tvar = (name: string, ctx: t.Context): t.TVar => ({
   name,
 });
 
-export const tcon = (name: string, params: t.Type[], ctx: t.Context): t.TCon => ({
+export const tcon = (name: string, params: readonly t.Type[], ctx: t.Context): t.TCon => ({
   tag: "TCon",
   id: ++ctx.state.count,
   name,

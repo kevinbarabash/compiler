@@ -45,9 +45,9 @@ export const prop = (name: string, value: t.Expr): t.EProp => ({
   value,
 });
 
-export const int = (value: number): t.ELit => ({
+export const num = (value: number): t.ELit => ({
   tag: "Lit",
-  value: { tag: "LInt", value },
+  value: { tag: "LNum", value },
 });
 export const bool = (value: boolean): t.ELit => ({
   tag: "Lit",

@@ -32,13 +32,13 @@ export type Expr =
 export type EProp = { tag: "EProp"; name: string; value: Expr };
 
 export type Literal =
-  | { tag: "LInt"; value: number }
+  | { tag: "LNum"; value: number }
   | { tag: "LBool"; value: boolean }
   | { tag: "LStr"; value: string };
 
 export type Binop = "Add" | "Sub" | "Mul" | "Eql";
 
-export type Program = { tag: "Program"; decls: Decl[]; expr: Expr };
+export type Program = { tag: "Program"; decls: readonly Decl[]; expr: Expr };
 
 export type Decl = [string, Expr];
 
