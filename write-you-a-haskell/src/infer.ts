@@ -30,6 +30,7 @@ import {
   EOp,
   EIf,
   EVar,
+  Pattern,
 } from "./syntax-types";
 import { zip, apply, ftv, assertUnreachable } from "./util";
 import { runSolve } from "./constraint-solver";
@@ -311,44 +312,80 @@ const inferLam = (expr: ELam, ctx: Context): InferResult => {
 
 const inferLet = (expr: ELet, ctx: Context): InferResult => {
   const { pattern, value, body } = expr;
-  const { env } = ctx;
   const [t1, cs1] = infer(value, ctx);
   const subs = runSolve(cs1, ctx);
-  const sc = generalize(apply(subs, env), apply(subs, t1));
 
-  let newCtx = ctx;
-
-  if (pattern.tag === "PVar") {
-    newCtx = { ...newCtx, env: newCtx.env.set(pattern.name, sc) };
-  } else if (pattern.tag === "PRec" && t1.tag === "TRec") {
-    for (const pprop of pattern.properties) {
-      const tprop = t1.properties.find(prop => prop.name === pprop.name);
-      if (!tprop) {
-        throw new Error(`${print(t1)} doesn't contain ${pprop.name} property`);
-      }
-      // How do we handle a situation where the top-level scheme has
-      // type params?  How do we make sure that the schemes at lower
-      // levels have the type params that they need and that they're
-      // the same type params listed at the top-level?
-      const sc = scheme([], tprop.type);
-
-      // How do we make this recursive so that we can match nested
-      // structures?
-      if (pprop.pattern.tag === "PVar") {
-        const {name} = pprop.pattern;
-        newCtx = { ...newCtx, env: newCtx.env.set(name, sc) };
-      } else if (pattern.tag === "PRec" && tprop.type.tag === "TRec") {
-        // TODO: this should be recursive
-      }
-    }
-  } else {
-    throw new Error(`We don't handle ${pattern.tag} patterns yet`);
-  }
-
+  const [newCtx, newCs] = inferPattern(pattern, t1, subs, ctx);
   const [t2, cs2] = infer(body, newCtx);
 
-  // We apply subs from let's `value` to its `body`, namely t2 and cs2 
-  return [apply(subs, t2), [...cs1, ...apply(subs, cs2)]];
+  // We apply subs from let's `value` to its `body`, namely t2 and cs2
+  return [apply(subs, t2), [...cs1, ...newCs, ...apply(subs, cs2)]];
+};
+
+const inferPattern = (
+  pattern: Pattern,
+  type: Type, // expected to already be inferred by caller
+  subs: Subst,
+  ctx: Context
+): [Context, readonly Constraint[]] => {
+  // TODO:
+  // - Disallow reusing the same variable when destructuring a value
+
+  const sc = generalize(apply(subs, ctx.env), apply(subs, type));
+
+  switch (pattern.tag) {
+    case "PVar": {
+      // TODO: throw if the same name is used more than once in a pattern
+      // we can have a separate function that traverses a pattern to collect
+      // all of the used names before we call inferPattern().
+      const newCtx = { ...ctx, env: ctx.env.set(pattern.name, sc) };
+      return [newCtx, []];
+    }
+    case "PWild":
+      return [ctx, []]; // doesn't affect binding
+    case "PLit": {
+      const [t, cs] = infer(pattern.value, ctx);
+      freeze(t); // prevents widening of inferred type
+      return [ctx, [...cs, [t, type]]]; // doesn't affect binding
+    }
+    case "PRec": {
+      if (type.tag !== "TRec") {
+        throw new Error("type doesn't match pattern");
+      }
+      const cs: Constraint[] = [];
+      let newCtx = ctx;
+      for (const pprop of pattern.properties) {
+        const tprop = type.properties.find((p) => p.name === pprop.name);
+        if (!tprop) {
+          throw new Error(
+            `${print(type)} doesn't contain ${pprop.name} property`
+          );
+        }
+        const result = inferPattern(pprop.pattern, tprop.type, subs, newCtx);
+        cs.push(...result[1]);
+        newCtx = result[0];
+      }
+      return [newCtx, cs];
+    }
+    case "PTuple": {
+      if (type.tag !== "TTuple") {
+        throw new Error("type doesn't match pattern");
+      }
+      if (pattern.patterns.length !== type.types.length) {
+        throw new Error("element count mismatch");
+      }
+      const cs: Constraint[] = [];
+      let newCtx = ctx;
+      for (const [p, t] of zip(pattern.patterns, type.types)) {
+        const result = inferPattern(p, t, subs, newCtx);
+        cs.push(...result[1]);
+        newCtx = result[0];
+      }
+      return [newCtx, cs];
+    }
+    default:
+      assertUnreachable(pattern);
+  }
 };
 
 const inferLit = (expr: ELit, ctx: Context): InferResult => {

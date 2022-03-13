@@ -47,7 +47,7 @@ export type Pattern =
   | { tag: "PWild" } // corresponds to `_`
   | { tag: "PRec"; properties: PProp[] }
   | { tag: "PTuple"; patterns: Pattern[] }
-  | { tag: "PLit"; value: Literal };
+  | { tag: "PLit"; value: ELit };
 // TODO:
 // - PCon, need to wait until the introduction of opaque types and/or type aliases
 //   since it doesn't make sense for Array<Int> to be modeled as a type constructor
