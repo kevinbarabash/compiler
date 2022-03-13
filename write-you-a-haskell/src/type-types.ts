@@ -48,7 +48,7 @@ export type Scheme = { tag: "Forall"; qualifiers: readonly TVar[]; type: Type };
 // We'll need this eventually to support defining bindings to external libraries.
 // It will also help simplify writing tests where we need to define the type of
 // of something that we can't easily infer from an expression.
-export const tInt: TCon = { tag: "TCon", id: -1, name: "Num", params: [] };
+export const tNum: TCon = { tag: "TCon", id: -1, name: "Num", params: [] };
 export const tBool: TCon = { tag: "TCon", id: -1, name: "Bool", params: [] };
 export const tStr: TCon = { tag: "TCon", id: -1, name: "Str", params: [] };
 

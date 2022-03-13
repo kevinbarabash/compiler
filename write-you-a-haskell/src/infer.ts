@@ -1,7 +1,7 @@
 import { Map } from "immutable";
 
 import { UnboundVariable } from "./errors";
-import { freeze, scheme, tBool, tInt } from "./type-types";
+import { freeze, scheme, tBool, tNum } from "./type-types";
 import {
   Constraint,
   Env,
@@ -445,28 +445,28 @@ const ops = (op: Binop): Type => {
       return {
         tag: "TFun",
         id: -10,
-        args: [tInt, tInt],
-        ret: tInt,
+        args: [tNum, tNum],
+        ret: tNum,
       };
     case "Mul":
       return {
         tag: "TFun",
         id: -11,
-        args: [tInt, tInt],
-        ret: tInt,
+        args: [tNum, tNum],
+        ret: tNum,
       };
     case "Sub":
       return {
         tag: "TFun",
         id: -12,
-        args: [tInt, tInt],
-        ret: tInt,
+        args: [tNum, tNum],
+        ret: tNum,
       };
     case "Eql":
       return {
         tag: "TFun",
         id: -13,
-        args: [tInt, tInt],
+        args: [tNum, tNum],
         ret: tBool,
       };
   }
