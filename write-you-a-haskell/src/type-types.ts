@@ -24,6 +24,18 @@ export type TUnion = TCommon & { tag: "TUnion"; types: readonly Type[] };
 export type TRec = TCommon & { tag: "TRec"; properties: readonly TProp[] };
 export type TTuple = TCommon & { tag: "TTuple"; types: readonly Type[] };
 export type TLit = TCommon & { tag: "TLit"; value: Literal };
+// TODO: add TPrim to model the following primitive types:
+// - string, boolean, number, null, undefined, symbol, bigint
+// Each TLit must belong to at least one TPrimitive type
+// e.g. TLit(3) belongs to TPrim(number) (and also TPrim(bigint))
+// It would be nice if we could model the difference between ints and floats.
+// Right now TPrim(number) contains both ints and floats.  The following
+// two hierarchies are more accurate.
+// - TLit(3) < ?(int) < ?(float) < TPrim(number)
+// - TLit(3) < ?(int) < TPrim(bigint)
+// Tracking what numbers are integers are important for the type safety
+// or certain APIs that require the use of integers (or even natural numbers)
+// such as indexing into an array.
 
 // TODO: add `optional: boolean` - equivalent to `T | undefined`
 export type TProp = { tag: "TProp"; name: string; type: Type };
