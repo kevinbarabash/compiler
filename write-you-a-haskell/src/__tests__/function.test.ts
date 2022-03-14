@@ -48,7 +48,7 @@ describe("Functions", () => {
     const result = inferExpr(env, fib[1]);
 
     // TODO: subsume 0 and 1 into number
-    expect(print(result)).toEqual("(number) => number | 0 | 1");
+    expect(print(result)).toEqual("(number) => number");
   });
 
   test("let const = (x) => (y) => x", () => {

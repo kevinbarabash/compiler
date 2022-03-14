@@ -464,12 +464,12 @@ const inferMany = (
   return [ts, all_cs];
 };
 
-// const tNum: TPrim = {
-//   tag: "TPrim",
-//   id: -1,
-//   name: "number",
-//   frozen: true,
-// };
+const tNum: TPrim = {
+  tag: "TPrim",
+  id: -1,
+  name: "number",
+  frozen: true,
+};
 
 // const tBool: TPrim = {
 //   tag: "TPrim",
@@ -481,29 +481,33 @@ const inferMany = (
 // NOTE: It's okay for tNum and tBool to share the same id because
 // they only used in the ops which are all frozen.
 
+// NOTES:
+// - The params are frozen and should only unify if the args are sub-types.
+// - The return type is not frozen to allow for easy widening if need be.
+
 const ops = (op: Binop, ctx: Context): Type => {
   switch (op) {
     case "Add":
       return tb.tfun(
-        [tb.tprim("number", ctx), tb.tprim("number", ctx)],
+        [tNum, tNum],
         tb.tprim("number", ctx),
         ctx
       );
     case "Mul":
       return tb.tfun(
-        [tb.tprim("number", ctx), tb.tprim("number", ctx)],
+        [tNum, tNum],
         tb.tprim("number", ctx),
         ctx
       );
     case "Sub":
       return tb.tfun(
-        [tb.tprim("number", ctx), tb.tprim("number", ctx)],
+        [tNum, tNum],
         tb.tprim("number", ctx),
         ctx
       );
     case "Eql":
       return tb.tfun(
-        [tb.tprim("number", ctx), tb.tprim("number", ctx)],
+        [tNum, tNum],
         tb.tprim("boolean", ctx),
         ctx
       );

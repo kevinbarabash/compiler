@@ -77,37 +77,19 @@ export const unifies = (t1: Type, t2: Type, ctx: Context): Subst => {
   if (isTTuple(t1) && isTTuple(t2)) return unifyTuples(t1, t2, ctx);
   if (isTRec(t1) && isTRec(t2)) return unifyRecords(t1, t2, ctx);
 
-  // TODO: replace with sub-type check
-  if (
-    isTLit(t2) &&
-    t2.value.tag === "LNum" &&
-    isTPrim(t1) &&
-    t1.name === "number"
-  ) {
-    return emptySubst;
-  }
-
-  // TODO: replace with sub-type check
-  if (
-    isTLit(t1) &&
-    t1.value.tag === "LNum" &&
-    isTPrim(t2) &&
-    t2.name === "number"
-  ) {
-    return emptySubst;
-  }
-
-  // NOTE: we'll need to specify the .src so that the sub-type check
+  // TODO: we need to specify the .src so that the sub-type check
   // only occurs in valid situations.
+  if (isSubType(t2, t1) || isSubType(t1, t2)) {
+    return emptySubst;
+  }
 
   // As long as the types haven't been frozen then this is okay
   // NOTE: We may need to add .src info in the future if we notice
   // any places where expected type widening is occurring.
-  t1.frozen; // ?
-  t2.frozen; // ?
 
-  t1.tag; // ?
-  t2.tag; // ?
+  // If t1 is a frozen TPrim and t2 is a TUnion of numbers then the sub-type
+  // check above should handle things
+
   if ("id" in t1 && "id" in t2 && !t1.frozen && !t2.frozen) {
     const names: string[] = [];
     // Flattens types
@@ -291,3 +273,16 @@ const bind = (tv: TVar, t: Type): Subst => {
 const occursCheck = (tv: TVar, t: Type): boolean => {
   return ftv(t).includes(tv);
 };
+
+const isSubType = (sub: Type, sup: Type): boolean => {
+  if (isTPrim(sup) && sup.name === "number") {
+    if (isTLit(sub) && sub.value.tag === "LNum") {
+      return true;
+    }
+    if (isTUnion(sub) && sub.types.every(type => isSubType(type, sup))) {
+      return true;
+    }
+  }
+
+  return false;
+}
