@@ -14,6 +14,7 @@ import {
   TFun,
   TRec,
   TTuple,
+  isTLit,
 } from "./type-types";
 import { isTCon, isTVar, isTFun, isTUnion } from "./type-types";
 import {
@@ -25,6 +26,7 @@ import {
 } from "./errors";
 import { apply, ftv } from "./util";
 import * as tb from "./type-builders";
+import { assert } from "console";
 
 //
 // Constraint Solver
@@ -60,6 +62,15 @@ export const unifies = (t1: Type, t2: Type, ctx: Context): Subst => {
   if (isTVar(t2)) return bind(t2, t1);
   if (isTFun(t1) && isTFun(t2)) return unifyFuncs(t1, t2, ctx);
   if (isTPrim(t1) && isTPrim(t2) && t1.name === t2.name) return emptySubst;
+  // TODO: create unifyLiterals()
+  if (
+    isTLit(t1) &&
+    isTLit(t2) &&
+    t1.value.tag === t2.value.tag &&
+    t1.value.value === t2.value.value
+  ) {
+    return emptySubst;
+  }
   if (isTCon(t1) && isTCon(t2) && t1.name === t2.name) {
     return unifyMany(t1.params, t2.params, ctx);
   }
@@ -67,32 +78,17 @@ export const unifies = (t1: Type, t2: Type, ctx: Context): Subst => {
   if (isTTuple(t1) && isTTuple(t2)) return unifyTuples(t1, t2, ctx);
   if (isTRec(t1) && isTRec(t2)) return unifyRecords(t1, t2, ctx);
 
+  // TODO: we need to specify the .src so that the sub-type check
+  // only occurs in valid situations.
+  if (isSubType(t2, t1) || isSubType(t1, t2)) {
+    return emptySubst;
+  }
+
   // As long as the types haven't been frozen then this is okay
   // NOTE: We may need to add .src info in the future if we notice
-  // any places where expected type widening is occurring.
-  if ("id" in t1 && "id" in t2 && !t1.frozen && !t2.frozen) {
-    const names: string[] = [];
-    // Flattens types
-    const types = [
-      ...(isTUnion(t1) ? t1.types : [t1]),
-      ...(isTUnion(t2) ? t2.types : [t2]),
-    ].filter((type) => {
-      // Removes duplicate TCons
-      // TODO: handle TCons with params
-      if (isTCon(type) && type.params.length === 0) {
-        if (names.includes(type.name)) {
-          return false;
-        }
-        names.push(type.name);
-      }
-      return true;
-    });
-    const union: TUnion = tb.tunion(types, ctx);
-    const result: Subst = Map([
-      [t1.id, union],
-      [t2.id, union],
-    ]);
-    return result;
+  // any places where unexpected type widening is occurring.
+  if (!t1.frozen && !t2.frozen) {
+    return widenTypes(t1, t2, ctx);
   }
 
   throw new UnificationFail(t1, t2);
@@ -223,7 +219,7 @@ const unifyUnions = (t1: TUnion, t2: TUnion, ctx: Context): Subst => {
   // This only works if the types that make up the unions are ordered
   // consistently.  Is there a way to do this?
   return unifyMany(t1.types, t2.types, ctx);
-}
+};
 
 const composeSubs = (s1: Subst, s2: Subst): Subst => {
   return s2.map((t) => apply(s1, t)).merge(s1);
@@ -252,4 +248,46 @@ const bind = (tv: TVar, t: Type): Subst => {
 
 const occursCheck = (tv: TVar, t: Type): boolean => {
   return ftv(t).includes(tv);
+};
+
+const isSubType = (sub: Type, sup: Type): boolean => {
+  if (isTPrim(sup) && sup.name === "number") {
+    if (isTLit(sub) && sub.value.tag === "LNum") {
+      return true;
+    }
+    if (isTUnion(sub) && sub.types.every(type => isSubType(type, sup))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+const widenTypes = (t1: Type, t2: Type, ctx: Context): Subst => {
+  assert(!t1.frozen, "t1 should not be frozen when calling widenTypes");
+  assert(!t2.frozen, "t2 should not be frozen when calling widenTypes");
+
+  const names: string[] = [];
+    // Flattens types
+    const types = [
+      ...(isTUnion(t1) ? t1.types : [t1]),
+      ...(isTUnion(t2) ? t2.types : [t2]),
+    ].filter((type) => {
+      // Removes duplicate TCons
+      // TODO: handle TCons with params
+      if (isTCon(type) && type.params.length === 0) {
+        if (names.includes(type.name)) {
+          return false;
+        }
+        names.push(type.name);
+      }
+      return true;
+    });
+    const union: TUnion = tb.tunion(types, ctx);
+    const result: Subst = Map([
+      [t1.id, union],
+      [t2.id, union],
+    ]);
+
+    return result;
 };

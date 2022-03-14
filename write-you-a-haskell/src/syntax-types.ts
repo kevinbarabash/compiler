@@ -48,7 +48,7 @@ export type PVar = { tag: "PVar"; name: string }; // treat this the same was a `
 export type PWild = { tag: "PWild" }; // corresponds to `_`
 export type PRec = { tag: "PRec"; properties: readonly PProp[] };
 export type PTuple = { tag: "PTuple"; patterns: readonly Pattern[] };
-export type PLit = { tag: "PLit"; value: ELit };
+export type PLit = { tag: "PLit"; value: Literal };
 export type PPrim = { tag: "PPrim"; name?: string; primName: PrimName };
 
 export type Pattern = PVar | PWild | PRec | PTuple | PLit | PPrim;

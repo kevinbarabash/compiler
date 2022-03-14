@@ -47,6 +47,7 @@ describe("Functions", () => {
     const env: Env = Map();
     const result = inferExpr(env, fib[1]);
 
+    // TODO: subsume 0 and 1 into number
     expect(print(result)).toEqual("(number) => number");
   });
 
@@ -108,7 +109,9 @@ describe("Functions", () => {
       throw new Error("y is undefined");
     }
 
-    expect(print(yType)).toEqual("(boolean) => boolean");
+    // This was (boolean) => boolean before...
+    // Is <a>(boolean) => a more accurate?
+    expect(print(yType)).toEqual("<a>(boolean) => a");
   });
 
   test("let compose = (f) => (g) => (x) => g(f(x))", () => {
@@ -212,7 +215,7 @@ describe("Functions", () => {
     let env: Env = Map();
     const result = inferExpr(env, foo[1]);
 
-    expect(print(result)).toEqual("() => number");
+    expect(print(result)).toEqual("() => 5");
   });
 });
 
