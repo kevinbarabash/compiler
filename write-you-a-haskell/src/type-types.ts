@@ -9,7 +9,7 @@ function assertUnreachable(x: never): never {
 type TCommon = { frozen?: boolean; id: number };
 
 export type Src = "App" | "Fix" | "Lam";
-export type PrimName = "boolean" | "number" | "string" | "null" | "undefined"; 
+export type PrimName = "boolean" | "number" | "string" | "null" | "undefined";
 
 export type TVar = TCommon & { tag: "TVar"; name: string };
 export type TCon = TCommon & { tag: "TCon"; name: string; params: readonly Type[] }; // prettier-ignore
@@ -35,7 +35,7 @@ export type TPrim = TCommon & { tag: "TPrim"; name: PrimName };
 // TODO: add `optional: boolean` - equivalent to `T | undefined`
 export type TProp = { tag: "TProp"; name: string; type: Type };
 
-export type Type = TVar | TCon | TFun | TUnion | TTuple | TRec | TPrim;
+export type Type = TVar | TCon | TFun | TUnion | TTuple | TRec | TPrim | TLit;
 export type Scheme = { tag: "Forall"; qualifiers: readonly TVar[]; type: Type };
 
 export function print(t: Type | Scheme): string {
@@ -63,6 +63,11 @@ export function print(t: Type | Scheme): string {
     }
     case "TPrim": {
       return t.name;
+    }
+    case "TLit": {
+      return t.value.tag === "LStr"
+        ? `"${t.value.value}"`
+        : t.value.value.toString();
     }
     case "Forall": {
       const quals = t.qualifiers.map((qual) => print(qual)).join(", ");
@@ -105,6 +110,9 @@ export function freeze(t: Type): void {
     case "TPrim": {
       break;
     }
+    case "TLit": {
+      break;
+    }
     default:
       assertUnreachable(t);
   }
@@ -128,6 +136,7 @@ export const isTUnion = (t: Type): t is TUnion => t.tag === "TUnion";
 export const isTRec = (t: Type): t is TRec => t.tag === "TRec";
 export const isTTuple = (t: Type): t is TTuple => t.tag === "TTuple";
 export const isTPrim = (t: Type): t is TPrim => t.tag === "TPrim";
+export const isTLit = (t: Type): t is TLit => t.tag === "TLit";
 export const isScheme = (t: any): t is Scheme => t.tag === "Forall";
 
 // Env is a map of all the current schemes (qualified types) that

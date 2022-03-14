@@ -14,6 +14,7 @@ import {
   TFun,
   TRec,
   TTuple,
+  isTLit,
 } from "./type-types";
 import { isTCon, isTVar, isTFun, isTUnion } from "./type-types";
 import {
@@ -60,6 +61,15 @@ export const unifies = (t1: Type, t2: Type, ctx: Context): Subst => {
   if (isTVar(t2)) return bind(t2, t1);
   if (isTFun(t1) && isTFun(t2)) return unifyFuncs(t1, t2, ctx);
   if (isTPrim(t1) && isTPrim(t2) && t1.name === t2.name) return emptySubst;
+  // TODO: create unifyLiterals()
+  if (
+    isTLit(t1) &&
+    isTLit(t2) &&
+    t1.value.tag === t2.value.tag &&
+    t1.value.value === t2.value.value
+  ) {
+    return emptySubst;
+  }
   if (isTCon(t1) && isTCon(t2) && t1.name === t2.name) {
     return unifyMany(t1.params, t2.params, ctx);
   }
@@ -67,9 +77,37 @@ export const unifies = (t1: Type, t2: Type, ctx: Context): Subst => {
   if (isTTuple(t1) && isTTuple(t2)) return unifyTuples(t1, t2, ctx);
   if (isTRec(t1) && isTRec(t2)) return unifyRecords(t1, t2, ctx);
 
+  // TODO: replace with sub-type check
+  if (
+    isTLit(t2) &&
+    t2.value.tag === "LNum" &&
+    isTPrim(t1) &&
+    t1.name === "number"
+  ) {
+    return emptySubst;
+  }
+
+  // TODO: replace with sub-type check
+  if (
+    isTLit(t1) &&
+    t1.value.tag === "LNum" &&
+    isTPrim(t2) &&
+    t2.name === "number"
+  ) {
+    return emptySubst;
+  }
+
+  // NOTE: we'll need to specify the .src so that the sub-type check
+  // only occurs in valid situations.
+
   // As long as the types haven't been frozen then this is okay
   // NOTE: We may need to add .src info in the future if we notice
   // any places where expected type widening is occurring.
+  t1.frozen; // ?
+  t2.frozen; // ?
+
+  t1.tag; // ?
+  t2.tag; // ?
   if ("id" in t1 && "id" in t2 && !t1.frozen && !t2.frozen) {
     const names: string[] = [];
     // Flattens types
@@ -223,7 +261,7 @@ const unifyUnions = (t1: TUnion, t2: TUnion, ctx: Context): Subst => {
   // This only works if the types that make up the unions are ordered
   // consistently.  Is there a way to do this?
   return unifyMany(t1.types, t2.types, ctx);
-}
+};
 
 const composeSubs = (s1: Subst, s2: Subst): Subst => {
   return s2.map((t) => apply(s1, t)).merge(s1);

@@ -17,7 +17,7 @@ describe("record", () => {
 
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("{foo: string, bar: number}");
+    expect(print(result)).toEqual(`{foo: "hello", bar: 5}`);
   });
 
   test("can infer a function returning a lambda", () => {
@@ -30,7 +30,7 @@ describe("record", () => {
 
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("() => {foo: string, bar: number}");
+    expect(print(result)).toEqual(`() => {foo: "hello", bar: 5}`);
   });
 
   test("get foo", () => {
@@ -57,7 +57,7 @@ describe("record", () => {
     const result = inferExpr(env, expr);
 
     expect(print(getFoo)).toEqual("<a, b>({foo: a, bar: b}) => a");
-    expect(print(result)).toEqual("number");
+    expect(print(result)).toEqual("5");
   });
 
   describe("errors", () => {
@@ -86,7 +86,9 @@ describe("record", () => {
         ]),
       ]);
 
-      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(`"{foo: number, bar: string, baz: boolean} has following extra keys: baz"`);
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+        `"{foo: 5, bar: \\"hello\\", baz: true} has following extra keys: baz"`
+      );
     });
 
     test("missing property", () => {
@@ -110,7 +112,9 @@ describe("record", () => {
         sb.rec([sb.prop("foo", sb.num(5))]),
       ]);
 
-      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(`"{foo: number} is missing the following keys: bar"`);
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+        `"{foo: 5} is missing the following keys: bar"`
+      );
     });
 
     test("property has wrong type", () => {
@@ -140,7 +144,9 @@ describe("record", () => {
         sb.rec([sb.prop("foo", sb.num(5)), sb.prop("bar", sb.bool(true))]),
       ]);
 
-      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(`"Couldn't unify string with boolean"`);
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+        `"Couldn't unify string with true"`
+      );
     });
   });
 

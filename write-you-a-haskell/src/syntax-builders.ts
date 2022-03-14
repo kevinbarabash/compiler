@@ -90,7 +90,7 @@ export const pvar = (name: string): Pattern => ({
 
 export const pwild = (): Pattern => ({ tag: "PWild" });
 
-export const plit = (lit: t.ELit): Pattern => ({
+export const plit = (lit: t.Literal): Pattern => ({
   tag: "PLit",
   value: lit,
 });

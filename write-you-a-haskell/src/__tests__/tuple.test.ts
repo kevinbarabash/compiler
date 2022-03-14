@@ -14,7 +14,7 @@ describe("tuple", () => {
 
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("[number, boolean, string]");
+    expect(print(result)).toEqual(`[5, true, "hello"]`);
   });
 
   test("can infer a function returning a lambda", () => {
@@ -27,7 +27,7 @@ describe("tuple", () => {
 
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("() => [number, boolean, string]");
+    expect(print(result)).toEqual(`() => [5, true, "hello"]`);
   });
 
   test("snd (function)", () => {
@@ -50,7 +50,7 @@ describe("tuple", () => {
     const result = inferExpr(env, expr);
 
     expect(print(snd)).toEqual("<a, b>([a, b]) => b");
-    expect(print(result)).toEqual("string");
+    expect(print(result)).toEqual(`"hello"`);
   });
 
   describe("errors", () => {
@@ -71,7 +71,9 @@ describe("tuple", () => {
         sb.tuple([sb.num(5), sb.str("hello"), sb.bool(true)]),
       ]);
 
-      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(`"Couldn't unify [b, c] with [number, string, boolean]"`);
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+        `"Couldn't unify [b, c] with [5, \\"hello\\", true]"`
+      );
     });
 
     test("arg tuple has few many elements", () => {
@@ -80,7 +82,9 @@ describe("tuple", () => {
 
       const expr: Expr = sb.app(sb._var("snd"), [sb.tuple([sb.num(5)])]);
 
-      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(`"Couldn't unify [b, c] with [number]"`);
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+        `"Couldn't unify [b, c] with [5]"`
+      );
     });
 
     test("element mismatch", () => {
@@ -102,7 +106,9 @@ describe("tuple", () => {
         sb.tuple([sb.num(5), sb.bool(true)]),
       ]);
 
-      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(`"Couldn't unify string with boolean"`);
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+        `"Couldn't unify string with true"`
+      );
     });
   });
 

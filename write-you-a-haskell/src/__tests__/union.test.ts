@@ -39,7 +39,7 @@ describe("Union types and type widening", () => {
 
     const result1 = inferExpr(env, call, ctx.state);
 
-    expect(print(result1)).toEqual("number | boolean");
+    expect(print(result1)).toEqual("5 | true");
 
     const call2: Expr = {
       tag: "App",
@@ -50,7 +50,7 @@ describe("Union types and type widening", () => {
     env = env.set("retUnion", retUnion);
     const result2 = inferExpr(env, call2, ctx.state);
 
-    expect(print(result2)).toEqual("boolean | number");
+    expect(print(result2)).toEqual("false | 10");
   });
 
   // TODO: figure out a way to normalize union types.
@@ -69,7 +69,9 @@ describe("Union types and type widening", () => {
     const env: Env = Map();
 
     const result = inferExpr(env, expr);
-    expect(print(result)).toEqual("<a>(boolean, (number | boolean) => a) => a");
+    expect(print(result)).toMatchInlineSnapshot(
+      `"<a>(boolean, (5 | true) => a) => a"`
+    );
   });
 
   test("infer union of function types", () => {
@@ -92,7 +94,9 @@ describe("Union types and type widening", () => {
     env = env.set("bar", bar);
 
     const result = inferExpr(env, expr, ctx.state);
-    expect(print(result)).toMatchInlineSnapshot(`"(boolean) => (number | boolean) => boolean | number"`);
+    expect(print(result)).toMatchInlineSnapshot(
+      `"(boolean) => (number | boolean) => boolean | number"`
+    );
   });
 
   test("widen existing union type", () => {
@@ -110,13 +114,16 @@ describe("Union types and type widening", () => {
       ["x", "y"],
       sb._if(
         sb._var("x"),
-        sb.app(sb._var("y"), [sb._var("union")]),
-        sb.app(sb._var("y"), [sb.str("hello")])
+        sb.app(sb._var("y"), [sb._var("union")]), // number | boolean
+        sb.app(sb._var("y"), [sb.str("hello")]) // "hello"
       )
     );
 
     const result = inferExpr(env, expr, ctx.state);
-    expect(print(result)).toEqual("<a>(boolean, (number | boolean | string) => a) => a")
+    // "<a>(boolean, (number | boolean | string) => a) => a"
+    expect(print(result)).toMatchInlineSnapshot(
+      `"<a>(boolean, (number | boolean | \\"hello\\") => a) => a"`
+    );
   });
 
   test("widen inferred union type", () => {
@@ -136,7 +143,9 @@ describe("Union types and type widening", () => {
     const env: Env = Map();
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("<a>((number | boolean | string) => a) => a");
+    expect(print(result)).toMatchInlineSnapshot(
+      `"<a>((5 | true | \\"hello\\") => a) => a"`
+    );
   });
 
   test("should not widen frozen types", () => {
@@ -149,6 +158,10 @@ describe("Union types and type widening", () => {
     let env: Env = Map();
     env = env.set(_add[0], inferExpr(env, _add[1]));
 
-    expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(`"Couldn't unify number with boolean"`);
+    // `add` was inferred to have type `(number, number) => number` so
+    // we can't pass it a boolean, in this case, `true`
+    expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+      `"Couldn't unify number with true"`
+    );
   });
 });

@@ -1,5 +1,6 @@
 import { Map } from "immutable";
 
+import { Literal } from "./syntax-types";
 import * as t from "./type-types";
 
 const newId = (ctx: t.Context): number => ++ctx.state.count;
@@ -78,3 +79,9 @@ export const tprim = (name: t.PrimName, ctx: t.Context): t.TPrim => ({
 export const tNum = (ctx: t.Context): t.TPrim => tprim("number", ctx);
 export const tStr = (ctx: t.Context): t.TPrim => tprim("string", ctx);
 export const tBool = (ctx: t.Context): t.TPrim => tprim("boolean", ctx);
+
+export const tlit = (lit: Literal, ctx: t.Context): t.TLit => ({
+  tag: "TLit",
+  id: newId(ctx),
+  value: lit,
+})

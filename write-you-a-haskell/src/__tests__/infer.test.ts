@@ -126,7 +126,7 @@ describe("inferExpr", () => {
         throw new Error("poly is undefined");
       }
 
-      expect(print(result)).toEqual("number");
+      expect(print(result)).toEqual("3");
     });
 
     test("let self = ((x) => x)((x) => x)", () => {
@@ -182,7 +182,7 @@ describe("inferExpr", () => {
       // <a>(a) => Promise<a>
       const promisifyScheme = scheme(
         [aVar],
-        tb.tfun([aVar], tb.tcon("Promise", [aVar], ctx), ctx, "Lam"),
+        tb.tfun([aVar], tb.tcon("Promise", [aVar], ctx), ctx, "Lam")
       );
 
       let env: Env = Map();
@@ -193,14 +193,14 @@ describe("inferExpr", () => {
         sb.app(sb._var("promisify"), [sb.num(5)]),
       ];
       const intResult = inferExpr(env, intCall[1], ctx.state);
-      expect(print(intResult)).toEqual("Promise<number>");
+      expect(print(intResult)).toEqual("Promise<5>");
 
       const boolCall: Binding = [
         "call",
         sb.app(sb._var("promisify"), [sb.bool(true)]),
       ];
       const boolResult = inferExpr(env, boolCall[1], ctx.state);
-      expect(print(boolResult)).toEqual("Promise<boolean>");
+      expect(print(boolResult)).toEqual("Promise<true>");
     });
 
     test("extract value from type constructor", () => {
@@ -209,7 +209,7 @@ describe("inferExpr", () => {
       // <a>(Foo<a>) => a
       const extractScheme = scheme(
         [aVar],
-        tb.tfun([tb.tcon("Foo", [aVar], ctx)], aVar, ctx, "Lam"),
+        tb.tfun([tb.tcon("Foo", [aVar], ctx)], aVar, ctx, "Lam")
       );
 
       let env: Env = Map();
@@ -234,7 +234,7 @@ describe("inferExpr", () => {
       // <a>(Foo<a>) => a
       const extractScheme = scheme(
         [aVar],
-        tb.tfun([tb.tcon("Foo", [aVar], ctx)], aVar, ctx, "Lam"),
+        tb.tfun([tb.tcon("Foo", [aVar], ctx)], aVar, ctx, "Lam")
       );
 
       let env: Env = Map();
@@ -282,7 +282,11 @@ describe("inferExpr", () => {
       let env: Env = Map();
       env = env.set(_add[0], inferExpr(env, _add[1]));
 
-      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(`"Couldn't unify number with boolean"`);
+      // TODO: improve this error so that it says something like:
+      // Can't pass `true` where the `+` operator expects a `number`
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+        `"Couldn't unify number with true"`
+      );
     });
 
     test("InfiniteType", () => {

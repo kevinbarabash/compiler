@@ -32,6 +32,7 @@ import {
   EIf,
   EVar,
   Pattern,
+  Literal,
 } from "./syntax-types";
 import { zip, apply, ftv, assertUnreachable } from "./util";
 import { runSolve } from "./constraint-solver";
@@ -105,6 +106,8 @@ const normalize = (sc: Scheme): Scheme => {
         return type.types.flatMap(fv);
       case "TPrim":
         return [];
+      case "TLit":
+        return [];
       default:
         assertUnreachable(type);
     }
@@ -162,6 +165,9 @@ const normalize = (sc: Scheme): Scheme => {
         };
       }
       case "TPrim": {
+        return type;
+      }
+      case "TLit": {
         return type;
       }
       default:
@@ -350,9 +356,9 @@ const inferPattern = (
     case "PWild":
       return [ctx, []]; // doesn't affect binding
     case "PLit": {
-      const [t, cs] = infer(pattern.value, ctx);
+      const t = tb.tlit(pattern.value, ctx);
       freeze(t); // prevents widening of inferred type
-      return [ctx, [...cs, [t, type]]]; // doesn't affect binding
+      return [ctx, [[t, type]]]; // doesn't affect binding
     }
     // NOTE: it only makes sense to infer PPrim patterns as part of pattern matching
     // since destructuring number | string to number isn't sound
@@ -365,7 +371,9 @@ const inferPattern = (
       } else if (pattern.primName === "string") {
         t = tb.tStr(ctx);
       } else {
-        throw new Error(`TODO: handle ${pattern.primName} when inferring type from PPrim`);
+        throw new Error(
+          `TODO: handle ${pattern.primName} when inferring type from PPrim`
+        );
       }
       freeze(t);
       return [ctx, [[t, type]]];
@@ -412,19 +420,14 @@ const inferPattern = (
 
 const inferLit = (expr: ELit, ctx: Context): InferResult => {
   const lit = expr.value;
-  // prettier-ignore
-  switch (lit.tag) {
-    case "LNum":  return [tb.tprim("number", ctx), []];
-    case "LBool": return [tb.tprim("boolean", ctx), []];
-    case "LStr":  return [tb.tprim("string", ctx), []];
-  }
+  return [tb.tlit(lit, ctx), []];
 };
 
 const inferOp = (expr: EOp, ctx: Context): InferResult => {
   const { op, left, right } = expr;
   const [ts, cs] = inferMany([left, right], ctx);
   const tv = fresh(ctx);
-  return [tv, [...cs, [tb.tfun(ts, tv, ctx), ops(op)]]];
+  return [tv, [...cs, [tb.tfun(ts, tv, ctx), ops(op, ctx)]]];
 };
 
 const inferRec = (expr: ERec, ctx: Context): InferResult => {
@@ -461,57 +464,49 @@ const inferMany = (
   return [ts, all_cs];
 };
 
-const tNum: TPrim = {
-  tag: "TPrim",
-  id: -1,
-  name: "number",
-  frozen: true,
-};
+// const tNum: TPrim = {
+//   tag: "TPrim",
+//   id: -1,
+//   name: "number",
+//   frozen: true,
+// };
 
-const tBool: TPrim = {
-  tag: "TPrim",
-  id: -1,
-  name: "boolean",
-  frozen: true,
-};
+// const tBool: TPrim = {
+//   tag: "TPrim",
+//   id: -1,
+//   name: "boolean",
+//   frozen: true,
+// };
 
 // NOTE: It's okay for tNum and tBool to share the same id because
 // they only used in the ops which are all frozen.
 
-const ops = (op: Binop): Type => {
+const ops = (op: Binop, ctx: Context): Type => {
   switch (op) {
     case "Add":
-      return {
-        tag: "TFun",
-        id: -10,
-        args: [tNum, tNum],
-        ret: tNum,
-        frozen: true,
-      };
+      return tb.tfun(
+        [tb.tprim("number", ctx), tb.tprim("number", ctx)],
+        tb.tprim("number", ctx),
+        ctx
+      );
     case "Mul":
-      return {
-        tag: "TFun",
-        id: -11,
-        args: [tNum, tNum],
-        ret: tNum,
-        frozen: true,
-      };
+      return tb.tfun(
+        [tb.tprim("number", ctx), tb.tprim("number", ctx)],
+        tb.tprim("number", ctx),
+        ctx
+      );
     case "Sub":
-      return {
-        tag: "TFun",
-        id: -12,
-        args: [tNum, tNum],
-        ret: tNum,
-        frozen: true,
-      };
+      return tb.tfun(
+        [tb.tprim("number", ctx), tb.tprim("number", ctx)],
+        tb.tprim("number", ctx),
+        ctx
+      );
     case "Eql":
-      return {
-        tag: "TFun",
-        id: -13,
-        args: [tNum, tNum],
-        ret: tBool,
-        frozen: true,
-      };
+      return tb.tfun(
+        [tb.tprim("number", ctx), tb.tprim("number", ctx)],
+        tb.tprim("boolean", ctx),
+        ctx
+      );
   }
 };
 

@@ -13,7 +13,7 @@ describe("Async/Await", () => {
     const env: Env = Map();
     const result = inferExpr(env, expr);
 
-    expect(print(result)).toEqual("() => Promise<number>");
+    expect(print(result)).toEqual("() => Promise<5>");
   });
 
   test("return value is not rewrapped if already a promise", () => {
@@ -26,7 +26,7 @@ describe("Async/Await", () => {
 
     let env: Env = Map();
     env = env.set("retVal", retVal);
-    const result = inferExpr(env, expr, { count: 2 });
+    const result = inferExpr(env, expr, ctx.state);
 
     expect(print(result)).toEqual("() => Promise<number>");
   });
@@ -43,7 +43,7 @@ describe("Async/Await", () => {
 
     let env: Env = Map();
     env = env.set("retVal", retVal);
-    const result = inferExpr(env, expr, { count: 2 });
+    const result = inferExpr(env, expr, ctx.state);
 
     expect(print(result)).toEqual("() => Promise<number>");
   });

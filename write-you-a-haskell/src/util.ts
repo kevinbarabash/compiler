@@ -1,6 +1,6 @@
 import { Map, Set } from "immutable";
 
-import { Type, TVar, Subst, Constraint, Scheme, Env } from "./type-types";
+import { Type, TVar, Subst, Constraint, Scheme, Env, isTLit } from "./type-types";
 import {
   isTCon,
   isTVar,
@@ -29,6 +29,9 @@ export function apply(s: Subst, a: any): any {
     return s.get(a.id) ?? a;
   }
   if (isTPrim(a)) {
+    return s.get(a.id) ?? a;
+  }
+  if (isTLit(a)) {
     return s.get(a.id) ?? a;
   }
   if (isTCon(a)) {
@@ -119,6 +122,9 @@ export function ftv(a: any): any {
     return Set([a]); // Set.singleton a
   }
   if (isTPrim(a)) {
+    return Set([]);
+  }
+  if (isTLit(a)) {
     return Set([]);
   }
   if (isTFun(a)) {
