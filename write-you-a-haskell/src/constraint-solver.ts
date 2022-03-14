@@ -26,6 +26,7 @@ import {
 } from "./errors";
 import { apply, ftv } from "./util";
 import * as tb from "./type-builders";
+import { assert } from "console";
 
 //
 // Constraint Solver
@@ -85,34 +86,9 @@ export const unifies = (t1: Type, t2: Type, ctx: Context): Subst => {
 
   // As long as the types haven't been frozen then this is okay
   // NOTE: We may need to add .src info in the future if we notice
-  // any places where expected type widening is occurring.
-
-  // If t1 is a frozen TPrim and t2 is a TUnion of numbers then the sub-type
-  // check above should handle things
-
-  if ("id" in t1 && "id" in t2 && !t1.frozen && !t2.frozen) {
-    const names: string[] = [];
-    // Flattens types
-    const types = [
-      ...(isTUnion(t1) ? t1.types : [t1]),
-      ...(isTUnion(t2) ? t2.types : [t2]),
-    ].filter((type) => {
-      // Removes duplicate TCons
-      // TODO: handle TCons with params
-      if (isTCon(type) && type.params.length === 0) {
-        if (names.includes(type.name)) {
-          return false;
-        }
-        names.push(type.name);
-      }
-      return true;
-    });
-    const union: TUnion = tb.tunion(types, ctx);
-    const result: Subst = Map([
-      [t1.id, union],
-      [t2.id, union],
-    ]);
-    return result;
+  // any places where unexpected type widening is occurring.
+  if (!t1.frozen && !t2.frozen) {
+    return widenTypes(t1, t2, ctx);
   }
 
   throw new UnificationFail(t1, t2);
@@ -286,3 +262,32 @@ const isSubType = (sub: Type, sup: Type): boolean => {
 
   return false;
 }
+
+const widenTypes = (t1: Type, t2: Type, ctx: Context): Subst => {
+  assert(!t1.frozen, "t1 should not be frozen when calling widenTypes");
+  assert(!t2.frozen, "t2 should not be frozen when calling widenTypes");
+
+  const names: string[] = [];
+    // Flattens types
+    const types = [
+      ...(isTUnion(t1) ? t1.types : [t1]),
+      ...(isTUnion(t2) ? t2.types : [t2]),
+    ].filter((type) => {
+      // Removes duplicate TCons
+      // TODO: handle TCons with params
+      if (isTCon(type) && type.params.length === 0) {
+        if (names.includes(type.name)) {
+          return false;
+        }
+        names.push(type.name);
+      }
+      return true;
+    });
+    const union: TUnion = tb.tunion(types, ctx);
+    const result: Subst = Map([
+      [t1.id, union],
+      [t2.id, union],
+    ]);
+
+    return result;
+};
