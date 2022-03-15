@@ -1,6 +1,7 @@
 import { Map } from "immutable";
 
 import { inferExpr } from "../infer";
+import { computeUnion } from "../constraint-solver";
 import { Expr } from "../syntax-types";
 import { Env, print, scheme } from "../type-types";
 import * as sb from "../syntax-builders";
@@ -163,5 +164,137 @@ describe("Union types and type widening", () => {
     expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
       `"Couldn't unify number with true"`
     );
+  });
+
+  describe("computeUnion", () => {
+    test("5 | number => number", () => {
+      const ctx = tb.createCtx();
+      const lit = tb.tlit({ tag: "LNum", value: 5 }, ctx);
+      const num = tb.tprim("number", ctx);
+      const result = computeUnion(lit, num, ctx);
+
+      expect(print(result)).toEqual("number");
+    });
+
+    test("5 | 10 => 5 | 10", () => {
+      const ctx = tb.createCtx();
+      const lit5 = tb.tlit({ tag: "LNum", value: 5 }, ctx);
+      const lit10 = tb.tlit({ tag: "LNum", value: 10 }, ctx);
+      const result = computeUnion(lit5, lit10, ctx);
+
+      expect(print(result)).toEqual("5 | 10");
+    });
+
+    test("5 | 5 => 5", () => {
+      const ctx = tb.createCtx();
+      const lit5a = tb.tlit({ tag: "LNum", value: 5 }, ctx);
+      const lit5b = tb.tlit({ tag: "LNum", value: 5 }, ctx);
+      const result = computeUnion(lit5a, lit5b, ctx);
+
+      expect(print(result)).toEqual("5");
+    });
+
+    test("true | boolean => boolean", () => {
+      const ctx = tb.createCtx();
+      const litTrue = tb.tlit({ tag: "LBool", value: true }, ctx);
+      const bool = tb.tprim("boolean", ctx);
+      const result = computeUnion(litTrue, bool, ctx);
+
+      expect(print(result)).toEqual("boolean");
+    });
+
+
+    test("true | false => boolean", () => {
+      const ctx = tb.createCtx();
+      const litTrue = tb.tlit({ tag: "LBool", value: true }, ctx);
+      const litFalse = tb.tlit({ tag: "LBool", value: false }, ctx);
+      const result = computeUnion(litTrue, litFalse, ctx);
+
+      expect(print(result)).toEqual("boolean");
+    });
+
+    test("true | true => true", () => {
+      const ctx = tb.createCtx();
+      const litTrue = tb.tlit({ tag: "LBool", value: true }, ctx);
+      const litFalse = tb.tlit({ tag: "LBool", value: true }, ctx);
+      const result = computeUnion(litTrue, litFalse, ctx);
+
+      expect(print(result)).toEqual("true");
+    });
+
+    test('"hello" | string => string', () => {
+      const ctx = tb.createCtx();
+      const hello = tb.tlit({tag: "LStr", value: "hello"}, ctx);
+      const str = tb.tprim("string", ctx);
+      const result = computeUnion(hello, str, ctx);
+
+      expect(print(result)).toEqual("string");
+    });
+
+    test('"hello" | "world" => string', () => {
+      const ctx = tb.createCtx();
+      const hello = tb.tlit({tag: "LStr", value: "hello"}, ctx);
+      const world = tb.tlit({tag: "LStr", value: "world"}, ctx);
+      const result = computeUnion(hello, world, ctx);
+
+      expect(print(result)).toEqual('"hello" | "world"');
+    });
+
+    test("number | number => number", () => {
+      const ctx = tb.createCtx();
+      const numa = tb.tprim("number", ctx);
+      const numb = tb.tprim("number", ctx);
+      const result = computeUnion(numa, numb, ctx);
+
+      expect(print(result)).toEqual("number");
+    });
+
+    test("string | string => string", () => {
+      const ctx = tb.createCtx();
+      const stra = tb.tprim("string", ctx);
+      const strb = tb.tprim("string", ctx);
+      const result = computeUnion(stra, strb, ctx);
+
+      expect(print(result)).toEqual("string");
+    });
+
+    test("string | number => string | number", () => {
+      const ctx = tb.createCtx();
+      const str = tb.tprim("string", ctx);
+      const num = tb.tprim("number", ctx);
+      const result = computeUnion(str, num, ctx);
+
+      expect(print(result)).toEqual("string | number");
+    });
+
+    test("number | string => string | number", () => {
+      const ctx = tb.createCtx();
+      const num = tb.tprim("number", ctx);
+      const str = tb.tprim("string", ctx);
+      const result = computeUnion(num, str, ctx);
+
+      expect(print(result)).toEqual("number | string");
+    });
+
+    test("(5 | 10) | 15 => 5 | 10 | 15", () => {
+      const ctx = tb.createCtx();
+      const lit5 = tb.tlit({ tag: "LNum", value: 5 }, ctx);
+      const lit10 = tb.tlit({ tag: "LNum", value: 10 }, ctx);
+      const union = computeUnion(lit5, lit10, ctx);
+      const lit15 = tb.tlit({ tag: "LNum", value: 15 }, ctx);
+      const result = computeUnion(union, lit15, ctx);
+
+      expect(print(result)).toEqual("5 | 10 | 15");
+    });
+
+    test("(5 | 10) | number => number", () => {
+      const ctx = tb.createCtx();
+      const lit5 = tb.tlit({ tag: "LNum", value: 5 }, ctx);
+      const lit10 = tb.tlit({ tag: "LNum", value: 10 }, ctx);
+      const union = computeUnion(lit5, lit10, ctx);
+      const result = computeUnion(union, tb.tprim("number", ctx), ctx);
+
+      expect(print(result)).toEqual("number");
+    });
   });
 });
