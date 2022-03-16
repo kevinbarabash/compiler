@@ -1,22 +1,9 @@
 import { Map, Set } from "immutable";
+import { assert } from "console";
 
-import {
-  Type,
-  TVar,
-  Subst,
-  Constraint,
-  Unifier,
-  TUnion,
-  Context,
-  isTTuple,
-  isTRec,
-  isTPrim,
-  TFun,
-  TRec,
-  TTuple,
-  isTLit,
-} from "./type-types";
-import { isTCon, isTVar, isTFun, isTUnion } from "./type-types";
+import * as t from "./type-types";
+import * as tb from "./type-builders";
+import { apply, ftv } from "./util";
 import {
   InfiniteType,
   UnificationFail,
@@ -24,25 +11,25 @@ import {
   ExtraProperties,
   MissingProperties,
 } from "./errors";
-import { apply, ftv } from "./util";
-import * as tb from "./type-builders";
-import { assert } from "console";
 
 //
 // Constraint Solver
 //
 
-const emptySubst: Subst = Map();
+const emptySubst: t.Subst = Map();
 
-export const runSolve = (cs: readonly Constraint[], ctx: Context): Subst => {
+export const runSolve = (
+  cs: readonly t.Constraint[],
+  ctx: t.Context
+): t.Subst => {
   return solver([emptySubst, cs], ctx);
 };
 
 const unifyMany = (
-  ts1: readonly Type[],
-  ts2: readonly Type[],
-  ctx: Context
-): Subst => {
+  ts1: readonly t.Type[],
+  ts2: readonly t.Type[],
+  ctx: t.Context
+): t.Subst => {
   if (ts1.length !== ts2.length) {
     throw new UnificationMismatch(ts1, ts2);
   }
@@ -57,26 +44,26 @@ const unifyMany = (
   return composeSubs(su2, su1);
 };
 
-export const unifies = (t1: Type, t2: Type, ctx: Context): Subst => {
-  if (isTVar(t1)) return bind(t1, t2);
-  if (isTVar(t2)) return bind(t2, t1);
-  if (isTFun(t1) && isTFun(t2)) return unifyFuncs(t1, t2, ctx);
-  if (isTPrim(t1) && isTPrim(t2) && t1.name === t2.name) return emptySubst;
+export const unifies = (t1: t.Type, t2: t.Type, ctx: t.Context): t.Subst => {
+  if (t.isTVar(t1)) return bind(t1, t2);
+  if (t.isTVar(t2)) return bind(t2, t1);
+  if (t.isTFun(t1) && t.isTFun(t2)) return unifyFuncs(t1, t2, ctx);
+  if (t.isTPrim(t1) && t.isTPrim(t2) && t1.name === t2.name) return emptySubst;
   // TODO: create unifyLiterals()
   if (
-    isTLit(t1) &&
-    isTLit(t2) &&
+    t.isTLit(t1) &&
+    t.isTLit(t2) &&
     t1.value.tag === t2.value.tag &&
     t1.value.value === t2.value.value
   ) {
     return emptySubst;
   }
-  if (isTCon(t1) && isTCon(t2) && t1.name === t2.name) {
+  if (t.isTCon(t1) && t.isTCon(t2) && t1.name === t2.name) {
     return unifyMany(t1.params, t2.params, ctx);
   }
-  if (isTUnion(t1) && isTUnion(t2)) return unifyUnions(t1, t2, ctx);
-  if (isTTuple(t1) && isTTuple(t2)) return unifyTuples(t1, t2, ctx);
-  if (isTRec(t1) && isTRec(t2)) return unifyRecords(t1, t2, ctx);
+  if (t.isTUnion(t1) && t.isTUnion(t2)) return unifyUnions(t1, t2, ctx);
+  if (t.isTTuple(t1) && t.isTTuple(t2)) return unifyTuples(t1, t2, ctx);
+  if (t.isTRec(t1) && t.isTRec(t2)) return unifyRecords(t1, t2, ctx);
 
   // TODO: we need to specify the .src so that the sub-type check
   // only occurs in valid situations.
@@ -94,13 +81,13 @@ export const unifies = (t1: Type, t2: Type, ctx: Context): Subst => {
   throw new UnificationFail(t1, t2);
 };
 
-const unifyFuncs = (t1: TFun, t2: TFun, ctx: Context): Subst => {
+const unifyFuncs = (t1: t.TFun, t2: t.TFun, ctx: t.Context): t.Subst => {
   // infer() only ever creates a Lam node on the left side of a constraint
   // and an App on the right side of a constraint so this check is sufficient.
   if (t1.src === "Lam" && t2.src === "App") {
     // partial application
     if (t1.args.length > t2.args.length) {
-      const t1_partial: Type = {
+      const t1_partial: t.Type = {
         tag: "TFun",
         id: t1.id, // is it safe to reuse `id` here?
         args: t1.args.slice(0, t2.args.length),
@@ -118,7 +105,7 @@ const unifyFuncs = (t1: TFun, t2: TFun, ctx: Context): Subst => {
     // TODO: Create a `isSubType` helper function
     // TODO: update this once we support rest params
     if (t1.args.length < t2.args.length) {
-      const t2_without_extra_args: Type = {
+      const t2_without_extra_args: t.Type = {
         tag: "TFun",
         id: t2.id, // is it safe to reuse `id` here?
         args: t2.args.slice(0, t1.args.length),
@@ -141,7 +128,7 @@ const unifyFuncs = (t1: TFun, t2: TFun, ctx: Context): Subst => {
     // TODO: Create a `isSubType` helper function
     // TODO: update this once we support rest params
     if (t1.args.length > t2.args.length) {
-      const t1_without_extra_args: Type = {
+      const t1_without_extra_args: t.Type = {
         tag: "TFun",
         id: t1.id, // is it safe to reuse `id` here?
         args: t1.args.slice(0, t2.args.length),
@@ -161,7 +148,7 @@ const unifyFuncs = (t1: TFun, t2: TFun, ctx: Context): Subst => {
   return unifyMany([...t1.args, t1.ret], [...t2.args, t2.ret], ctx);
 };
 
-const unifyRecords = (t1: TRec, t2: TRec, ctx: Context): Subst => {
+const unifyRecords = (t1: t.TRec, t2: t.TRec, ctx: t.Context): t.Subst => {
   const keys1 = t1.properties.map((prop) => prop.name);
   const keys2 = t2.properties.map((prop) => prop.name);
 
@@ -205,7 +192,7 @@ const unifyRecords = (t1: TRec, t2: TRec, ctx: Context): Subst => {
   return unifyMany(ot1, ot2, ctx);
 };
 
-const unifyTuples = (t1: TTuple, t2: TTuple, ctx: Context): Subst => {
+const unifyTuples = (t1: t.TTuple, t2: t.TTuple, ctx: t.Context): t.Subst => {
   if (t1.types.length !== t2.types.length) {
     throw new UnificationFail(t1, t2);
   }
@@ -214,19 +201,19 @@ const unifyTuples = (t1: TTuple, t2: TTuple, ctx: Context): Subst => {
   return unifyMany(t1.types, t2.types, ctx);
 };
 
-const unifyUnions = (t1: TUnion, t2: TUnion, ctx: Context): Subst => {
+const unifyUnions = (t1: t.TUnion, t2: t.TUnion, ctx: t.Context): t.Subst => {
   // Assume that the union types have been normalized by this point
   // This only works if the types that make up the unions are ordered
   // consistently.  Is there a way to do this?
   return unifyMany(t1.types, t2.types, ctx);
 };
 
-const composeSubs = (s1: Subst, s2: Subst): Subst => {
+const composeSubs = (s1: t.Subst, s2: t.Subst): t.Subst => {
   return s2.map((t) => apply(s1, t)).merge(s1);
 };
 
 // Unification solver
-const solver = (u: Unifier, ctx: Context): Subst => {
+const solver = (u: t.Unifier, ctx: t.Context): t.Subst => {
   const [su, cs] = u;
   if (cs.length === 0) {
     return su;
@@ -236,7 +223,7 @@ const solver = (u: Unifier, ctx: Context): Subst => {
   return solver([composeSubs(su1, su), apply(su1, cs0)], ctx);
 };
 
-const bind = (tv: TVar, t: Type): Subst => {
+const bind = (tv: t.TVar, t: t.Type): t.Subst => {
   if (t.tag === "TVar" && t.id === tv.id) {
     return emptySubst;
   } else if (occursCheck(tv, t)) {
@@ -246,48 +233,119 @@ const bind = (tv: TVar, t: Type): Subst => {
   }
 };
 
-const occursCheck = (tv: TVar, t: Type): boolean => {
+const occursCheck = (tv: t.TVar, t: t.Type): boolean => {
   return ftv(t).includes(tv);
 };
 
-const isSubType = (sub: Type, sup: Type): boolean => {
-  if (isTPrim(sup) && sup.name === "number") {
-    if (isTLit(sub) && sub.value.tag === "LNum") {
+const isSubType = (sub: t.Type, sup: t.Type): boolean => {
+  if (t.isTPrim(sup) && sup.name === "number") {
+    if (t.isTLit(sub) && sub.value.tag === "LNum") {
       return true;
     }
-    if (isTUnion(sub) && sub.types.every(type => isSubType(type, sup))) {
+    if (t.isTUnion(sub) && sub.types.every((type) => isSubType(type, sup))) {
       return true;
     }
   }
 
+  // TODO: handle type aliases like Array<T> and Promise<T>
+  // NOTE: Promise<string> | Promise<number> can be used in place of a
+  // Promise<string | number> because both Promise<string> and Promise<number> 
+  // are subtypes of Promise<string | number>.
+
   return false;
+};
+
+const flattenUnion = (type: t.Type): t.Type[] => {
+  if (t.isTUnion(type)) {
+    return type.types.flatMap(flattenUnion);
+  } else {
+    return [type];
+  }
 }
 
-const widenTypes = (t1: Type, t2: Type, ctx: Context): Subst => {
+export const computeUnion = (
+  t1: t.Type,
+  t2: t.Type,
+  ctx: t.Context
+): t.Type => {
+  const names: string[] = [];
+  // Flattens types
+  const types = [...flattenUnion(t1), ...flattenUnion(t2)];
+
+  // Splits by type of type
+  const primTypes = nubPrimTypes(types.filter(t.isTPrim));
+  let litTypes = nubLitTypes(types.filter(t.isTLit));
+
+  // Subsumes literals into primitives
+  for (const primType of primTypes) {
+    if (primType.name === "number") {
+      litTypes = litTypes.filter(type => type.value.tag !== "LNum");
+    } else if (primType.name === "boolean") {
+      litTypes = litTypes.filter(type => type.value.tag !== "LBool");
+    } else if (primType.name === "string") {
+      litTypes = litTypes.filter(type => type.value.tag !== "LStr");
+    }
+  }
+
+  // Replaces `true | false` with `boolean`
+  const boolTypes = litTypes.filter(type => type.value.tag === "LBool");
+  if (boolTypes.length === 2) {
+    litTypes = litTypes.filter(type => type.value.tag !== "LBool");
+    // It's safe to push without checking if primTypes already contains
+    // `boolean` because if it did then `boolTypes` would've been empty.
+    primTypes.push(tb.tprim("boolean", ctx));
+  }
+
+  // TODO:
+  // - subsume tuples where each element is the same into an Array of that element
+  //   e.g. ["hello", "world"] should be subsumed by Array<string>, more generally
+  //   if each element is a subtype of T then a tuple of those elements is a subtype
+  //   of Array<T>.
+  //   NOTE: TypeScript doesn't do this yet.
+
+  const filteredTypes = [...primTypes, ...litTypes];
+
+  if (filteredTypes.length === 1) {
+    return filteredTypes[0];
+  }
+
+  return tb.tunion(filteredTypes, ctx);
+};
+
+const nubPrimTypes = (primTypes: readonly t.TPrim[]): t.TPrim[] => {
+  const names: t.PrimName[] = [];
+  return primTypes.filter(pt => {
+    if (!names.includes(pt.name)) {
+      names.push(pt.name);
+      return true;
+    }
+    return false;
+  });
+};
+
+const nubLitTypes = (litTypes: readonly t.TLit[]): t.TLit[] => {
+  const values: (number | string | boolean)[] = [];
+  return litTypes.filter(lt => {
+    if (!values.includes(lt.value.value)) {
+      values.push(lt.value.value);
+      return true;
+    }
+    return false;
+  });
+}
+
+// Eventually we'll want to be able to widen more than two at the same
+// time if we need to widen types as part of pattern matching.
+export const widenTypes = (t1: t.Type, t2: t.Type, ctx: t.Context): t.Subst => {
   assert(!t1.frozen, "t1 should not be frozen when calling widenTypes");
   assert(!t2.frozen, "t2 should not be frozen when calling widenTypes");
 
-  const names: string[] = [];
-    // Flattens types
-    const types = [
-      ...(isTUnion(t1) ? t1.types : [t1]),
-      ...(isTUnion(t2) ? t2.types : [t2]),
-    ].filter((type) => {
-      // Removes duplicate TCons
-      // TODO: handle TCons with params
-      if (isTCon(type) && type.params.length === 0) {
-        if (names.includes(type.name)) {
-          return false;
-        }
-        names.push(type.name);
-      }
-      return true;
-    });
-    const union: TUnion = tb.tunion(types, ctx);
-    const result: Subst = Map([
-      [t1.id, union],
-      [t2.id, union],
-    ]);
+  const union = computeUnion(t1, t2, ctx);
 
-    return result;
+  const result: t.Subst = Map([
+    [t1.id, union],
+    [t2.id, union],
+  ]);
+
+  return result;
 };
