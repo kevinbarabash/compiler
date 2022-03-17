@@ -491,26 +491,31 @@ const inferMem = (expr: EMem, ctx: Context): InferResult => {
   }
 
   // Creates a bunch of substitutions from qualifier ids to type params
-  const subs: Subst = Map(
-    zip(aliasedScheme.qualifiers, type.params).map(([q, p]) => [q.id, p])
+  const subs1: Subst = Map(
+    zip(aliasedScheme.qualifiers, type.params).map(([q, p]) => {
+      return [q.id, p]; // { ...p, id: tb.newId(ctx) }];
+    })
   );
   // Applies the substitutions to get a type matches the type alias we looked up
-  const aliasedType = apply(subs, aliasedScheme.type);
+  const aliasedType = apply(subs1, aliasedScheme.type);
 
   if (aliasedType.tag !== "TRec") {
     throw new Error(`Can't use member access on ${aliasedType.tag}`);
   }
 
-  const pt = aliasedType.properties.find((prop) => prop.name === property.name);
+  const prop = aliasedType.properties.find((prop) => prop.name === property.name);
 
-  if (!pt) {
+  if (!prop) {
     throw new Error(
       `${property.name} property doesn't exist on ${print(aliasedType)}`
     );
   }
 
-  // TODO: instantiate this type before returning it
-  return [pt.type, []];
+  // Replaces all free variables with fresh ones
+  const subs2: Subst = Map([...ftv(prop.type)].map(v => [v.id, fresh(ctx)]));
+  const resultType = apply(subs2, prop.type);
+
+  return [resultType, []];
 };
 
 const inferMany = (

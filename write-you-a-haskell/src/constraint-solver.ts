@@ -143,6 +143,9 @@ const unifyFuncs = (t1: t.TFun, t2: t.TFun, ctx: t.Context): t.Subst => {
     }
   }
 
+  t1.ret; // ?
+  t2.ret; // ?
+
   // TODO: add support for optional params
   // we can model optional params as union types, e.g. int | void
   return unifyMany([...t1.args, t1.ret], [...t2.args, t2.ret], ctx);
