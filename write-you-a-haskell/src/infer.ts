@@ -33,6 +33,7 @@ import {
   EVar,
   Pattern,
   Literal,
+  EMem,
 } from "./syntax-types";
 import { zip, apply, ftv, assertUnreachable } from "./util";
 import { runSolve } from "./constraint-solver";
@@ -242,6 +243,7 @@ const infer = (expr: Expr, ctx: Context): InferResult => {
     case "Await": return inferAwait(expr, ctx);
     case "Rec":   return inferRec  (expr, ctx);
     case "Tuple": return inferTuple(expr, ctx);
+    case "Mem":   return inferMem  (expr, ctx);
     default: assertUnreachable(expr);
   }
 };
@@ -450,6 +452,67 @@ const inferVar = (expr: EVar, ctx: Context): InferResult => {
   return [t, []];
 };
 
+const inferMem = (expr: EMem, ctx: Context): InferResult => {
+  // Start simple, assume the following:
+  // - expr.object and expr.property are both EVar's
+  // Then do the following:
+  // - look up expr.object in ctx.env
+  // - check that the scheme's type is a TRec
+  // - look up expr.property in the scheme's type
+  // - return that type after instantiating it
+  // NOTE: lookupEnv instantiates the object type, but properties
+  // on the object might have their own type parameters.
+  const { object, property } = expr;
+
+  if (object.tag !== "Var") {
+    throw new Error("object must be a variable when accessing a member");
+  }
+  if (property.tag !== "Var") {
+    throw new Error("property must be a variable when accessing a member");
+  }
+
+  // TODO: have separate namespaces for types and values so that we can
+  // support TypeScript's ability to use the same identifier for both.
+  const type = lookupEnv(object.name, ctx);
+
+  if (type.tag !== "TCon") {
+    throw new Error(`Can't use member access on ${type.tag}`);
+  }
+
+  const aliasedScheme = ctx.env.get(type.name);
+  if (!aliasedScheme) {
+    throw new Error(`No type named ${type.name} in environment`);
+  }
+
+  if (aliasedScheme.qualifiers.length !== type.params.length) {
+    throw new Error(
+      `number of type params in ${object.name} doesn't match those in ${type.name}`
+    );
+  }
+
+  // Creates a bunch of substitutions from qualifier ids to type params
+  const subs: Subst = Map(
+    zip(aliasedScheme.qualifiers, type.params).map(([q, p]) => [q.id, p])
+  );
+  // Applies the substitutions to get a type matches the type alias we looked up
+  const aliasedType = apply(subs, aliasedScheme.type);
+
+  if (aliasedType.tag !== "TRec") {
+    throw new Error(`Can't use member access on ${aliasedType.tag}`);
+  }
+
+  const pt = aliasedType.properties.find((prop) => prop.name === property.name);
+
+  if (!pt) {
+    throw new Error(
+      `${property.name} property doesn't exist on ${print(aliasedType)}`
+    );
+  }
+
+  // TODO: instantiate this type before returning it
+  return [pt.type, []];
+};
+
 const inferMany = (
   exprs: readonly Expr[],
   ctx: Context
@@ -488,29 +551,13 @@ const tNum: TPrim = {
 const ops = (op: Binop, ctx: Context): Type => {
   switch (op) {
     case "Add":
-      return tb.tfun(
-        [tNum, tNum],
-        tb.tprim("number", ctx),
-        ctx
-      );
+      return tb.tfun([tNum, tNum], tb.tprim("number", ctx), ctx);
     case "Mul":
-      return tb.tfun(
-        [tNum, tNum],
-        tb.tprim("number", ctx),
-        ctx
-      );
+      return tb.tfun([tNum, tNum], tb.tprim("number", ctx), ctx);
     case "Sub":
-      return tb.tfun(
-        [tNum, tNum],
-        tb.tprim("number", ctx),
-        ctx
-      );
+      return tb.tfun([tNum, tNum], tb.tprim("number", ctx), ctx);
     case "Eql":
-      return tb.tfun(
-        [tNum, tNum],
-        tb.tprim("boolean", ctx),
-        ctx
-      );
+      return tb.tfun([tNum, tNum], tb.tprim("boolean", ctx), ctx);
   }
 };
 

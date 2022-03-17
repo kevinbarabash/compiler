@@ -44,6 +44,12 @@ export const prop = (name: string, value: t.Expr): t.EProp => ({
   name,
   value,
 });
+export const mem = (object: string, property: string): t.EMem => ({
+  tag: "Mem",
+  // This is just a convenience for now.
+  object: _var(object),
+  property: _var(property),
+});
 
 export const num = (value: number): t.ELit => ({
   tag: "Lit",

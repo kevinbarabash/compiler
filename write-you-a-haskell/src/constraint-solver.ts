@@ -302,6 +302,24 @@ export const computeUnion = (
   //   if each element is a subtype of T then a tuple of those elements is a subtype
   //   of Array<T>.
   //   NOTE: TypeScript doesn't do this yet.
+  // - need to introduce type aliases to model Array<T>, Promise<T>, etc.
+  //   in particular we want to support the following:
+  //   type Array<T> = {
+  //     get length: number,
+  //     map: <U>((T, number, Array<T>) => U) => Array<U>,
+  //     ...
+  //   }
+  // - start by trying to build a type that represents the rhs, it should look
+  //   something like:
+  //   <T>{lenght: number, map: <U>((T, number, Array<T>) => U) => Array<U>}
+  //
+  // What do we want to do about element access on arrays?
+  // 1. return Maybe<T> (or T | undefined) and force people to check the result
+  // 2. have a version that throws if we exceed the bounds of the array
+  // 3. have an unsafe version that silently return undefined if we exceed the bounds
+  //
+  // Rescript does 2.
+  // TypeScript does 3.
 
   const filteredTypes = [...primTypes, ...litTypes];
 
