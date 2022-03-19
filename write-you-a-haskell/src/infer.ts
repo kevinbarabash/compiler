@@ -12,6 +12,7 @@ import {
   Type,
   TProp,
   TPrim,
+  TRec,
   print,
 } from "./type-types";
 import {
@@ -238,7 +239,7 @@ const generalize = (env: Env, type: Type): Scheme => {
   return scheme(ftv(type).subtract(ftv(env)).toArray(), type);
 };
 
-type InferResult = readonly [Type, readonly Constraint[]];
+type InferResult<T extends Type = Type> = readonly [T, readonly Constraint[]];
 
 const infer = (expr: Expr, ctx: Context): InferResult => {
   // prettier-ignore
@@ -443,7 +444,7 @@ const inferOp = (expr: EOp, ctx: Context): InferResult => {
   return [tv, [...cs, [tb.tfun(ts, tv, ctx), ops(op, ctx)]]];
 };
 
-const inferRec = (expr: ERec, ctx: Context): InferResult => {
+const inferRec = (expr: ERec, ctx: Context): InferResult<TRec> => {
   const all_cs: Constraint[] = [];
   const properties = expr.properties.map((prop: EProp): TProp => {
     const [t, cs] = infer(prop.value, ctx);
@@ -473,12 +474,16 @@ const inferMem = (expr: EMem, ctx: Context): InferResult => {
 
   // Handles member access on object literals
   if (object.tag === "Rec") {
-    // TODO: should we also infer the type of `object`?
-    const prop = object.properties.find(prop => prop.name === property.name);
+    const tobj = fresh(ctx);
+    const [t, cs] = inferRec(object, ctx);
+    const tMem1 = tb.tmem(tobj, property.name, ctx);
+    const tMem2 = tb.tmem(t, property.name, ctx);
+    const prop = t.properties.find(prop => property.name === prop.name);
     if (!prop) {
       throw new Error(`Record literal doesn't contain property '${property.name}'`);
     }
-    return infer(prop.value, ctx);
+    // This is sufficient since infer() will unify `tobj` with `t`.
+    return [prop.type, [...cs, [tMem1, tMem2]]];
   } else if (object.tag !== "Var") {
     throw new Error("object must be a variable when accessing a member");
   }

@@ -92,47 +92,6 @@ export const unifies = (t1: t.Type, t2: t.Type, ctx: Context): t.Subst => {
     return emptySubst;
   }
 
-  // Checks to see if TCon(Array) exists in ctx.env and if it is
-  // grabs that type and then tries to unify those types.
-  if (t1.tag === "TCon") {
-    const aliasedType = lookupEnv(t1.name, ctx);
-    // All aliased types should be frozen to prevent widening
-    if (aliasedType.frozen) {
-      // TODO:
-      // - check that each property in t2 appears in aliasedType
-      // - create arrays of the values for all of the shared properties
-      // - call unifyMany() with those arrays
-      if (t.isTRec(aliasedType) && t.isTRec(t2)) {
-        if (
-          t2.properties.every((prop) =>
-            aliasedType.properties.find((p) => prop.name === p.name)
-          )
-        ) {
-          const names = t2.properties.map((p) => p.name);
-          const valueTypes1: t.Type[] = names.map((name) => {
-            const prop = aliasedType.properties.find((p) => p.name === name);
-            if (!prop) {
-              // TODO: make this a better error
-              throw new Error("missing prop");
-            }
-            return prop.type;
-          });
-          return unifyMany(
-            valueTypes1,
-            t2.properties.map((p) => p.type),
-            ctx
-          );
-        } else {
-          throw new Error(
-            `${t.print(t1)} is missing some properties from ${t.print(t2)}`
-          );
-        }
-      }
-    }
-  } else if (t2.tag === "TCon") {
-    // TODO: check if t2 an alias.
-  }
-
   // As long as the types haven't been frozen then this is okay
   // NOTE: We may need to add .src info in the future if we notice
   // any places where unexpected type widening is occurring.
