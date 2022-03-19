@@ -464,15 +464,7 @@ const inferVar = (expr: EVar, ctx: Context): InferResult => {
 };
 
 const inferMem = (expr: EMem, ctx: Context): InferResult => {
-  // Start simple, assume the following:
-  // - expr.object and expr.property are both EVar's
-  // Then do the following:
-  // - look up expr.object in ctx.env
-  // - check that the scheme's type is a TRec
-  // - look up expr.property in the scheme's type
-  // - return that type after instantiating it
-  // NOTE: lookupEnv instantiates the object type, but properties
-  // on the object might have their own type parameters.
+  // TODO: handle nested property access, e.g. foo.bar.baz.
   const { object, property } = expr;
 
   if (object.tag !== "Var") {
@@ -487,24 +479,11 @@ const inferMem = (expr: EMem, ctx: Context): InferResult => {
   const type = lookupEnv(object.name, ctx);
 
   if (type.tag === "TVar") {
-    // These should be the same
-    const tp = fresh(ctx); // type of the property within the object
-    const tmem = fresh(ctx); // type of the member expression
-    // TODO: instead of adding a constraint between TRec and type, we should
-    // introudce a TMem type.  This can be used to model MyRecType['myProp'].
-    // It should simplify the code in constraint-solver.ts as well since we
-    // won't have to look at all the properties in each TRec, we'll know exactly
-    // which property to compare.
-    // const tRec = tb.trec([tb.tprop("length", tp)], ctx);
-    // return [
-    //   tmem,
-    //   [
-    //     [tp, tmem],
-    //     [type, tRec],
-    //   ],
-    // ];
-    const tMem = tb.tmem(type, property.name, ctx);
-    return [tMem, [[tmem, tMem]]]; // ?
+    const tobj = fresh(ctx);
+    const tMem1 = tb.tmem(tobj, property.name, ctx);
+    const tMem2 = tb.tmem(type, property.name, ctx);
+    // This is sufficient since inferTMem() will unify `tobj` with `type`.
+    return [tMem2, [[tMem1, tMem2]]];
   } else if (type.tag !== "TCon") {
     throw new Error(`Can't use member access on ${type.tag}`);
   }

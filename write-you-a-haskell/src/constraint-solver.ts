@@ -46,16 +46,24 @@ const unifyMany = (
 };
 
 export const unifies = (t1: t.Type, t2: t.Type, ctx: Context): t.Subst => {
-  if (t.isTMem(t2)) {
-    t2.object; // ?
-    if (t2.object.tag === "TCon") {
-      const aliasedType = lookupEnv(t2.object.name, ctx);
-    } else if (t2.object.tag === "TVar") {
-      const aliasedType = lookupEnv(t2.object.name, ctx);
-    }
-  }
-  if (t.isTVar(t1)) return bind(t1, t2);
-  if (t.isTVar(t2)) return bind(t2, t1);
+  // if (t.isTMem(t2)) {
+  //   t2.object; // ?
+  //   if (t2.object.tag === "TCon") {
+  //     const aliasedType = lookupEnv(t2.object.name, ctx);
+  //   } else if (t2.object.tag === "TVar") {
+  //     const aliasedType = lookupEnv(t2.object.name, ctx);
+  //   }
+  // }
+  // [t1.tag, t2.tag]; // ?
+  // if (t.isTCon(t1) && ctx.env.has(t1.name)) {
+  //   t1 = lookupEnv(t1.name, ctx);
+  //   t2; // ?
+  // }
+  // if (t.isTCon(t2) && ctx.env.has(t2.name)) {
+  //   t2 = lookupEnv(t2.name, ctx);
+  // }
+  if (t.isTVar(t1)) return bind(t1, t2, ctx);
+  if (t.isTVar(t2)) return bind(t2, t1, ctx);
   if (t.isTFun(t1) && t.isTFun(t2)) return unifyFuncs(t1, t2, ctx);
   if (t.isTPrim(t1) && t.isTPrim(t2) && t1.name === t2.name) return emptySubst;
   // TODO: create unifyLiterals()
@@ -73,6 +81,10 @@ export const unifies = (t1: t.Type, t2: t.Type, ctx: Context): t.Subst => {
   if (t.isTUnion(t1) && t.isTUnion(t2)) return unifyUnions(t1, t2, ctx);
   if (t.isTTuple(t1) && t.isTTuple(t2)) return unifyTuples(t1, t2, ctx);
   if (t.isTRec(t1) && t.isTRec(t2)) return unifyRecords(t1, t2, ctx);
+  if (t.isTMem(t1) && t.isTMem(t2) && t1.property === t2.property) {
+    const result = unifies(t1.object, t2.object, ctx);
+    return result; 
+  }
 
   // TODO: we need to specify the .src so that the sub-type check
   // only occurs in valid situations.
@@ -276,8 +288,20 @@ const solver = (u: t.Unifier, ctx: Context): t.Subst => {
   return solver([composeSubs(su1, su), apply(su1, cs0)], ctx);
 };
 
-const bind = (tv: t.TVar, t: t.Type): t.Subst => {
-  t.tag; // ?
+const bind = (tv: t.TVar, t: t.Type, ctx: Context): t.Subst => {
+  if (t.tag === "TMem") {
+    const {object, property} = t;
+    if (object.tag === "TCon") {
+      // Checks if there's an alias for the object.
+      const alias = lookupEnv(object.name, ctx);
+      if (alias.tag === "TRec") {
+        const prop = alias.properties.find(prop => prop.name === property);
+        if (prop) {
+          t = prop.type;
+        }
+      }
+    }
+  }
   if (t.tag === "TVar" && t.id === tv.id) {
     return emptySubst;
   } else if (occursCheck(tv, t)) {

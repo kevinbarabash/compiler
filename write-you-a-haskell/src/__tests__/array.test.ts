@@ -115,7 +115,7 @@ describe("Array", () => {
     expect(print(result)).toMatchInlineSnapshot(`"Array<Array<string>>"`);
   });
 
-  test.only("member access on TVar that doesn't exist in env", () => {
+  test("member access on TVar that doesn't exist in env", () => {
     const ctx = tb.createCtx();
 
     let env: Env = Map();
@@ -130,6 +130,7 @@ describe("Array", () => {
       sb.lam(["elem", "index", "array"], sb.mem("array", "length")),
     ]);
     const result = inferExpr(env, expr, ctx.state);
+    print(result);
 
     expect(print(result)).toMatchInlineSnapshot(`"Array<number>"`);
   });
