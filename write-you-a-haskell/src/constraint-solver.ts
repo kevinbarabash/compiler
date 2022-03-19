@@ -46,22 +46,6 @@ const unifyMany = (
 };
 
 export const unifies = (t1: t.Type, t2: t.Type, ctx: Context): t.Subst => {
-  // if (t.isTMem(t2)) {
-  //   t2.object; // ?
-  //   if (t2.object.tag === "TCon") {
-  //     const aliasedType = lookupEnv(t2.object.name, ctx);
-  //   } else if (t2.object.tag === "TVar") {
-  //     const aliasedType = lookupEnv(t2.object.name, ctx);
-  //   }
-  // }
-  // [t1.tag, t2.tag]; // ?
-  // if (t.isTCon(t1) && ctx.env.has(t1.name)) {
-  //   t1 = lookupEnv(t1.name, ctx);
-  //   t2; // ?
-  // }
-  // if (t.isTCon(t2) && ctx.env.has(t2.name)) {
-  //   t2 = lookupEnv(t2.name, ctx);
-  // }
   if (t.isTVar(t1)) return bind(t1, t2, ctx);
   if (t.isTVar(t2)) return bind(t2, t1, ctx);
   if (t.isTFun(t1) && t.isTFun(t2)) return unifyFuncs(t1, t2, ctx);
