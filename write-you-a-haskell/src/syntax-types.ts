@@ -14,9 +14,10 @@ export type ELam = { tag: "Lam"; args: readonly string[]; body: Expr; async?: bo
 export type ELet = { tag: "Let"; pattern: Pattern; value: Expr; body: Expr };
 export type ELit = { tag: "Lit"; value: Literal };
 export type EOp = { tag: "Op"; op: Binop; left: Expr; right: Expr };
-export type ERec = { tag: "Rec"; properties: readonly EProp[] };
+export type ERec = { tag: "Rec"; properties: readonly EProp[] }; // rename to EObj
 export type ETuple = { tag: "Tuple"; elements: readonly Expr[] };
-export type EVar = { tag: "Var"; name: string };
+export type EVar = { tag: "Var"; name: string }; // rename to EIdent?
+export type EMem = { tag: "Mem"; object: Expr; property: Expr };
 
 export type Expr =
   | EApp
@@ -29,7 +30,8 @@ export type Expr =
   | EOp
   | ERec
   | ETuple
-  | EVar;
+  | EVar
+  | EMem;
 
 export type EProp = { tag: "EProp"; name: string; value: Expr };
 

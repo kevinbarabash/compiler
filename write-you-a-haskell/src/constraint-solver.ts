@@ -1,6 +1,7 @@
 import { Map, Set } from "immutable";
 import { assert } from "console";
 
+import { Context, lookupEnv } from "./context";
 import * as t from "./type-types";
 import * as tb from "./type-builders";
 import { apply, ftv } from "./util";
@@ -20,7 +21,7 @@ const emptySubst: t.Subst = Map();
 
 export const runSolve = (
   cs: readonly t.Constraint[],
-  ctx: t.Context
+  ctx: Context
 ): t.Subst => {
   return solver([emptySubst, cs], ctx);
 };
@@ -28,7 +29,7 @@ export const runSolve = (
 const unifyMany = (
   ts1: readonly t.Type[],
   ts2: readonly t.Type[],
-  ctx: t.Context
+  ctx: Context
 ): t.Subst => {
   if (ts1.length !== ts2.length) {
     throw new UnificationMismatch(ts1, ts2);
@@ -44,7 +45,7 @@ const unifyMany = (
   return composeSubs(su2, su1);
 };
 
-export const unifies = (t1: t.Type, t2: t.Type, ctx: t.Context): t.Subst => {
+export const unifies = (t1: t.Type, t2: t.Type, ctx: Context): t.Subst => {
   if (t.isTVar(t1)) return bind(t1, t2);
   if (t.isTVar(t2)) return bind(t2, t1);
   if (t.isTFun(t1) && t.isTFun(t2)) return unifyFuncs(t1, t2, ctx);
@@ -71,6 +72,47 @@ export const unifies = (t1: t.Type, t2: t.Type, ctx: t.Context): t.Subst => {
     return emptySubst;
   }
 
+  // Checks to see if TCon(Array) exists in ctx.env and if it is
+  // grabs that type and then tries to unify those types.
+  if (t1.tag === "TCon") {
+    const aliasedType = lookupEnv(t1.name, ctx);
+    // All aliased types should be frozen to prevent widening
+    if (aliasedType.frozen) {
+      // TODO:
+      // - check that each property in t2 appears in aliasedType
+      // - create arrays of the values for all of the shared properties
+      // - call unifyMany() with those arrays
+      if (t.isTRec(aliasedType) && t.isTRec(t2)) {
+        if (
+          t2.properties.every((prop) =>
+            aliasedType.properties.find((p) => prop.name === p.name)
+          )
+        ) {
+          const names = t2.properties.map((p) => p.name);
+          const valueTypes1: t.Type[] = names.map((name) => {
+            const prop = aliasedType.properties.find((p) => p.name === name);
+            if (!prop) {
+              // TODO: make this a better error
+              throw new Error("missing prop");
+            }
+            return prop.type;
+          });
+          return unifyMany(
+            valueTypes1,
+            t2.properties.map((p) => p.type),
+            ctx
+          );
+        } else {
+          throw new Error(
+            `${t.print(t1)} is missing some properties from ${t.print(t2)}`
+          );
+        }
+      }
+    }
+  } else if (t2.tag === "TCon") {
+    // TODO: check if t2 an alias.
+  }
+
   // As long as the types haven't been frozen then this is okay
   // NOTE: We may need to add .src info in the future if we notice
   // any places where unexpected type widening is occurring.
@@ -81,7 +123,7 @@ export const unifies = (t1: t.Type, t2: t.Type, ctx: t.Context): t.Subst => {
   throw new UnificationFail(t1, t2);
 };
 
-const unifyFuncs = (t1: t.TFun, t2: t.TFun, ctx: t.Context): t.Subst => {
+const unifyFuncs = (t1: t.TFun, t2: t.TFun, ctx: Context): t.Subst => {
   // infer() only ever creates a Lam node on the left side of a constraint
   // and an App on the right side of a constraint so this check is sufficient.
   if (t1.src === "Lam" && t2.src === "App") {
@@ -143,12 +185,15 @@ const unifyFuncs = (t1: t.TFun, t2: t.TFun, ctx: t.Context): t.Subst => {
     }
   }
 
+  t1.ret; // ?
+  t2.ret; // ?
+
   // TODO: add support for optional params
   // we can model optional params as union types, e.g. int | void
   return unifyMany([...t1.args, t1.ret], [...t2.args, t2.ret], ctx);
 };
 
-const unifyRecords = (t1: t.TRec, t2: t.TRec, ctx: t.Context): t.Subst => {
+const unifyRecords = (t1: t.TRec, t2: t.TRec, ctx: Context): t.Subst => {
   const keys1 = t1.properties.map((prop) => prop.name);
   const keys2 = t2.properties.map((prop) => prop.name);
 
@@ -192,7 +237,7 @@ const unifyRecords = (t1: t.TRec, t2: t.TRec, ctx: t.Context): t.Subst => {
   return unifyMany(ot1, ot2, ctx);
 };
 
-const unifyTuples = (t1: t.TTuple, t2: t.TTuple, ctx: t.Context): t.Subst => {
+const unifyTuples = (t1: t.TTuple, t2: t.TTuple, ctx: Context): t.Subst => {
   if (t1.types.length !== t2.types.length) {
     throw new UnificationFail(t1, t2);
   }
@@ -201,7 +246,7 @@ const unifyTuples = (t1: t.TTuple, t2: t.TTuple, ctx: t.Context): t.Subst => {
   return unifyMany(t1.types, t2.types, ctx);
 };
 
-const unifyUnions = (t1: t.TUnion, t2: t.TUnion, ctx: t.Context): t.Subst => {
+const unifyUnions = (t1: t.TUnion, t2: t.TUnion, ctx: Context): t.Subst => {
   // Assume that the union types have been normalized by this point
   // This only works if the types that make up the unions are ordered
   // consistently.  Is there a way to do this?
@@ -213,7 +258,7 @@ const composeSubs = (s1: t.Subst, s2: t.Subst): t.Subst => {
 };
 
 // Unification solver
-const solver = (u: t.Unifier, ctx: t.Context): t.Subst => {
+const solver = (u: t.Unifier, ctx: Context): t.Subst => {
   const [su, cs] = u;
   if (cs.length === 0) {
     return su;
@@ -249,7 +294,7 @@ const isSubType = (sub: t.Type, sup: t.Type): boolean => {
 
   // TODO: handle type aliases like Array<T> and Promise<T>
   // NOTE: Promise<string> | Promise<number> can be used in place of a
-  // Promise<string | number> because both Promise<string> and Promise<number> 
+  // Promise<string | number> because both Promise<string> and Promise<number>
   // are subtypes of Promise<string | number>.
 
   return false;
@@ -261,13 +306,9 @@ const flattenUnion = (type: t.Type): t.Type[] => {
   } else {
     return [type];
   }
-}
+};
 
-export const computeUnion = (
-  t1: t.Type,
-  t2: t.Type,
-  ctx: t.Context
-): t.Type => {
+export const computeUnion = (t1: t.Type, t2: t.Type, ctx: Context): t.Type => {
   const names: string[] = [];
   // Flattens types
   const types = [...flattenUnion(t1), ...flattenUnion(t2)];
@@ -279,18 +320,18 @@ export const computeUnion = (
   // Subsumes literals into primitives
   for (const primType of primTypes) {
     if (primType.name === "number") {
-      litTypes = litTypes.filter(type => type.value.tag !== "LNum");
+      litTypes = litTypes.filter((type) => type.value.tag !== "LNum");
     } else if (primType.name === "boolean") {
-      litTypes = litTypes.filter(type => type.value.tag !== "LBool");
+      litTypes = litTypes.filter((type) => type.value.tag !== "LBool");
     } else if (primType.name === "string") {
-      litTypes = litTypes.filter(type => type.value.tag !== "LStr");
+      litTypes = litTypes.filter((type) => type.value.tag !== "LStr");
     }
   }
 
   // Replaces `true | false` with `boolean`
-  const boolTypes = litTypes.filter(type => type.value.tag === "LBool");
+  const boolTypes = litTypes.filter((type) => type.value.tag === "LBool");
   if (boolTypes.length === 2) {
-    litTypes = litTypes.filter(type => type.value.tag !== "LBool");
+    litTypes = litTypes.filter((type) => type.value.tag !== "LBool");
     // It's safe to push without checking if primTypes already contains
     // `boolean` because if it did then `boolTypes` would've been empty.
     primTypes.push(tb.tprim("boolean", ctx));
@@ -302,6 +343,24 @@ export const computeUnion = (
   //   if each element is a subtype of T then a tuple of those elements is a subtype
   //   of Array<T>.
   //   NOTE: TypeScript doesn't do this yet.
+  // - need to introduce type aliases to model Array<T>, Promise<T>, etc.
+  //   in particular we want to support the following:
+  //   type Array<T> = {
+  //     get length: number,
+  //     map: <U>((T, number, Array<T>) => U) => Array<U>,
+  //     ...
+  //   }
+  // - start by trying to build a type that represents the rhs, it should look
+  //   something like:
+  //   <T>{lenght: number, map: <U>((T, number, Array<T>) => U) => Array<U>}
+  //
+  // What do we want to do about element access on arrays?
+  // 1. return Maybe<T> (or T | undefined) and force people to check the result
+  // 2. have a version that throws if we exceed the bounds of the array
+  // 3. have an unsafe version that silently return undefined if we exceed the bounds
+  //
+  // Rescript does 2.
+  // TypeScript does 3.
 
   const filteredTypes = [...primTypes, ...litTypes];
 
@@ -314,7 +373,7 @@ export const computeUnion = (
 
 const nubPrimTypes = (primTypes: readonly t.TPrim[]): t.TPrim[] => {
   const names: t.PrimName[] = [];
-  return primTypes.filter(pt => {
+  return primTypes.filter((pt) => {
     if (!names.includes(pt.name)) {
       names.push(pt.name);
       return true;
@@ -325,18 +384,18 @@ const nubPrimTypes = (primTypes: readonly t.TPrim[]): t.TPrim[] => {
 
 const nubLitTypes = (litTypes: readonly t.TLit[]): t.TLit[] => {
   const values: (number | string | boolean)[] = [];
-  return litTypes.filter(lt => {
+  return litTypes.filter((lt) => {
     if (!values.includes(lt.value.value)) {
       values.push(lt.value.value);
       return true;
     }
     return false;
   });
-}
+};
 
 // Eventually we'll want to be able to widen more than two at the same
 // time if we need to widen types as part of pattern matching.
-export const widenTypes = (t1: t.Type, t2: t.Type, ctx: t.Context): t.Subst => {
+export const widenTypes = (t1: t.Type, t2: t.Type, ctx: Context): t.Subst => {
   assert(!t1.frozen, "t1 should not be frozen when calling widenTypes");
   assert(!t2.frozen, "t2 should not be frozen when calling widenTypes");
 

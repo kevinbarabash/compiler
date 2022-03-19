@@ -1,6 +1,7 @@
 import { Map, Set } from "immutable";
 
-import { Type, TVar, Subst, Constraint, Scheme, Env, isTLit } from "./type-types";
+import { Env } from "./context";
+import { Type, TVar, Subst, Constraint, Scheme, isTLit } from "./type-types";
 import {
   isTCon,
   isTVar,

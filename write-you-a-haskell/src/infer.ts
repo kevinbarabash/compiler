@@ -1,17 +1,15 @@
 import { Map } from "immutable";
 
+import { Env, Context, State, newId } from "./context";
 import { UnboundVariable } from "./errors";
 import { freeze, scheme } from "./type-types";
 import {
   Constraint,
-  Env,
   Scheme,
   Subst,
   TCon,
   TVar,
   Type,
-  Context,
-  State,
   TProp,
   TPrim,
   print,
@@ -32,7 +30,7 @@ import {
   EIf,
   EVar,
   Pattern,
-  Literal,
+  EMem,
 } from "./syntax-types";
 import { zip, apply, ftv, assertUnreachable } from "./util";
 import { runSolve } from "./constraint-solver";
@@ -97,7 +95,7 @@ const normalize = (sc: Scheme): Scheme => {
       case "TFun":
         return [...type.args.flatMap(fv), ...fv(type.ret)];
       case "TCon":
-        return []; // TODO: handle type params
+        return [...type.params.flatMap(fv)];
       case "TUnion":
         return type.types.flatMap(fv);
       case "TRec":
@@ -119,6 +117,7 @@ const normalize = (sc: Scheme): Scheme => {
     return { tag: "TVar", id: key, name: letterFromIndex(index) };
   });
   const mapping: Record<number, TVar> = Object.fromEntries(zip(keys, values));
+  mapping; // ?
 
   const normType = (type: Type): Type => {
     switch (type.tag) {
@@ -131,6 +130,9 @@ const normalize = (sc: Scheme): Scheme => {
         };
       }
       case "TCon":
+        // TODO: Lookup the definition of Array, Promise, etc.
+        // TODO: fix - type variable s not in signature Array<s>
+        // s is clearly in Array<s>
         return {
           ...type,
           params: type.params.map(normType),
@@ -140,7 +142,9 @@ const normalize = (sc: Scheme): Scheme => {
         if (replacement) {
           return replacement;
         } else {
-          throw new Error("type variable not in signature");
+          throw new Error(
+            `type variable ${print(type)} not in signature ${print(body)}`
+          );
         }
       }
       case "TUnion": {
@@ -195,11 +199,12 @@ const letterFromIndex = (index: number): string =>
 
 // TODO: defer naming until print time
 export const fresh = (ctx: Context): TVar => {
-  ctx.state.count++;
+  const id = newId(ctx);
+  // ctx.state.count++;
   return {
     tag: "TVar",
-    id: ctx.state.count,
-    name: letterFromIndex(ctx.state.count),
+    id: id,
+    name: letterFromIndex(id),
   };
 };
 
@@ -242,6 +247,7 @@ const infer = (expr: Expr, ctx: Context): InferResult => {
     case "Await": return inferAwait(expr, ctx);
     case "Rec":   return inferRec  (expr, ctx);
     case "Tuple": return inferTuple(expr, ctx);
+    case "Mem":   return inferMem  (expr, ctx);
     default: assertUnreachable(expr);
   }
 };
@@ -450,6 +456,94 @@ const inferVar = (expr: EVar, ctx: Context): InferResult => {
   return [t, []];
 };
 
+const inferMem = (expr: EMem, ctx: Context): InferResult => {
+  // Start simple, assume the following:
+  // - expr.object and expr.property are both EVar's
+  // Then do the following:
+  // - look up expr.object in ctx.env
+  // - check that the scheme's type is a TRec
+  // - look up expr.property in the scheme's type
+  // - return that type after instantiating it
+  // NOTE: lookupEnv instantiates the object type, but properties
+  // on the object might have their own type parameters.
+  const { object, property } = expr;
+
+  if (object.tag !== "Var") {
+    throw new Error("object must be a variable when accessing a member");
+  }
+  if (property.tag !== "Var") {
+    throw new Error("property must be a variable when accessing a member");
+  }
+
+  // TODO: have separate namespaces for types and values so that we can
+  // support TypeScript's ability to use the same identifier for both.
+  const type = lookupEnv(object.name, ctx);
+
+  if (type.tag === "TVar") {
+    // These should be the same
+    const tp = fresh(ctx); // type of the property within the object
+    const tmem = fresh(ctx); // type of the member expression
+    // TODO: instead of adding a constraint between TRec and type, we should
+    // introudce a TMem type.  This can be used to model MyRecType['myProp'].
+    // It should simplify the code in constraint-solver.ts as well since we
+    // won't have to look at all the properties in each TRec, we'll know exactly
+    // which property to compare.
+    const tRec = tb.trec([tb.tprop("length", tp)], ctx);
+    return [
+      tmem,
+      [
+        [tp, tmem],
+        [type, tRec],
+      ],
+    ];
+  } else if (type.tag !== "TCon") {
+    throw new Error(`Can't use member access on ${type.tag}`);
+  }
+
+  const aliasedScheme = ctx.env.get(type.name);
+  if (!aliasedScheme) {
+    throw new Error(`No type named ${type.name} in environment`);
+  }
+
+  if (aliasedScheme.qualifiers.length !== type.params.length) {
+    throw new Error(
+      `number of type params in ${object.name} doesn't match those in ${type.name}`
+    );
+  }
+
+  // Creates a bunch of substitutions from qualifier ids to type params
+  const subs1: Subst = Map(
+    zip(aliasedScheme.qualifiers, type.params).map(([q, param]) => {
+      // We need a fresh copy of the params so we don't accidentally end
+      // sharing state between the type params.
+      const freshParam = { ...param, id: newId(ctx) };
+      return [q.id, freshParam];
+    })
+  );
+  // Applies the substitutions to get a type matches the type alias we looked up
+  const aliasedType = apply(subs1, aliasedScheme.type);
+
+  if (aliasedType.tag !== "TRec") {
+    throw new Error(`Can't use member access on ${aliasedType.tag}`);
+  }
+
+  const prop = aliasedType.properties.find(
+    (prop) => prop.name === property.name
+  );
+
+  if (!prop) {
+    throw new Error(
+      `${property.name} property doesn't exist on ${print(aliasedType)}`
+    );
+  }
+
+  // Replaces all free variables with fresh ones
+  const subs2: Subst = Map([...ftv(prop.type)].map((v) => [v.id, fresh(ctx)]));
+  const resultType = apply(subs2, prop.type);
+
+  return [resultType, []];
+};
+
 const inferMany = (
   exprs: readonly Expr[],
   ctx: Context
@@ -464,22 +558,13 @@ const inferMany = (
   return [ts, all_cs];
 };
 
+// NOTE: It's okay to reuse tNum here because the type is frozen.
 const tNum: TPrim = {
   tag: "TPrim",
   id: -1,
   name: "number",
   frozen: true,
 };
-
-// const tBool: TPrim = {
-//   tag: "TPrim",
-//   id: -1,
-//   name: "boolean",
-//   frozen: true,
-// };
-
-// NOTE: It's okay for tNum and tBool to share the same id because
-// they only used in the ops which are all frozen.
 
 // NOTES:
 // - The params are frozen and should only unify if the args are sub-types.
@@ -488,29 +573,13 @@ const tNum: TPrim = {
 const ops = (op: Binop, ctx: Context): Type => {
   switch (op) {
     case "Add":
-      return tb.tfun(
-        [tNum, tNum],
-        tb.tprim("number", ctx),
-        ctx
-      );
+      return tb.tfun([tNum, tNum], tb.tprim("number", ctx), ctx);
     case "Mul":
-      return tb.tfun(
-        [tNum, tNum],
-        tb.tprim("number", ctx),
-        ctx
-      );
+      return tb.tfun([tNum, tNum], tb.tprim("number", ctx), ctx);
     case "Sub":
-      return tb.tfun(
-        [tNum, tNum],
-        tb.tprim("number", ctx),
-        ctx
-      );
+      return tb.tfun([tNum, tNum], tb.tprim("number", ctx), ctx);
     case "Eql":
-      return tb.tfun(
-        [tNum, tNum],
-        tb.tprim("boolean", ctx),
-        ctx
-      );
+      return tb.tfun([tNum, tNum], tb.tprim("boolean", ctx), ctx);
   }
 };
 

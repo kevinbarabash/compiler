@@ -2,7 +2,8 @@ import { Map } from "immutable";
 
 import { inferExpr } from "../infer";
 import { Expr } from "../syntax-types";
-import { Env, print, scheme } from "../type-types";
+import { Env } from "../context";
+import { print, scheme } from "../type-types";
 import * as sb from "../syntax-builders";
 import * as tb from "../type-builders";
 

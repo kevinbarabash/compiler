@@ -4,7 +4,8 @@ import { inferExpr } from "../infer";
 import { Expr } from "../syntax-types";
 import * as sb from "../syntax-builders";
 import * as tb from "../type-builders";
-import { Env, freeze, print, scheme, Scheme } from "../type-types";
+import { Env } from "../context";
+import { freeze, print, scheme, Scheme } from "../type-types";
 
 describe("tuple", () => {
   test("can infer a tuple containing different types", () => {
@@ -71,9 +72,7 @@ describe("tuple", () => {
         sb.tuple([sb.num(5), sb.str("hello"), sb.bool(true)]),
       ]);
 
-      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Couldn't unify [b, c] with [5, \\"hello\\", true]"`
-      );
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(`"Couldn't unify [a, b] with [5, \\"hello\\", true]"`);
     });
 
     test("arg tuple has few many elements", () => {
@@ -82,9 +81,7 @@ describe("tuple", () => {
 
       const expr: Expr = sb.app(sb._var("snd"), [sb.tuple([sb.num(5)])]);
 
-      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Couldn't unify [b, c] with [5]"`
-      );
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(`"Couldn't unify [a, b] with [5]"`);
     });
 
     test("element mismatch", () => {
