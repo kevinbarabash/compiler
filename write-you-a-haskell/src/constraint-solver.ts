@@ -288,26 +288,28 @@ const solver = (u: t.Unifier, ctx: Context): t.Subst => {
   return solver([composeSubs(su1, su), apply(su1, cs0)], ctx);
 };
 
-const bind = (tv: t.TVar, t: t.Type, ctx: Context): t.Subst => {
-  if (t.tag === "TMem") {
-    const {object, property} = t;
+const bind = (tv: t.TVar, type: t.Type, ctx: Context): t.Subst => {
+  if (type.tag === "TMem") {
+    const {object, property} = type;
     if (object.tag === "TCon") {
       // Checks if there's an alias for the object.
       const alias = lookupEnv(object.name, ctx);
       if (alias.tag === "TRec") {
         const prop = alias.properties.find(prop => prop.name === property);
         if (prop) {
-          t = prop.type;
+          type = prop.type;
+        } else {
+          throw new Error(`${t.print(alias)} doesn't contain ${property} property`)
         }
       }
     }
   }
-  if (t.tag === "TVar" && t.id === tv.id) {
+  if (type.tag === "TVar" && type.id === tv.id) {
     return emptySubst;
-  } else if (occursCheck(tv, t)) {
-    throw new InfiniteType(tv, t);
+  } else if (occursCheck(tv, type)) {
+    throw new InfiniteType(tv, type);
   } else {
-    return Map([[tv.id, t]]);
+    return Map([[tv.id, type]]);
   }
 };
 

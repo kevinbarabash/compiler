@@ -4,8 +4,8 @@ import { inferExpr } from "../infer";
 import { Expr } from "../syntax-types";
 import * as sb from "../syntax-builders";
 import * as tb from "../type-builders";
-import { Env } from "../context";
-import { scheme } from "../type-types";
+import { Env, Context } from "../context";
+import { Scheme, scheme, freeze, print } from "../type-types";
 
 describe("Member access", () => {
   describe("errors", () => {
@@ -55,7 +55,7 @@ describe("Member access", () => {
 
       expect(() =>
         inferExpr(env, expr, ctx.state)
-      ).toThrowErrorMatchingInlineSnapshot(`"Can't use member access on TRec"`);
+      ).toThrowErrorMatchingInlineSnapshot(`"{} doesn't contain property bar"`);
     });
 
     test("access property on TCon that hasn't been defined fails", () => {
@@ -131,11 +131,86 @@ describe("Member access", () => {
         `"Can't use member access on TPrim"`
       );
     });
+
+    test("{foo: 'hello'}['bar'] throws", () => {
+      const ctx = tb.createCtx();
+      const env: Env = Map();
+
+      const expr: Expr = {
+        tag: "Mem",
+        object: sb.rec([sb.prop("foo", sb.str("hello"))]),
+        property: sb._var("bar"),
+      };
+
+      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+        `"Record literal doesn't contain property 'bar'"`
+      );
+    });
   });
 
-  // TODO: test TMem type once it's been created
+  describe("types", () => {
+    test("Array['length'] -> number", () => {
+      const ctx = tb.createCtx();
+      let env: Env = Map();
+      env = env.set("Array", createArrayScheme(ctx));
 
-  test("should pass", () => {
-    expect(true).toBe(true);
+      const expr: Expr = sb.mem("Array", "length");
+      const result = inferExpr(env, expr);
+
+      expect(print(result)).toMatchInlineSnapshot(`"number"`);
+    });
+
+    test("{foo: 'hello'}['foo'] -> 'hello'", () => {
+      const ctx = tb.createCtx();
+      const env: Env = Map();
+
+      const expr: Expr = {
+        tag: "Mem",
+        object: sb.rec([sb.prop("foo", sb.str("hello"))]),
+        property: sb._var("foo"),
+      };
+
+      const result = inferExpr(env, expr);
+
+      expect(print(result)).toMatchInlineSnapshot(`"\\"hello\\""`);
+    });
   });
 });
+
+const createArrayScheme = (ctx: Context): Scheme => {
+  const tVar = tb.tvar("T", ctx);
+  const uVar = tb.tvar("U", ctx);
+  const sc = scheme(
+    [tVar],
+    tb.trec(
+      [
+        tb.tprop("length", tb.tprim("number", ctx)),
+        tb.tprop(
+          "map",
+          // TODO: properties need to be able to accept Schemes
+          // as well as types.
+          tb.tfun(
+            [
+              tb.tfun(
+                [
+                  tVar,
+                  tb.tprim("number", ctx),
+                  // TODO: how do we handle record types that
+                  // reference themselves.
+                  tb.tcon("Array", [tVar], ctx),
+                ],
+                uVar,
+                ctx
+              ),
+            ],
+            tb.tcon("Array", [uVar], ctx),
+            ctx
+          )
+        ),
+      ],
+      ctx
+    )
+  );
+  freeze(sc.type);
+  return sc;
+};

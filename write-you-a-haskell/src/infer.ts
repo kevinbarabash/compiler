@@ -466,12 +466,21 @@ const inferVar = (expr: EVar, ctx: Context): InferResult => {
 const inferMem = (expr: EMem, ctx: Context): InferResult => {
   // TODO: handle nested property access, e.g. foo.bar.baz.
   const { object, property } = expr;
-
-  if (object.tag !== "Var") {
-    throw new Error("object must be a variable when accessing a member");
-  }
+  
   if (property.tag !== "Var") {
     throw new Error("property must be a variable when accessing a member");
+  }
+
+  // Handles member access on object literals
+  if (object.tag === "Rec") {
+    // TODO: should we also infer the type of `object`?
+    const prop = object.properties.find(prop => prop.name === property.name);
+    if (!prop) {
+      throw new Error(`Record literal doesn't contain property '${property.name}'`);
+    }
+    return infer(prop.value, ctx);
+  } else if (object.tag !== "Var") {
+    throw new Error("object must be a variable when accessing a member");
   }
 
   // TODO: have separate namespaces for types and values so that we can
@@ -484,6 +493,12 @@ const inferMem = (expr: EMem, ctx: Context): InferResult => {
     const tMem2 = tb.tmem(type, property.name, ctx);
     // This is sufficient since inferTMem() will unify `tobj` with `type`.
     return [tMem2, [[tMem1, tMem2]]];
+  } else if (type.tag === "TRec") {
+    const prop = type.properties.find(prop => prop.name === property.name);
+    if (!prop) {
+      throw new Error(`${print(type)} doesn't contain property ${property.name}`);
+    }
+    return [prop.type, []];
   } else if (type.tag !== "TCon") {
     throw new Error(`Can't use member access on ${type.tag}`);
   }
