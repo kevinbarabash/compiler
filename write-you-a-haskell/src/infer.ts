@@ -1,17 +1,15 @@
 import { Map } from "immutable";
 
+import { Env, Context, State, newId } from "./context";
 import { UnboundVariable } from "./errors";
 import { freeze, scheme } from "./type-types";
 import {
   Constraint,
-  Env,
   Scheme,
   Subst,
   TCon,
   TVar,
   Type,
-  Context,
-  State,
   TProp,
   TPrim,
   print,
@@ -144,7 +142,9 @@ const normalize = (sc: Scheme): Scheme => {
         if (replacement) {
           return replacement;
         } else {
-          throw new Error(`type variable ${print(type)} not in signature ${print(body)}`);
+          throw new Error(
+            `type variable ${print(type)} not in signature ${print(body)}`
+          );
         }
       }
       case "TUnion": {
@@ -199,7 +199,7 @@ const letterFromIndex = (index: number): string =>
 
 // TODO: defer naming until print time
 export const fresh = (ctx: Context): TVar => {
-  const id = tb.newId(ctx);
+  const id = newId(ctx);
   // ctx.state.count++;
   return {
     tag: "TVar",
@@ -480,32 +480,22 @@ const inferMem = (expr: EMem, ctx: Context): InferResult => {
   const type = lookupEnv(object.name, ctx);
 
   if (type.tag === "TVar") {
-    object.name; // ?
-    property.name; // ?
-    // constraints:
-    // return [t1, [type, TRec({length: t1})]]
-    // the constraint is supposed to represent that type is a subtype of
-    // the TRec we created here, so any object type that has a .length property.
-    // what if the property has type params?
-    // I don't think it matters at this stage since t1 will later
-    // be reconciled against the parameterized type if it needs to be.
-
-    // Each time we run inferExpr() we start ctx.state.count at 0.
-    // It's likely that there are some conflicting id's with a previous
-    // run of inferExpr();
-    // TODO: don't reset the count between runs of inferExpr.
-
-    //  ((string, number, Array<string>) => b) => Array<b> === ((c, d, e) => h) => k
-    //  unifying: e with {length: h}
-    //  but what's happening to the [Array<string>, e] constraint?
-
-    ctx.state.count++; // incrementing the count should affect things but it does
-    const tp = fresh(ctx); // .length
-    const tmem = fresh(ctx); // array.length
-    // tmem should be a number primitive, but we don't have enough info at this
-    // point to know that.
+    // These should be the same
+    const tp = fresh(ctx); // type of the property within the object
+    const tmem = fresh(ctx); // type of the member expression
+    // TODO: instead of adding a constraint between TRec and type, we should
+    // introudce a TMem type.  This can be used to model MyRecType['myProp'].
+    // It should simplify the code in constraint-solver.ts as well since we
+    // won't have to look at all the properties in each TRec, we'll know exactly
+    // which property to compare.
     const tRec = tb.trec([tb.tprop("length", tp)], ctx);
-    return [tmem, [[tp, tmem], [type, tRec]]];
+    return [
+      tmem,
+      [
+        [tp, tmem],
+        [type, tRec],
+      ],
+    ];
   } else if (type.tag !== "TCon") {
     throw new Error(`Can't use member access on ${type.tag}`);
   }
@@ -526,7 +516,7 @@ const inferMem = (expr: EMem, ctx: Context): InferResult => {
     zip(aliasedScheme.qualifiers, type.params).map(([q, param]) => {
       // We need a fresh copy of the params so we don't accidentally end
       // sharing state between the type params.
-      const freshParam = { ...param, id: tb.newId(ctx) };
+      const freshParam = { ...param, id: newId(ctx) };
       return [q.id, freshParam];
     })
   );
@@ -537,7 +527,9 @@ const inferMem = (expr: EMem, ctx: Context): InferResult => {
     throw new Error(`Can't use member access on ${aliasedType.tag}`);
   }
 
-  const prop = aliasedType.properties.find((prop) => prop.name === property.name);
+  const prop = aliasedType.properties.find(
+    (prop) => prop.name === property.name
+  );
 
   if (!prop) {
     throw new Error(
@@ -546,7 +538,7 @@ const inferMem = (expr: EMem, ctx: Context): InferResult => {
   }
 
   // Replaces all free variables with fresh ones
-  const subs2: Subst = Map([...ftv(prop.type)].map(v => [v.id, fresh(ctx)]));
+  const subs2: Subst = Map([...ftv(prop.type)].map((v) => [v.id, fresh(ctx)]));
   const resultType = apply(subs2, prop.type);
 
   return [resultType, []];
@@ -566,22 +558,13 @@ const inferMany = (
   return [ts, all_cs];
 };
 
+// NOTE: It's okay to reuse tNum here because the type is frozen.
 const tNum: TPrim = {
   tag: "TPrim",
   id: -1,
   name: "number",
   frozen: true,
 };
-
-// const tBool: TPrim = {
-//   tag: "TPrim",
-//   id: -1,
-//   name: "boolean",
-//   frozen: true,
-// };
-
-// NOTE: It's okay for tNum and tBool to share the same id because
-// they only used in the ops which are all frozen.
 
 // NOTES:
 // - The params are frozen and should only unify if the args are sub-types.

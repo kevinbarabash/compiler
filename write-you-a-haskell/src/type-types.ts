@@ -139,21 +139,7 @@ export const isTPrim = (t: Type): t is TPrim => t.tag === "TPrim";
 export const isTLit = (t: Type): t is TLit => t.tag === "TLit";
 export const isScheme = (t: any): t is Scheme => t.tag === "Forall";
 
-// Env is a map of all the current schemes (qualified types) that
-// are in scope.
-export type Env = Map<string, Scheme>;
-
 export type Constraint = readonly [Type, Type];
 export type Unifier = readonly [Subst, readonly Constraint[]];
 
 export type Subst = Map<number, Type>;
-
-export type State = {
-  count: number;
-};
-
-export type Context = {
-  env: Env;
-  state: State;
-  async?: boolean;
-};

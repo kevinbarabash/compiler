@@ -4,7 +4,8 @@ import { inferExpr } from "../infer";
 import { Expr } from "../syntax-types";
 import * as sb from "../syntax-builders";
 import * as tb from "../type-builders";
-import { Env, freeze, print, scheme, Scheme } from "../type-types";
+import { Env } from "../context";
+import { freeze, print, scheme, Scheme } from "../type-types";
 
 describe("record", () => {
   test("can infer a tuple containing different types", () => {
