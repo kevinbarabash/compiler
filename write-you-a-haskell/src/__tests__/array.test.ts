@@ -130,7 +130,6 @@ describe("Array", () => {
       sb.lam(["elem", "index", "array"], sb.mem("array", "length")),
     ]);
     const result = inferExpr(env, expr, ctx.state);
-    print(result);
 
     expect(print(result)).toMatchInlineSnapshot(`"Array<number>"`);
   });
