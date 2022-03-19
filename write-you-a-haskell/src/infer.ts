@@ -106,6 +106,8 @@ const normalize = (sc: Scheme): Scheme => {
         return [];
       case "TLit":
         return [];
+      case "TMem":
+        return fv(type.object);
       default:
         assertUnreachable(type);
     }
@@ -117,7 +119,6 @@ const normalize = (sc: Scheme): Scheme => {
     return { tag: "TVar", id: key, name: letterFromIndex(index) };
   });
   const mapping: Record<number, TVar> = Object.fromEntries(zip(keys, values));
-  mapping; // ?
 
   const normType = (type: Type): Type => {
     switch (type.tag) {
@@ -173,6 +174,12 @@ const normalize = (sc: Scheme): Scheme => {
       }
       case "TLit": {
         return type;
+      }
+      case "TMem": {
+        return {
+          ...type,
+          object: normType(type.object),
+        };
       }
       default:
         assertUnreachable(type);
@@ -488,14 +495,16 @@ const inferMem = (expr: EMem, ctx: Context): InferResult => {
     // It should simplify the code in constraint-solver.ts as well since we
     // won't have to look at all the properties in each TRec, we'll know exactly
     // which property to compare.
-    const tRec = tb.trec([tb.tprop("length", tp)], ctx);
-    return [
-      tmem,
-      [
-        [tp, tmem],
-        [type, tRec],
-      ],
-    ];
+    // const tRec = tb.trec([tb.tprop("length", tp)], ctx);
+    // return [
+    //   tmem,
+    //   [
+    //     [tp, tmem],
+    //     [type, tRec],
+    //   ],
+    // ];
+    const tMem = tb.tmem(type, property.name, ctx);
+    return [tMem, [[tmem, tMem]]]; // ?
   } else if (type.tag !== "TCon") {
     throw new Error(`Can't use member access on ${type.tag}`);
   }

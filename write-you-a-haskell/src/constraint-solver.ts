@@ -46,6 +46,14 @@ const unifyMany = (
 };
 
 export const unifies = (t1: t.Type, t2: t.Type, ctx: Context): t.Subst => {
+  if (t.isTMem(t2)) {
+    t2.object; // ?
+    if (t2.object.tag === "TCon") {
+      const aliasedType = lookupEnv(t2.object.name, ctx);
+    } else if (t2.object.tag === "TVar") {
+      const aliasedType = lookupEnv(t2.object.name, ctx);
+    }
+  }
   if (t.isTVar(t1)) return bind(t1, t2);
   if (t.isTVar(t2)) return bind(t2, t1);
   if (t.isTFun(t1) && t.isTFun(t2)) return unifyFuncs(t1, t2, ctx);
@@ -269,6 +277,7 @@ const solver = (u: t.Unifier, ctx: Context): t.Subst => {
 };
 
 const bind = (tv: t.TVar, t: t.Type): t.Subst => {
+  t.tag; // ?
   if (t.tag === "TVar" && t.id === tv.id) {
     return emptySubst;
   } else if (occursCheck(tv, t)) {

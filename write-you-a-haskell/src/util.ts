@@ -1,7 +1,7 @@
 import { Map, Set } from "immutable";
 
 import { Env } from "./context";
-import { Type, TVar, Subst, Constraint, Scheme, isTLit } from "./type-types";
+import { Type, TVar, Subst, Constraint, Scheme, isTLit, isTMem } from "./type-types";
 import {
   isTCon,
   isTVar,
@@ -79,6 +79,14 @@ export function apply(s: Subst, a: any): any {
       }
     );
   }
+  if (isTMem(a)) {
+    return (
+      s.get(a.id) ?? {
+        ...a,
+        object: apply(s, a.object),
+      }
+    )
+  }
 
   // instance Substitutable Scheme
   if (isScheme(a)) {
@@ -140,6 +148,9 @@ export function ftv(a: any): any {
   }
   if (isTTuple(a)) {
     return ftv(a.types);
+  }
+  if (isTMem(a)) {
+    return ftv(a.object);
   }
 
   // instance Substitutable Scheme

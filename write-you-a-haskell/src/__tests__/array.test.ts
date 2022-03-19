@@ -115,7 +115,7 @@ describe("Array", () => {
     expect(print(result)).toMatchInlineSnapshot(`"Array<Array<string>>"`);
   });
 
-  test("member access on TVar that doesn't exist in env", () => {
+  test.only("member access on TVar that doesn't exist in env", () => {
     const ctx = tb.createCtx();
 
     let env: Env = Map();
