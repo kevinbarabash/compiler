@@ -3,13 +3,14 @@ import { assert } from "console";
 
 import * as t from "./type-types";
 import * as tb from "./type-builders";
-import { apply, ftv } from "./util";
+import { apply, ftv, zip } from "./util";
 import {
   InfiniteType,
   UnificationFail,
   UnificationMismatch,
   ExtraProperties,
   MissingProperties,
+  UnboundVariable,
 } from "./errors";
 
 //
@@ -69,6 +70,51 @@ export const unifies = (t1: t.Type, t2: t.Type, ctx: t.Context): t.Subst => {
   // only occurs in valid situations.
   if (isSubType(t2, t1) || isSubType(t1, t2)) {
     return emptySubst;
+  }
+
+  // TODO: check to see if TCon(Array) exists in ctx.env
+  // If it is, grab that type and then try to unify those types
+  t.print(t1); // ?
+  t.print(t2); // ?
+  if (t1.tag === "TCon") {
+    const aliasedType = lookupEnv(t1.name, ctx);
+    // All aliased types should be frozen to prevent widening
+    if (aliasedType.frozen) {
+      // TODO:
+      // - check that each property in t2 appears in aliasedType
+      // - create arrays of the values for all of the shared properties
+      // - call unifyMany() with those arrays
+      if (t.isTRec(aliasedType) && t.isTRec(t2)) {
+        if (
+          t2.properties.every((prop) =>
+            aliasedType.properties.find((p) => prop.name === p.name)
+          )
+        ) {
+          const names = t2.properties.map((p) => p.name);
+          const valueTypes1: t.Type[] = names.map(
+            (name) => {
+              const prop = aliasedType.properties.find((p) => p.name === name);
+              if (!prop) {
+                // TODO: make this a better error
+                throw new Error("missing prop");
+              }
+              return prop.type;
+            },
+          );
+          return unifyMany(
+            valueTypes1,
+            t2.properties.map((p) => p.type),
+            ctx
+          );
+        } else {
+          throw new Error(
+            `${t.print(t1)} is missing some properties from ${t.print(t2)}`
+          );
+        }
+      }
+    }
+  } else if (t2.tag === "TCon") {
+    //
   }
 
   // As long as the types haven't been frozen then this is okay
@@ -252,7 +298,7 @@ const isSubType = (sub: t.Type, sup: t.Type): boolean => {
 
   // TODO: handle type aliases like Array<T> and Promise<T>
   // NOTE: Promise<string> | Promise<number> can be used in place of a
-  // Promise<string | number> because both Promise<string> and Promise<number> 
+  // Promise<string | number> because both Promise<string> and Promise<number>
   // are subtypes of Promise<string | number>.
 
   return false;
@@ -264,7 +310,7 @@ const flattenUnion = (type: t.Type): t.Type[] => {
   } else {
     return [type];
   }
-}
+};
 
 export const computeUnion = (
   t1: t.Type,
@@ -282,18 +328,18 @@ export const computeUnion = (
   // Subsumes literals into primitives
   for (const primType of primTypes) {
     if (primType.name === "number") {
-      litTypes = litTypes.filter(type => type.value.tag !== "LNum");
+      litTypes = litTypes.filter((type) => type.value.tag !== "LNum");
     } else if (primType.name === "boolean") {
-      litTypes = litTypes.filter(type => type.value.tag !== "LBool");
+      litTypes = litTypes.filter((type) => type.value.tag !== "LBool");
     } else if (primType.name === "string") {
-      litTypes = litTypes.filter(type => type.value.tag !== "LStr");
+      litTypes = litTypes.filter((type) => type.value.tag !== "LStr");
     }
   }
 
   // Replaces `true | false` with `boolean`
-  const boolTypes = litTypes.filter(type => type.value.tag === "LBool");
+  const boolTypes = litTypes.filter((type) => type.value.tag === "LBool");
   if (boolTypes.length === 2) {
-    litTypes = litTypes.filter(type => type.value.tag !== "LBool");
+    litTypes = litTypes.filter((type) => type.value.tag !== "LBool");
     // It's safe to push without checking if primTypes already contains
     // `boolean` because if it did then `boolTypes` would've been empty.
     primTypes.push(tb.tprim("boolean", ctx));
@@ -335,7 +381,7 @@ export const computeUnion = (
 
 const nubPrimTypes = (primTypes: readonly t.TPrim[]): t.TPrim[] => {
   const names: t.PrimName[] = [];
-  return primTypes.filter(pt => {
+  return primTypes.filter((pt) => {
     if (!names.includes(pt.name)) {
       names.push(pt.name);
       return true;
@@ -346,14 +392,14 @@ const nubPrimTypes = (primTypes: readonly t.TPrim[]): t.TPrim[] => {
 
 const nubLitTypes = (litTypes: readonly t.TLit[]): t.TLit[] => {
   const values: (number | string | boolean)[] = [];
-  return litTypes.filter(lt => {
+  return litTypes.filter((lt) => {
     if (!values.includes(lt.value.value)) {
       values.push(lt.value.value);
       return true;
     }
     return false;
   });
-}
+};
 
 // Eventually we'll want to be able to widen more than two at the same
 // time if we need to widen types as part of pattern matching.
@@ -370,3 +416,41 @@ export const widenTypes = (t1: t.Type, t2: t.Type, ctx: t.Context): t.Subst => {
 
   return result;
 };
+
+// TODO: move this into a new env.ts file
+const lookupEnv = (name: string, ctx: t.Context): t.Type => {
+  const value = ctx.env.get(name);
+  if (!value) {
+    // TODO: keep track of all unbound variables in a decl
+    // we can return `unknown` as the type so that unifcation
+    // can continue.
+    throw new UnboundVariable(name);
+  }
+  return instantiate(value, ctx);
+};
+
+const instantiate = (sc: t.Scheme, ctx: t.Context): t.Type => {
+  const freshQualifiers = sc.qualifiers.map(() => fresh(ctx));
+  const subs = Map(
+    zip(
+      sc.qualifiers.map((qual) => qual.id),
+      freshQualifiers
+    )
+  );
+  return apply(subs, sc.type);
+};
+
+export const fresh = (ctx: t.Context): t.TVar => {
+  const id = tb.newId(ctx);
+  // ctx.state.count++;
+  return {
+    tag: "TVar",
+    id: id,
+    name: letterFromIndex(id),
+  };
+};
+
+const letterFromIndex = (index: number): string =>
+  String.fromCharCode(97 + index);
+
+declare var strArray: string[];

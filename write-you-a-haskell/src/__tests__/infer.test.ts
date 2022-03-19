@@ -297,9 +297,7 @@ describe("inferExpr", () => {
 
       const env: Env = Map();
 
-      expect(() => inferExpr(env, omega[1])).toThrowErrorMatchingInlineSnapshot(
-        `"b appears in (b) => c"`
-      );
+      expect(() => inferExpr(env, omega[1])).toThrowErrorMatchingInlineSnapshot(`"a appears in (a) => b"`);
     });
   });
 });

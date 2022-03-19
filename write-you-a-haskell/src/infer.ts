@@ -32,7 +32,6 @@ import {
   EIf,
   EVar,
   Pattern,
-  Literal,
   EMem,
 } from "./syntax-types";
 import { zip, apply, ftv, assertUnreachable } from "./util";
@@ -98,7 +97,7 @@ const normalize = (sc: Scheme): Scheme => {
       case "TFun":
         return [...type.args.flatMap(fv), ...fv(type.ret)];
       case "TCon":
-        return []; // TODO: handle type params
+        return [...type.params.flatMap(fv)];
       case "TUnion":
         return type.types.flatMap(fv);
       case "TRec":
@@ -120,6 +119,7 @@ const normalize = (sc: Scheme): Scheme => {
     return { tag: "TVar", id: key, name: letterFromIndex(index) };
   });
   const mapping: Record<number, TVar> = Object.fromEntries(zip(keys, values));
+  mapping; // ?
 
   const normType = (type: Type): Type => {
     switch (type.tag) {
@@ -132,6 +132,9 @@ const normalize = (sc: Scheme): Scheme => {
         };
       }
       case "TCon":
+        // TODO: Lookup the definition of Array, Promise, etc.
+        // TODO: fix - type variable s not in signature Array<s>
+        // s is clearly in Array<s>
         return {
           ...type,
           params: type.params.map(normType),
@@ -141,7 +144,7 @@ const normalize = (sc: Scheme): Scheme => {
         if (replacement) {
           return replacement;
         } else {
-          throw new Error("type variable not in signature");
+          throw new Error(`type variable ${print(type)} not in signature ${print(body)}`);
         }
       }
       case "TUnion": {
@@ -196,11 +199,12 @@ const letterFromIndex = (index: number): string =>
 
 // TODO: defer naming until print time
 export const fresh = (ctx: Context): TVar => {
-  ctx.state.count++;
+  const id = tb.newId(ctx);
+  // ctx.state.count++;
   return {
     tag: "TVar",
-    id: ctx.state.count,
-    name: letterFromIndex(ctx.state.count),
+    id: id,
+    name: letterFromIndex(id),
   };
 };
 
@@ -475,7 +479,34 @@ const inferMem = (expr: EMem, ctx: Context): InferResult => {
   // support TypeScript's ability to use the same identifier for both.
   const type = lookupEnv(object.name, ctx);
 
-  if (type.tag !== "TCon") {
+  if (type.tag === "TVar") {
+    object.name; // ?
+    property.name; // ?
+    // constraints:
+    // return [t1, [type, TRec({length: t1})]]
+    // the constraint is supposed to represent that type is a subtype of
+    // the TRec we created here, so any object type that has a .length property.
+    // what if the property has type params?
+    // I don't think it matters at this stage since t1 will later
+    // be reconciled against the parameterized type if it needs to be.
+
+    // Each time we run inferExpr() we start ctx.state.count at 0.
+    // It's likely that there are some conflicting id's with a previous
+    // run of inferExpr();
+    // TODO: don't reset the count between runs of inferExpr.
+
+    //  ((string, number, Array<string>) => b) => Array<b> === ((c, d, e) => h) => k
+    //  unifying: e with {length: h}
+    //  but what's happening to the [Array<string>, e] constraint?
+
+    ctx.state.count++; // incrementing the count should affect things but it does
+    const tp = fresh(ctx); // .length
+    const tmem = fresh(ctx); // array.length
+    // tmem should be a number primitive, but we don't have enough info at this
+    // point to know that.
+    const tRec = tb.trec([tb.tprop("length", tp)], ctx);
+    return [tmem, [[tp, tmem], [type, tRec]]];
+  } else if (type.tag !== "TCon") {
     throw new Error(`Can't use member access on ${type.tag}`);
   }
 
@@ -492,8 +523,11 @@ const inferMem = (expr: EMem, ctx: Context): InferResult => {
 
   // Creates a bunch of substitutions from qualifier ids to type params
   const subs1: Subst = Map(
-    zip(aliasedScheme.qualifiers, type.params).map(([q, p]) => {
-      return [q.id, p]; // { ...p, id: tb.newId(ctx) }];
+    zip(aliasedScheme.qualifiers, type.params).map(([q, param]) => {
+      // We need a fresh copy of the params so we don't accidentally end
+      // sharing state between the type params.
+      const freshParam = { ...param, id: tb.newId(ctx) };
+      return [q.id, freshParam];
     })
   );
   // Applies the substitutions to get a type matches the type alias we looked up

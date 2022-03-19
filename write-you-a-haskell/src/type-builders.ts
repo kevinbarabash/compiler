@@ -3,7 +3,11 @@ import { Map } from "immutable";
 import { Literal } from "./syntax-types";
 import * as t from "./type-types";
 
-export const newId = (ctx: t.Context): number => ++ctx.state.count;
+export const newId = (ctx: t.Context): number => {
+  const id = ctx.state.count++;
+  // console.log(`id = ${id}`);
+  return id;
+}
 
 export const tvar = (name: string, ctx: t.Context): t.TVar => ({
   tag: "TVar",
