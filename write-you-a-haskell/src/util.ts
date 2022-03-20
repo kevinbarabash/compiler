@@ -1,4 +1,4 @@
-import { Map, Set } from "immutable";
+import { Map, OrderedSet } from "immutable";
 
 import { Env } from "./context";
 import { Type, TVar, Subst, Constraint, Scheme, isTLit, isTMem } from "./type-types";
@@ -116,28 +116,28 @@ export function apply(s: Subst, a: any): any {
   throw new Error(`apply doesn't handle ${a}`);
 }
 
-export function ftv(type: Type): Set<TVar>;
-export function ftv(scheme: Scheme): Set<TVar>;
-export function ftv(types: readonly Type[]): Set<TVar>;
-export function ftv(schemes: readonly Scheme[]): Set<TVar>;
-export function ftv(constraint: Constraint): Set<TVar>; // special case of Type[]
-export function ftv(env: Env): Set<TVar>;
+export function ftv(type: Type): OrderedSet<TVar>;
+export function ftv(scheme: Scheme): OrderedSet<TVar>;
+export function ftv(types: readonly Type[]): OrderedSet<TVar>;
+export function ftv(schemes: readonly Scheme[]): OrderedSet<TVar>;
+export function ftv(constraint: Constraint): OrderedSet<TVar>; // special case of Type[]
+export function ftv(env: Env): OrderedSet<TVar>;
 export function ftv(a: any): any {
   // instance Substitutable Type
   if (isTCon(a)) {
-    return Set.union(a.params.map(ftv));
+    return OrderedSet(a.params).flatMap(ftv);
   }
   if (isTVar(a)) {
-    return Set([a]); // Set.singleton a
+    return OrderedSet([a]);
   }
   if (isTPrim(a)) {
-    return Set([]);
+    return OrderedSet([]);
   }
   if (isTLit(a)) {
-    return Set([]);
+    return OrderedSet([]);
   }
   if (isTFun(a)) {
-    return Set.union([...a.args.map(ftv), ftv(a.ret)]); // ftv t1 `Set.union` ftv t2
+    return OrderedSet([...a.args, a.ret]).flatMap(ftv);
   }
   if (isTUnion(a)) {
     return ftv(a.types);
@@ -161,13 +161,13 @@ export function ftv(a: any): any {
   // instance Substitutable Constraint
   // instance Substitutable a => Substitutable [a]
   if (Array.isArray(a)) {
-    return Set.union(a.map(ftv));
+    return OrderedSet(a).flatMap(ftv);
   }
 
   // instance Substitutable Env
   if (Map.isMap(a)) {
     const env = a as Env;
-    return Set.union(env.valueSeq().map(ftv));
+    return OrderedSet(env.valueSeq()).flatMap(ftv);
   }
 
   throw new Error(`ftv doesn't handle ${a}`);

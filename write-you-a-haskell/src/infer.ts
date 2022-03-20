@@ -2,58 +2,29 @@ import { Map } from "immutable";
 
 import { Env, Context, State, newId } from "./context";
 import { UnboundVariable } from "./errors";
-import { freeze, scheme } from "./type-types";
-import {
-  Constraint,
-  Scheme,
-  Subst,
-  TCon,
-  TVar,
-  Type,
-  TProp,
-  TPrim,
-  TRec,
-  print,
-} from "./type-types";
-import {
-  Binop,
-  Expr,
-  ELam,
-  EProp,
-  EApp,
-  ELit,
-  ELet,
-  ERec,
-  ETuple,
-  EFix,
-  EAwait,
-  EOp,
-  EIf,
-  EVar,
-  Pattern,
-  EMem,
-} from "./syntax-types";
+import * as tt from "./type-types";
+import * as st from "./syntax-types";
 import { zip, apply, ftv, assertUnreachable } from "./util";
 import { runSolve } from "./constraint-solver";
 import * as tb from "./type-builders";
 
 const emptyEnv: Env = Map();
 
-export const inferExpr = (env: Env, expr: Expr, state?: State): Scheme => {
+export const inferExpr = (env: Env, expr: st.Expr, state?: State): tt.Scheme => {
   const initCtx: Context = {
     env: env,
     state: state || { count: 0 },
   };
-  const [ty, cs] = infer(expr, initCtx);
+  const [type, cs] = infer(expr, initCtx);
   const subs = runSolve(cs, initCtx);
-  return closeOver(apply(subs, ty));
+  return closeOver(apply(subs, type));
 };
 
 //  Return the internal constraints used in solving for the type of an expression
 export const constraintsExpr = (
   env: Env,
-  expr: Expr
-): readonly [readonly Constraint[], Subst, Type, Scheme] => {
+  expr: st.Expr
+): readonly [readonly tt.Constraint[], tt.Subst, tt.Type, tt.Scheme] => {
   const initCtx: Context = {
     env: env,
     state: { count: 0 },
@@ -65,11 +36,11 @@ export const constraintsExpr = (
 };
 
 // Canonicalize and return the polymorphic toplevel type
-const closeOver = (t: Type): Scheme => {
-  const result = normalize(generalize(emptyEnv, t));
+const closeOver = (type: tt.Type): tt.Scheme => {
+  const result = normalize(generalize(emptyEnv, type));
   // We freeze the result type before returning it so that it
   // can't be widened when used in subsequent top-level decls.
-  freeze(result.type);
+  tt.freeze(result.type);
   return result;
 };
 
@@ -87,41 +58,15 @@ function nub<T extends { id: number }>(array: readonly T[]): readonly T[] {
 
 // TODO: simplify the normalization by generating names for type variables at print time.
 // Renames type variables so that they start with 'a' and there are no gaps
-const normalize = (sc: Scheme): Scheme => {
-  // Returns the names of the free variables in a type
-  const fv = (type: Type): readonly TVar[] => {
-    switch (type.tag) {
-      case "TVar":
-        return [type];
-      case "TFun":
-        return [...type.args.flatMap(fv), ...fv(type.ret)];
-      case "TCon":
-        return [...type.params.flatMap(fv)];
-      case "TUnion":
-        return type.types.flatMap(fv);
-      case "TRec":
-        return type.properties.flatMap((prop) => fv(prop.type));
-      case "TTuple":
-        return type.types.flatMap(fv);
-      case "TPrim":
-        return [];
-      case "TLit":
-        return [];
-      case "TMem":
-        return fv(type.object);
-      default:
-        assertUnreachable(type);
-    }
-  };
-
+const normalize = (sc: tt.Scheme): tt.Scheme => {
   const body = sc.type;
-  const keys = nub(fv(body)).map((tv) => tv.id);
-  const values: TVar[] = keys.map((key, index) => {
+  const keys = nub([...ftv(body)]).map((tv) => tv.id);
+  const values: tt.TVar[] = keys.map((key, index) => {
     return { tag: "TVar", id: key, name: letterFromIndex(index) };
   });
-  const mapping: Record<number, TVar> = Object.fromEntries(zip(keys, values));
+  const mapping: Record<number, tt.TVar> = Object.fromEntries(zip(keys, values));
 
-  const normType = (type: Type): Type => {
+  const normType = (type: tt.Type): tt.Type => {
     switch (type.tag) {
       case "TFun": {
         const { args, ret } = type;
@@ -145,7 +90,7 @@ const normalize = (sc: Scheme): Scheme => {
           return replacement;
         } else {
           throw new Error(
-            `type variable ${print(type)} not in signature ${print(body)}`
+            `type variable ${tt.print(type)} not in signature ${tt.print(body)}`
           );
         }
       }
@@ -187,11 +132,11 @@ const normalize = (sc: Scheme): Scheme => {
     }
   };
 
-  return scheme(values, normType(body));
+  return tt.scheme(values, normType(body));
 };
 
 // Lookup type in the environment
-const lookupEnv = (name: string, ctx: Context): Type => {
+const lookupEnv = (name: string, ctx: Context): tt.Type => {
   const value = ctx.env.get(name);
   if (!value) {
     // TODO: keep track of all unbound variables in a decl
@@ -206,9 +151,8 @@ const letterFromIndex = (index: number): string =>
   String.fromCharCode(97 + index);
 
 // TODO: defer naming until print time
-export const fresh = (ctx: Context): TVar => {
+export const fresh = (ctx: Context): tt.TVar => {
   const id = newId(ctx);
-  // ctx.state.count++;
   return {
     tag: "TVar",
     id: id,
@@ -219,12 +163,12 @@ export const fresh = (ctx: Context): TVar => {
 export const freshTCon = (
   ctx: Context,
   name: string,
-  params: Type[] = []
-): TCon => {
+  params: tt.Type[] = []
+): tt.TCon => {
   return tb.tcon(name, params, ctx);
 };
 
-const instantiate = (sc: Scheme, ctx: Context): Type => {
+const instantiate = (sc: tt.Scheme, ctx: Context): tt.Type => {
   const freshQualifiers = sc.qualifiers.map(() => fresh(ctx));
   const subs = Map(
     zip(
@@ -235,13 +179,13 @@ const instantiate = (sc: Scheme, ctx: Context): Type => {
   return apply(subs, sc.type);
 };
 
-const generalize = (env: Env, type: Type): Scheme => {
-  return scheme(ftv(type).subtract(ftv(env)).toArray(), type);
+const generalize = (env: Env, type: tt.Type): tt.Scheme => {
+  return tt.scheme(ftv(type).subtract(ftv(env)).toArray(), type);
 };
 
-type InferResult<T extends Type = Type> = readonly [T, readonly Constraint[]];
+type InferResult<T extends tt.Type = tt.Type> = readonly [T, readonly tt.Constraint[]];
 
-const infer = (expr: Expr, ctx: Context): InferResult => {
+const infer = (expr: st.Expr, ctx: Context): InferResult => {
   // prettier-ignore
   switch (expr.tag) {
     case "Lit":   return inferLit  (expr, ctx);
@@ -260,7 +204,7 @@ const infer = (expr: Expr, ctx: Context): InferResult => {
   }
 };
 
-const inferApp = (expr: EApp, ctx: Context): InferResult => {
+const inferApp = (expr: st.EApp, ctx: Context): InferResult => {
   const { fn, args } = expr;
   const [t_fn, cs_fn] = infer(fn, ctx);
   const [t_args, cs_args] = inferMany(args, ctx);
@@ -269,37 +213,37 @@ const inferApp = (expr: EApp, ctx: Context): InferResult => {
   return [tv, [...cs_fn, ...cs_args, [t_fn, tb.tfun(t_args, tv, ctx, "App")]]];
 };
 
-const inferAwait = (expr: EAwait, ctx: Context): InferResult => {
+const inferAwait = (expr: st.EAwait, ctx: Context): InferResult => {
   if (!ctx.async) {
     throw new Error("Can't use `await` inside non-async lambda");
   }
 
-  const [t, cs] = infer(expr.expr, ctx);
+  const [type, cs] = infer(expr.expr, ctx);
 
-  // TODO: convert Promise from TCon to TAbs/TGen
-  if (t.tag === "TCon" && t.name === "Promise") {
-    if (t.params.length !== 1) {
+  // TODO: convert Promise from t.TCon to TAbs/TGen
+  if (tt.isTCon(type) && type.name === "Promise") {
+    if (type.params.length !== 1) {
       // TODO: How do we prevent people from overwriting built-in types
       // TODO: How do we allow local shadowing of other types within a module?
       //       Do we even want to?
       throw new Error("Invalid Promise type");
     }
-    return [t.params[0], cs];
+    return [type.params[0], cs];
   }
 
   // If the await expression isn't a promise then we return the inferred
   // type and constraints from the awaited expression.
-  return [t, cs];
+  return [type, cs];
 };
 
-const inferFix = (expr: EFix, ctx: Context): InferResult => {
+const inferFix = (expr: st.EFix, ctx: Context): InferResult => {
   const { expr: e } = expr;
   const [t, cs] = infer(e, ctx);
   const tv = fresh(ctx);
   return [tv, [...cs, [tb.tfun([tv], tv, ctx, "Fix"), t]]];
 };
 
-const inferIf = (expr: EIf, ctx: Context): InferResult => {
+const inferIf = (expr: st.EIf, ctx: Context): InferResult => {
   const { cond, th, el } = expr;
   const [t1, cs1] = infer(cond, ctx);
   const [t2, cs2] = infer(th, ctx);
@@ -309,7 +253,7 @@ const inferIf = (expr: EIf, ctx: Context): InferResult => {
   return [t2, [...cs1, ...cs2, ...cs3, [t1, bool], [t2, t3]]];
 };
 
-const inferLam = (expr: ELam, ctx: Context): InferResult => {
+const inferLam = (expr: st.ELam, ctx: Context): InferResult => {
   const { args, body } = expr;
   // newCtx introduces a new scope
   const tvs = args.map(() => fresh(ctx));
@@ -317,26 +261,26 @@ const inferLam = (expr: ELam, ctx: Context): InferResult => {
     ...ctx,
     env: ctx.env.withMutations((env) => {
       for (const [arg, tv] of zip(args, tvs)) {
-        // scheme([], tv) is a type variable without any qualifiers
-        env.set(arg, scheme([], tv));
+        // t.scheme([], tv) is a type variable without any qualifiers
+        env.set(arg, tt.scheme([], tv));
       }
     }),
     async: expr.async,
   };
-  const [t, cs] = infer(body, newCtx);
+  const [type, cs] = infer(body, newCtx);
   // We wrap the return value in a promise if:
   // - the lambda is marked as async
   // - its inferred return value isn't already in a promise
   // TODO: add more general support for conditional types
   const ret =
-    !expr.async || (t.tag === "TCon" && t.name === "Promise")
-      ? t
-      : freshTCon(ctx, "Promise", [t]);
+    !expr.async || (type.tag === "TCon" && type.name === "Promise")
+      ? type
+      : freshTCon(ctx, "Promise", [type]);
 
   return [tb.tfun(tvs, ret, ctx, "Lam"), cs];
 };
 
-const inferLet = (expr: ELet, ctx: Context): InferResult => {
+const inferLet = (expr: st.ELet, ctx: Context): InferResult => {
   const { pattern, value, body } = expr;
   const [t1, cs1] = infer(value, ctx);
   const subs = runSolve(cs1, ctx);
@@ -349,11 +293,11 @@ const inferLet = (expr: ELet, ctx: Context): InferResult => {
 };
 
 const inferPattern = (
-  pattern: Pattern,
-  type: Type, // expected to already be inferred by caller
-  subs: Subst,
+  pattern: st.Pattern,
+  type: tt.Type, // expected to already be inferred by caller
+  subs: tt.Subst,
   ctx: Context
-): [Context, readonly Constraint[]] => {
+): [Context, readonly tt.Constraint[]] => {
   // TODO:
   // - Disallow reusing the same variable when destructuring a value
 
@@ -370,44 +314,44 @@ const inferPattern = (
     case "PWild":
       return [ctx, []]; // doesn't affect binding
     case "PLit": {
-      const t = tb.tlit(pattern.value, ctx);
-      freeze(t); // prevents widening of inferred type
-      return [ctx, [[t, type]]]; // doesn't affect binding
+      const litType = tb.tlit(pattern.value, ctx);
+      tt.freeze(litType); // prevents widening of inferred type
+      return [ctx, [[litType, type]]]; // doesn't affect binding
     }
     // NOTE: it only makes sense to infer PPrim patterns as part of pattern matching
     // since destructuring number | string to number isn't sound
     case "PPrim": {
-      let t: TPrim;
+      let primType: tt.TPrim;
       if (pattern.primName === "boolean") {
-        t = tb.tBool(ctx);
+        primType = tb.tBool(ctx);
       } else if (pattern.primName === "number") {
-        t = tb.tNum(ctx);
+        primType = tb.tNum(ctx);
       } else if (pattern.primName === "string") {
-        t = tb.tStr(ctx);
+        primType = tb.tStr(ctx);
       } else {
         throw new Error(
           `TODO: handle ${pattern.primName} when inferring type from PPrim`
         );
       }
-      freeze(t);
-      return [ctx, [[t, type]]];
+      tt.freeze(primType);
+      return [ctx, [[primType, type]]];
     }
     case "PRec": {
       if (type.tag !== "TRec") {
         throw new Error("type doesn't match pattern");
       }
-      const cs: Constraint[] = [];
+      const cs: tt.Constraint[] = [];
       let newCtx = ctx;
       for (const pprop of pattern.properties) {
         const tprop = type.properties.find((p) => p.name === pprop.name);
         if (!tprop) {
           throw new Error(
-            `${print(type)} doesn't contain ${pprop.name} property`
+            `${tt.print(type)} doesn't contain ${pprop.name} property`
           );
         }
         const result = inferPattern(pprop.pattern, tprop.type, subs, newCtx);
-        cs.push(...result[1]);
         newCtx = result[0];
+        cs.push(...result[1]);
       }
       return [newCtx, cs];
     }
@@ -418,12 +362,12 @@ const inferPattern = (
       if (pattern.patterns.length !== type.types.length) {
         throw new Error("element count mismatch");
       }
-      const cs: Constraint[] = [];
+      const cs: tt.Constraint[] = [];
       let newCtx = ctx;
       for (const [p, t] of zip(pattern.patterns, type.types)) {
         const result = inferPattern(p, t, subs, newCtx);
-        cs.push(...result[1]);
         newCtx = result[0];
+        cs.push(...result[1]);
       }
       return [newCtx, cs];
     }
@@ -432,39 +376,39 @@ const inferPattern = (
   }
 };
 
-const inferLit = (expr: ELit, ctx: Context): InferResult => {
+const inferLit = (expr: st.ELit, ctx: Context): InferResult => {
   const lit = expr.value;
   return [tb.tlit(lit, ctx), []];
 };
 
-const inferOp = (expr: EOp, ctx: Context): InferResult => {
+const inferOp = (expr: st.EOp, ctx: Context): InferResult => {
   const { op, left, right } = expr;
   const [ts, cs] = inferMany([left, right], ctx);
   const tv = fresh(ctx);
   return [tv, [...cs, [tb.tfun(ts, tv, ctx), ops(op, ctx)]]];
 };
 
-const inferRec = (expr: ERec, ctx: Context): InferResult<TRec> => {
-  const all_cs: Constraint[] = [];
-  const properties = expr.properties.map((prop: EProp): TProp => {
-    const [t, cs] = infer(prop.value, ctx);
+const inferRec = (expr: st.ERec, ctx: Context): InferResult<tt.TRec> => {
+  const all_cs: tt.Constraint[] = [];
+  const properties = expr.properties.map((prop: st.EProp): tt.TProp => {
+    const [type, cs] = infer(prop.value, ctx);
     all_cs.push(...cs);
-    return tb.tprop(prop.name, t);
+    return tb.tprop(prop.name, type);
   });
   return [tb.trec(properties, ctx), all_cs];
 };
 
-const inferTuple = (expr: ETuple, ctx: Context): InferResult => {
+const inferTuple = (expr: st.ETuple, ctx: Context): InferResult => {
   const [ts, cs] = inferMany(expr.elements, ctx);
   return [tb.ttuple(ts, ctx), cs];
 };
 
-const inferVar = (expr: EVar, ctx: Context): InferResult => {
-  const t = lookupEnv(expr.name, ctx);
-  return [t, []];
+const inferVar = (expr: st.EVar, ctx: Context): InferResult => {
+  const type = lookupEnv(expr.name, ctx);
+  return [type, []];
 };
 
-const inferMem = (expr: EMem, ctx: Context): InferResult => {
+const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
   // TODO: handle nested property access, e.g. foo.bar.baz.
   const { object, property } = expr;
   
@@ -475,14 +419,14 @@ const inferMem = (expr: EMem, ctx: Context): InferResult => {
   // Handles member access on object literals
   if (object.tag === "Rec") {
     const tobj = fresh(ctx);
-    const [t, cs] = inferRec(object, ctx);
+    const [type, cs] = inferRec(object, ctx);
     const tMem1 = tb.tmem(tobj, property.name, ctx);
-    const tMem2 = tb.tmem(t, property.name, ctx);
-    const prop = t.properties.find(prop => property.name === prop.name);
+    const tMem2 = tb.tmem(type, property.name, ctx);
+    const prop = type.properties.find(prop => property.name === prop.name);
     if (!prop) {
       throw new Error(`Record literal doesn't contain property '${property.name}'`);
     }
-    // This is sufficient since infer() will unify `tobj` with `t`.
+    // This is sufficient since infer() will unify `tobj` with `type`.
     return [prop.type, [...cs, [tMem1, tMem2]]];
   } else if (object.tag !== "Var") {
     throw new Error("object must be a variable when accessing a member");
@@ -501,7 +445,7 @@ const inferMem = (expr: EMem, ctx: Context): InferResult => {
   } else if (type.tag === "TRec") {
     const prop = type.properties.find(prop => prop.name === property.name);
     if (!prop) {
-      throw new Error(`${print(type)} doesn't contain property ${property.name}`);
+      throw new Error(`${tt.print(type)} doesn't contain property ${property.name}`);
     }
     return [prop.type, []];
   } else if (type.tag !== "TCon") {
@@ -520,7 +464,7 @@ const inferMem = (expr: EMem, ctx: Context): InferResult => {
   }
 
   // Creates a bunch of substitutions from qualifier ids to type params
-  const subs1: Subst = Map(
+  const subs1: tt.Subst = Map(
     zip(aliasedScheme.qualifiers, type.params).map(([q, param]) => {
       // We need a fresh copy of the params so we don't accidentally end
       // sharing state between the type params.
@@ -541,33 +485,33 @@ const inferMem = (expr: EMem, ctx: Context): InferResult => {
 
   if (!prop) {
     throw new Error(
-      `${property.name} property doesn't exist on ${print(aliasedType)}`
+      `${property.name} property doesn't exist on ${tt.print(aliasedType)}`
     );
   }
 
   // Replaces all free variables with fresh ones
-  const subs2: Subst = Map([...ftv(prop.type)].map((v) => [v.id, fresh(ctx)]));
+  const subs2: tt.Subst = Map([...ftv(prop.type)].map((v) => [v.id, fresh(ctx)]));
   const resultType = apply(subs2, prop.type);
 
   return [resultType, []];
 };
 
 const inferMany = (
-  exprs: readonly Expr[],
+  exprs: readonly st.Expr[],
   ctx: Context
-): [readonly Type[], readonly Constraint[]] => {
-  const ts: Type[] = [];
-  const all_cs: Constraint[] = [];
+): [readonly tt.Type[], readonly tt.Constraint[]] => {
+  const ts: tt.Type[] = [];
+  const all_cs: tt.Constraint[] = [];
   for (const elem of exprs) {
-    const [t, cs] = infer(elem, ctx);
-    ts.push(t);
+    const [type, cs] = infer(elem, ctx);
+    ts.push(type);
     all_cs.push(...cs);
   }
   return [ts, all_cs];
 };
 
 // NOTE: It's okay to reuse tNum here because the type is frozen.
-const tNum: TPrim = {
+const tNum: tt.TPrim = {
   tag: "TPrim",
   id: -1,
   name: "number",
@@ -578,7 +522,7 @@ const tNum: TPrim = {
 // - The params are frozen and should only unify if the args are sub-types.
 // - The return type is not frozen to allow for easy widening if need be.
 
-const ops = (op: Binop, ctx: Context): Type => {
+const ops = (op: st.Binop, ctx: Context): tt.Type => {
   switch (op) {
     case "Add":
       return tb.tfun([tNum, tNum], tb.tprim("number", ctx), ctx);
