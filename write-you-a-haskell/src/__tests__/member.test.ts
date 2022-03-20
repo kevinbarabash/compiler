@@ -1,18 +1,13 @@
-import { Map } from "immutable";
-
-import { inferExpr } from "../infer";
 import { Expr } from "../syntax-types";
 import * as sb from "../syntax-builders";
-import * as tb from "../type-builders";
-import { Env } from "../context";
 import { scheme, print } from "../type-types";
 import { createArrayScheme } from "../builtins";
+import { Engine } from "../engine";
 
 describe("Member access", () => {
   describe("errors", () => {
     test("access on literal string fails", () => {
-      const ctx = tb.createCtx();
-      let env: Env = Map();
+      const eng = new Engine();
 
       const expr: Expr = {
         tag: "Mem",
@@ -21,17 +16,14 @@ describe("Member access", () => {
         property: sb._var("bar"),
       };
 
-      expect(() =>
-        inferExpr(env, expr, ctx.state)
-      ).toThrowErrorMatchingInlineSnapshot(
+      expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
         `"object must be a variable when accessing a member"`
       );
     });
 
     test("using a property that isn't a TVar doesn't work", () => {
-      const ctx = tb.createCtx();
-      let env: Env = Map();
-      env = env.set("foo", scheme([], tb.tNum(ctx)));
+      const eng = new Engine();
+      eng.defType("foo", eng.tNum());
 
       const expr: Expr = {
         tag: "Mem",
@@ -40,102 +32,83 @@ describe("Member access", () => {
         property: sb.str("hello"),
       };
 
-      expect(() =>
-        inferExpr(env, expr, ctx.state)
-      ).toThrowErrorMatchingInlineSnapshot(
+      expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
         `"property must be a variable when accessing a member"`
       );
     });
 
     test("attempt to access property that doesn't exist on object fails", () => {
-      const ctx = tb.createCtx();
-      let env: Env = Map();
-      env = env.set("foo", scheme([], tb.trec([], ctx)));
+      const eng = new Engine();
+      eng.defType("foo", eng.trec([]));
 
       const expr: Expr = sb.mem("foo", "bar");
 
-      expect(() =>
-        inferExpr(env, expr, ctx.state)
-      ).toThrowErrorMatchingInlineSnapshot(`"{} doesn't contain property bar"`);
+      expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
+        `"{} doesn't contain property bar"`
+      );
     });
 
     test("access property on TCon that hasn't been defined fails", () => {
-      const ctx = tb.createCtx();
-      let env: Env = Map();
-      env = env.set("foo", scheme([], tb.tcon("Foo", [], ctx)));
+      const eng = new Engine();
+      eng.defType("foo", eng.tcon("Foo", []));
 
       const expr: Expr = sb.mem("foo", "bar");
 
-      expect(() =>
-        inferExpr(env, expr, ctx.state)
-      ).toThrowErrorMatchingInlineSnapshot(
+      expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
         `"No type named Foo in environment"`
       );
     });
 
     test("type param count mismatch", () => {
-      const ctx = tb.createCtx();
-      const tVar = tb.tvar("T", ctx);
-      let env: Env = Map();
-      env = env.set("Foo", scheme([tVar], tb.tNum(ctx)));
-      env = env.set("foo", scheme([], tb.tcon("Foo", [], ctx)));
+      const eng = new Engine();
+      const tVar = eng.tvar("T");
+      eng.defScheme("Foo", scheme([tVar], eng.tNum()));
+      eng.defType("foo", eng.tcon("Foo", []));
 
       const expr: Expr = sb.mem("foo", "bar");
 
-      expect(() =>
-        inferExpr(env, expr, ctx.state)
-      ).toThrowErrorMatchingInlineSnapshot(
+      expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
         `"number of type params in foo doesn't match those in Foo"`
       );
     });
 
     test("alias type is not a TRec", () => {
-      const ctx = tb.createCtx();
-      let env: Env = Map();
-      env = env.set("Foo", scheme([], tb.tNum(ctx)));
-      env = env.set("foo", scheme([], tb.tcon("Foo", [], ctx)));
+      const eng = new Engine();
+      eng.defScheme("Foo", scheme([], eng.tNum()));
+      eng.defType("foo", eng.tcon("Foo", []));
 
       const expr: Expr = sb.mem("foo", "bar");
 
-      expect(() =>
-        inferExpr(env, expr, ctx.state)
-      ).toThrowErrorMatchingInlineSnapshot(
+      expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
         `"Can't use member access on TPrim"`
       );
     });
 
     test("property doesn't exist on aliased TRec type", () => {
-      const ctx = tb.createCtx();
-      let env: Env = Map();
-      env = env.set("Foo", scheme([], tb.trec([], ctx)));
-      env = env.set("foo", scheme([], tb.tcon("Foo", [], ctx)));
+      const eng = new Engine();
+      eng.defScheme("Foo", scheme([], eng.trec([])));
+      eng.defType("foo", eng.tcon("Foo", []));
 
       const expr: Expr = sb.mem("foo", "bar");
 
-      expect(() =>
-        inferExpr(env, expr, ctx.state)
-      ).toThrowErrorMatchingInlineSnapshot(
+      expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
         `"bar property doesn't exist on {}"`
       );
     });
 
     test("access on TPrim stored in TVar throws", () => {
-      const ctx = tb.createCtx();
-      let env: Env = Map();
-      env = env.set("foo", scheme([], tb.tNum(ctx)));
+      const eng = new Engine();
+      eng.defType("foo", eng.tNum());
 
       const expr: Expr = sb.mem("foo", "bar");
 
-      expect(() =>
-        inferExpr(env, expr, ctx.state)
-      ).toThrowErrorMatchingInlineSnapshot(
+      expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
         `"Can't use member access on TPrim"`
       );
     });
 
     test("{foo: 'hello'}['bar'] throws", () => {
-      const ctx = tb.createCtx();
-      const env: Env = Map();
+      const eng = new Engine();
 
       const expr: Expr = {
         tag: "Mem",
@@ -143,7 +116,7 @@ describe("Member access", () => {
         property: sb._var("bar"),
       };
 
-      expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+      expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
         `"Record literal doesn't contain property 'bar'"`
       );
     });
@@ -151,19 +124,17 @@ describe("Member access", () => {
 
   describe("types", () => {
     test("Array['length'] -> number", () => {
-      const ctx = tb.createCtx();
-      let env: Env = Map();
-      env = env.set("Array", createArrayScheme(ctx));
+      const eng = new Engine();
+      eng.defScheme("Array", createArrayScheme(eng.ctx));
 
       const expr: Expr = sb.mem("Array", "length");
-      const result = inferExpr(env, expr);
+      const result = eng.inferExpr(expr);
 
       expect(print(result)).toMatchInlineSnapshot(`"number"`);
     });
 
     test("{foo: 'hello'}['foo'] -> 'hello'", () => {
-      const ctx = tb.createCtx();
-      const env: Env = Map();
+      const eng = new Engine();
 
       const expr: Expr = {
         tag: "Mem",
@@ -171,7 +142,7 @@ describe("Member access", () => {
         property: sb._var("foo"),
       };
 
-      const result = inferExpr(env, expr);
+      const result = eng.inferExpr(expr);
 
       expect(print(result)).toMatchInlineSnapshot(`"\\"hello\\""`);
     });

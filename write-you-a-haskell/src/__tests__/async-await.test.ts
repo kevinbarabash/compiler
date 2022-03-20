@@ -1,84 +1,79 @@
-import { Map } from "immutable";
-
-import { inferExpr } from "../infer";
 import { Expr } from "../syntax-types";
-import { Env } from "../context";
 import { print, scheme } from "../type-types";
 import * as sb from "../syntax-builders";
-import * as tb from "../type-builders";
+import { Engine } from "../engine";
 
 describe("Async/Await", () => {
   test("return value is wrapped in a promise", () => {
+    const eng = new Engine();
     const expr: Expr = sb.lam([], sb.num(5), true);
 
-    const env: Env = Map();
-    const result = inferExpr(env, expr);
+    const result = eng.inferExpr(expr);
 
     expect(print(result)).toEqual("() => Promise<5>");
   });
 
   test("return value is not rewrapped if already a promise", () => {
-    const ctx = tb.createCtx();
+    const eng = new Engine();
     const retVal = scheme(
       [],
-      tb.tcon("Promise", [tb.tprim("number", ctx)], ctx),
+      eng.tcon("Promise", [eng.tprim("number")]),
     );
-    const expr: Expr = sb.lam([], sb._var("retVal"), true);
+    eng.defScheme("retVal", retVal);
 
-    let env: Env = Map();
-    env = env.set("retVal", retVal);
-    const result = inferExpr(env, expr, ctx.state);
+    const expr: Expr = sb.lam([], sb._var("retVal"), true);
+    const result = eng.inferExpr(expr);
 
     expect(print(result)).toEqual("() => Promise<number>");
   });
 
   test("awaiting a promise will unwrap it", () => {
-    const ctx = tb.createCtx();
+    const eng = new Engine();
     const retVal = scheme(
       [],
-      tb.tcon("Promise", [tb.tprim("number", ctx)], ctx),
+      eng.tcon("Promise", [eng.tprim("number")]),
     );
+    eng.defScheme("retVal", retVal);
+
     // Passing an awaited Promise<number> to add() verifies that we're
     // unwrapping promises.
     const expr: Expr = sb.lam([], sb.add(sb._await(sb._var("retVal")), sb.num(5)), true);
-
-    let env: Env = Map();
-    env = env.set("retVal", retVal);
-    const result = inferExpr(env, expr, ctx.state);
+    const result = eng.inferExpr(expr);
 
     expect(print(result)).toEqual("() => Promise<number>");
   });
 
   test("awaiting a non-promise value is a no-op", () => {
+    const eng = new Engine();
     // Passing an awaited Promise<number> to add() verifies that we're
     // unwrapping promises.
     const expr: Expr = sb.lam([], sb.add(sb._await(sb.num(5)), sb.num(10)), true);
 
-    const env: Env = Map();
-    const result = inferExpr(env, expr);
+    const result = eng.inferExpr(expr);
 
     expect(print(result)).toEqual("() => Promise<number>");
   });
 
   test("inferring an async function that returns a polymorphic promise", () => {
+    const eng = new Engine();
     const expr: Expr = sb.lam(["x"], sb.app(sb._var("x"), []), true);
 
-    const env: Env = Map();
-    const result = inferExpr(env, expr);
+    const result = eng.inferExpr(expr);
 
     expect(print(result)).toEqual("<a>(() => a) => Promise<a>");
   });
 
   test("awaiting inside a non-async lambda", () => {
+    const eng = new Engine();
     const expr: Expr = sb.lam([], sb.add(sb._await(sb.num(5)), sb.num(10)));
 
-    const env: Env = Map();
-    expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+    expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
       `"Can't use \`await\` inside non-async lambda"`
     );
   });
 
   test("awaiting inside a nested non-async lambda", () => {
+    const eng = new Engine();
     const expr: Expr = sb.lam(
       [],
       sb._let(
@@ -89,13 +84,13 @@ describe("Async/Await", () => {
       true // Even though the outer lambda is async, the inner one isn't
     );
 
-    const env: Env = Map();
-    expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+    expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
       `"Can't use \`await\` inside non-async lambda"`
     );
   });
 
   test("awaiting inside a nested async lambda", () => {
+    const eng = new Engine();
     const expr: Expr = sb.lam(
       [],
       sb._let(
@@ -106,8 +101,7 @@ describe("Async/Await", () => {
       false
     );
 
-    const env: Env = Map();
-    const result = inferExpr(env, expr);
+    const result = eng.inferExpr(expr);
 
     expect(print(result)).toEqual("() => Promise<number>");
   });

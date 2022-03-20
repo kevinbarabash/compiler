@@ -1,12 +1,8 @@
-import { Map } from "immutable";
-
-import { inferExpr } from "../infer";
 import { Expr } from "../syntax-types";
-import { Env } from "../context";
 import { print, scheme } from "../type-types";
 import * as sb from "../syntax-builders";
-import * as tb from "../type-builders";
 import { createArrayScheme } from "../builtins";
+import { Engine } from "../engine";
 
 type Binding = [string, Expr];
 
@@ -14,6 +10,7 @@ const _const: Binding = ["const", sb.lam(["x", "y"], sb._var("x"))];
 
 describe("Functions", () => {
   test("let rec fib = (n) => ...", () => {
+    const eng = new Engine();
     // letrecdecl takes
     // `let rec fib = (n) => ...`
     // and converts it to
@@ -46,21 +43,21 @@ describe("Functions", () => {
       ),
     ];
 
-    const env: Env = Map();
-    const result = inferExpr(env, fib[1]);
+    const result = eng.inferExpr(fib[1]);
 
     // TODO: subsume 0 and 1 into number
     expect(print(result)).toEqual("(number) => number");
   });
 
   test("let const = (x) => (y) => x", () => {
-    let env: Env = Map();
-    const result = inferExpr(env, _const[1]);
+    const eng = new Engine();
+    const result = eng.inferExpr(_const[1]);
 
     expect(print(result)).toEqual("<a, b>(a, b) => a");
   });
 
   test("issue #82", () => {
+    const eng = new Engine();
     // let y = \y -> {
     //   let f = \x -> if x then True else False in const(f(y), y);
     // }
@@ -93,30 +90,28 @@ describe("Functions", () => {
       ),
     ];
 
-    let env: Env = Map();
-    env = env.set(_const[0], inferExpr(env, _const[1]));
-    env = env.set(y[0], inferExpr(env, y[1]));
-    env = env.set(id[0], inferExpr(env, id[1]));
-    env = env.set(foo[0], inferExpr(env, foo[1]));
+    eng.inferDecl(_const[0], _const[1]);
+    eng.inferDecl(y[0], y[1]);
+    eng.inferDecl(id[0], id[1]);
+    eng.inferDecl(foo[0], foo[1]);
 
-    const fooType = env.get("foo");
+    const fooType = eng.ctx.env.get("foo");
     if (!fooType) {
       throw new Error("foo is undefined");
     }
 
     expect(print(fooType)).toEqual("(number) => number");
 
-    const yType = env.get("y");
+    const yType = eng.ctx.env.get("y");
     if (!yType) {
       throw new Error("y is undefined");
     }
 
-    // This was (boolean) => boolean before...
-    // Is <a>(boolean) => a more accurate?
-    expect(print(yType)).toEqual("<a>(boolean) => a");
+    expect(print(yType)).toEqual("(boolean) => boolean");
   });
 
   test("let compose = (f) => (g) => (x) => g(f(x))", () => {
+    const eng = new Engine();
     // compose f g x == g (f x)
     const compose: Binding = [
       "compose",
@@ -132,8 +127,7 @@ describe("Functions", () => {
       ),
     ];
 
-    let env: Env = Map();
-    const result = inferExpr(env, compose[1]);
+    const result = eng.inferExpr(compose[1]);
 
     expect(print(result)).toEqual(
       "<a, b, c>((a) => b) => ((b) => c) => (a) => c"
@@ -141,6 +135,7 @@ describe("Functions", () => {
   });
 
   test("let on = (g, f) => (x, y) => g(f(x), f(y))", () => {
+    const eng = new Engine();
     const on: Binding = [
       "on",
       sb.lam(
@@ -155,8 +150,7 @@ describe("Functions", () => {
       ),
     ];
 
-    let env: Env = Map();
-    const result = inferExpr(env, on[1]);
+    const result = eng.inferExpr(on[1]);
 
     // TODO: include variable names in the output of the inferred type
     expect(print(result)).toEqual(
@@ -165,6 +159,7 @@ describe("Functions", () => {
   });
 
   test("let ap = (f, x) => f(f(x);", () => {
+    const eng = new Engine();
     const ap: Binding = [
       "ap",
       sb.lam(
@@ -173,13 +168,13 @@ describe("Functions", () => {
       ),
     ];
 
-    let env: Env = Map();
-    const result = inferExpr(env, ap[1]);
+    const result = eng.inferExpr(ap[1]);
 
     expect(print(result)).toEqual("<a>((a) => a, a) => a");
   });
 
   test("until (n-ary)", () => {
+    const eng = new Engine();
     const until: Binding = [
       "until",
       // let rec until p f x =
@@ -205,17 +200,16 @@ describe("Functions", () => {
       ),
     ];
 
-    let env: Env = Map();
-    const result = inferExpr(env, until[1]);
+    const result = eng.inferExpr(until[1]);
 
     expect(print(result)).toEqual("<a>((a) => boolean, (a) => a, a) => a");
   });
 
   test("no args", () => {
+    const eng = new Engine();
     const foo: Binding = ["foo", sb.lam([], sb.num(5))];
 
-    let env: Env = Map();
-    const result = inferExpr(env, foo[1]);
+    const result = eng.inferExpr(foo[1]);
 
     expect(print(result)).toEqual("() => 5");
   });
@@ -223,26 +217,21 @@ describe("Functions", () => {
 
 describe("partial applicaiton", () => {
   test("add5 = add(5)", () => {
+    const eng = new Engine();
     const _add: Binding = [
       "add",
       sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
     ];
     const add5: Binding = ["add5", sb.app(sb._var("add"), [sb.num(5)])];
 
-    let env: Env = Map();
-    const addScheme = inferExpr(env, _add[1]);
-    env = env.set(_add[0], addScheme);
-    env = env.set(add5[0], inferExpr(env, add5[1]));
-
-    const result = env.get("add5");
-    if (!result) {
-      throw new Error("add5 is undefined");
-    }
+    eng.inferDecl(_add[0], _add[1]);
+    const result = eng.inferDecl(add5[0], add5[1]);
 
     expect(print(result)).toEqual("(number) => number");
   });
 
   test("let sum = add(5)(10)", () => {
+    const eng = new Engine();
     const _add: Binding = [
       "add",
       sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
@@ -252,20 +241,14 @@ describe("partial applicaiton", () => {
       sb.app(sb.app(sb._var("add"), [sb.num(5)]), [sb.num(10)]),
     ];
 
-    let env: Env = Map();
-    const addScheme = inferExpr(env, _add[1]);
-    env = env.set(_add[0], addScheme);
-    env = env.set(sum[0], inferExpr(env, sum[1]));
-
-    const result = env.get("sum");
-    if (!result) {
-      throw new Error("sum is undefined");
-    }
+    eng.inferDecl(_add[0], _add[1]);
+    const result = eng.inferDecl(sum[0], sum[1]);
 
     expect(print(result)).toEqual("number");
   });
 
   test("((a, b) => a + b)(5)", () => {
+    const eng = new Engine();
     const add5: Binding = [
       "add5",
       sb.app(sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))), [
@@ -273,8 +256,7 @@ describe("partial applicaiton", () => {
       ]),
     ];
 
-    const env: Env = Map();
-    const result = inferExpr(env, add5[1]);
+    const result = eng.inferExpr(add5[1]);
 
     expect(print(result)).toEqual("(number) => number");
   });
@@ -282,6 +264,7 @@ describe("partial applicaiton", () => {
 
 describe("function subtyping", () => {
   test("extra args are allowed and ignored", () => {
+    const eng = new Engine();
     const _add: Binding = [
       "add",
       sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
@@ -291,39 +274,34 @@ describe("function subtyping", () => {
       sb.app(sb._var("add"), [sb.num(5), sb.num(10), sb.num(99)]),
     ];
 
-    let env: Env = Map();
-    const addScheme = inferExpr(env, _add[1]);
-    env = env.set(_add[0], addScheme);
-    env = env.set(sum[0], inferExpr(env, sum[1]));
+    eng.inferDecl(_add[0], _add[1]);
+    eng.inferDecl(sum[0], sum[1]);
+
+    // TODO: add assertion
   });
 
   test("passing a callback with fewer params is allowed", () => {
-    const ctx = tb.createCtx();
-    const aVar = tb.tvar("a", ctx);
-    const bVar = tb.tvar("b", ctx);
+    const eng = new Engine();
+    const aVar = eng.tvar("a");
+    const bVar = eng.tvar("b");
 
     const mapScheme = scheme(
       [aVar, bVar],
-      tb.tfun(
+      eng.tfun(
         [
-          tb.tcon("Array", [aVar], ctx),
+          eng.tcon("Array", [aVar]),
           // Why is this TFun's `src` an "App"?
-          tb.tfun([aVar, tb.tprim("number", ctx)], bVar, ctx, "App"),
+          eng.tfun([aVar, eng.tprim("number")], bVar, "App"),
         ],
-        tb.tcon("Array", [bVar], ctx),
-        ctx
+        eng.tcon("Array", [bVar])
       )
     );
 
-    let env: Env = Map();
-    env = env.set("map", mapScheme);
+    eng.defScheme("map", mapScheme);
 
-    const intArray = scheme(
-      [],
-      tb.tcon("Array", [tb.tprim("number", ctx)], ctx)
-    );
+    const intArray = scheme([], eng.tcon("Array", [eng.tprim("number")]));
 
-    env = env.set("array", intArray);
+    eng.defScheme("array", intArray);
 
     const call: Expr = {
       tag: "App",
@@ -331,63 +309,57 @@ describe("function subtyping", () => {
       args: [sb._var("array"), sb.lam(["x"], sb.eql(sb._var("x"), sb.num(0)))],
     };
 
-    const result = inferExpr(env, call, ctx.state);
+    const result = eng.inferExpr(call);
 
     expect(print(result)).toEqual("Array<boolean>");
   });
 
   test("strArray.map((elem) => 5) -> Array<5>", () => {
-    const ctx = tb.createCtx();
+    const eng = new Engine();
 
-    let env: Env = Map();
-    env = env.set("Array", createArrayScheme(ctx));
+    eng.defScheme("Array", createArrayScheme(eng.ctx));
 
-    env = env.set(
+    eng.defScheme(
       "strArray",
-      scheme([], tb.tcon("Array", [tb.tprim("string", ctx)], ctx))
+      scheme([], eng.tcon("Array", [eng.tprim("string")]))
     );
 
     // TODO: allow `(elem) => 5` to be passed as the callback
     const expr: Expr = sb.app(sb.mem("strArray", "map"), [
       sb.lam(["elem"], sb.num(5)),
     ]);
-    const result = inferExpr(env, expr, ctx.state);
+    const result = eng.inferExpr(expr);
 
     expect(print(result)).toMatchInlineSnapshot(`"Array<5>"`);
   });
 
   test("partial application of a callback", () => {
-    const ctx = tb.createCtx();
-    const aVar = tb.tvar("a", ctx);
-    const bVar = tb.tvar("b", ctx);
+    const eng = new Engine();
+    const aVar = eng.tvar("a");
+    const bVar = eng.tvar("b");
 
     const mapScheme = scheme(
       [aVar, bVar],
-      tb.tfun(
+      eng.tfun(
         [
-          tb.tcon("Array", [aVar], ctx),
-          tb.tfun([aVar, tb.tprim("number", ctx)], bVar, ctx, "App"),
+          eng.tcon("Array", [aVar]),
+          eng.tfun([aVar, eng.tprim("number")], bVar, "App"),
         ],
-        tb.tcon("Array", [bVar], ctx),
-        ctx
+        eng.tcon("Array", [bVar])
       )
     );
 
-    let env: Env = Map();
-    env = env.set("map", mapScheme);
+    eng.defScheme("map", mapScheme);
 
-    const intArray = scheme(
-      [],
-      tb.tcon("Array", [tb.tprim("number", ctx)], ctx)
-    );
+    const intArray = scheme([], eng.tcon("Array", [eng.tprim("number")]));
 
-    env = env.set("array", intArray);
+    eng.defScheme("array", intArray);
 
     const _add: Binding = [
       "add",
       sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
     ];
-    env = env.set(_add[0], inferExpr(env, _add[1]));
+    eng.inferDecl(_add[0], _add[1]);
 
     const call: Expr = {
       tag: "App",
@@ -398,7 +370,7 @@ describe("function subtyping", () => {
       ],
     };
 
-    const result = inferExpr(env, call, ctx.state);
+    const result = eng.inferExpr(call);
 
     expect(print(result)).toEqual("Array<(number) => number>");
   });
