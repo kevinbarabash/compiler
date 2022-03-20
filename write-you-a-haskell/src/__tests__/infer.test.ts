@@ -262,7 +262,7 @@ describe("inferExpr", () => {
       // TODO: improve this error so that it says something like:
       // Can't pass `true` where the `+` operator expects a `number`
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Couldn't unify number with true"`
+        `"true is not a subtype of number"`
       );
     });
 

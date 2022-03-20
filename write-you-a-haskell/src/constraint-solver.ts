@@ -4,13 +4,14 @@ import { assert } from "console";
 import { Context, lookupEnv } from "./context";
 import * as t from "./type-types";
 import * as tb from "./type-builders";
-import { apply, ftv, zip } from "./util";
+import { apply, ftv, zip, zipTypes } from "./util";
 import {
   InfiniteType,
   UnificationFail,
   UnificationMismatch,
   ExtraProperties,
   MissingProperties,
+  SubtypingFailure,
 } from "./errors";
 
 //
@@ -40,11 +41,44 @@ const unifyMany = (
   return composeSubs(su2, su1);
 };
 
+export const isTFun = (c: t.Constraint): c is t.Constraint<t.TFun> => {
+  const [t1, t2] = c.types;
+  return t.isTFun(t1) && t.isTFun(t2);
+};
+
+export const isTTuple = (c: t.Constraint): c is t.Constraint<t.TTuple> => {
+  const [t1, t2] = c.types;
+  return t.isTTuple(t1) && t.isTTuple(t2);
+};
+
+export const isTUnion = (c: t.Constraint): c is t.Constraint<t.TUnion> => {
+  const [t1, t2] = c.types;
+  return t.isTUnion(t1) && t.isTUnion(t2);
+};
+
+export const isTCon = (c: t.Constraint): c is t.Constraint<t.TCon> => {
+  const [t1, t2] = c.types;
+  return t.isTCon(t1) && t.isTCon(t2);
+};
+
+export const isTRec = (c: t.Constraint): c is t.Constraint<t.TRec> => {
+  const [t1, t2] = c.types;
+  return t.isTRec(t1) && t.isTRec(t2);
+};
+
+export const isTMem = (c: t.Constraint): c is t.Constraint<t.TMem> => {
+  const [t1, t2] = c.types;
+  return t.isTMem(t1) && t.isTMem(t2);
+}
+
 export const unifies = (c: t.Constraint, ctx: Context): t.Subst => {
-  const [t1, t2] = c;
+  const {
+    types: [t1, t2],
+    subtype,
+  } = c;
   if (t.isTVar(t1)) return bind(t1, t2, ctx);
   if (t.isTVar(t2)) return bind(t2, t1, ctx);
-  if (t.isTFun(t1) && t.isTFun(t2)) return unifyFuncs(t1, t2, ctx);
+  if (isTFun(c)) return unifyFuncs(c, ctx);
   if (t.isTPrim(t1) && t.isTPrim(t2) && t1.name === t2.name) return emptySubst;
   // TODO: create unifyLiterals()
   if (
@@ -55,23 +89,30 @@ export const unifies = (c: t.Constraint, ctx: Context): t.Subst => {
   ) {
     return emptySubst;
   }
-  if (t.isTCon(t1) && t.isTCon(t2) && t1.name === t2.name) {
-    if (t1.params.length !== t2.params.length) {
-      throw new UnificationMismatch(t1.params, t2.params);
+  if (isTCon(c)) {
+    const [t1, t2] = c.types;
+    if (t1.name === t2.name) {
+      if (t1.params.length !== t2.params.length) {
+        throw new UnificationMismatch(t1.params, t2.params);
+      }
+      return unifyMany(zipTypes(t1.params, t2.params, c.subtype), ctx);
     }
-    return unifyMany(zip(t1.params, t2.params), ctx);
   }
-  if (t.isTUnion(t1) && t.isTUnion(t2)) return unifyUnions(t1, t2, ctx);
-  if (t.isTTuple(t1) && t.isTTuple(t2)) return unifyTuples(t1, t2, ctx);
-  if (t.isTRec(t1) && t.isTRec(t2)) return unifyRecords(t1, t2, ctx);
-  if (t.isTMem(t1) && t.isTMem(t2) && t1.property === t2.property) {
-    const result = unifies([t1.object, t2.object], ctx);
-    return result;
+  if (isTUnion(c)) return unifyUnions(c, ctx);
+  if (isTTuple(c)) return unifyTuples(c, ctx);
+  if (isTRec(c)) return unifyRecords(c, ctx);
+  if (isTMem(c)) {
+    const [t1, t2] = c.types;
+    if (t1.property === t2.property) {
+      const result = unifies({ types: [t1.object, t2.object], subtype: c.subtype }, ctx);
+      return result;
+    }
   }
 
-  // TODO: we need to specify the .src so that the sub-type check
-  // only occurs in valid situations.
-  if (isSubType(t2, t1) || isSubType(t1, t2)) {
+  if (subtype === "Left" && isSubType(t1, t2)) {
+    return emptySubst;
+  }
+  if (subtype === "Right" && isSubType(t2, t1)) {
     return emptySubst;
   }
 
@@ -82,10 +123,19 @@ export const unifies = (c: t.Constraint, ctx: Context): t.Subst => {
     return widenTypes(t1, t2, ctx);
   }
 
+  if (subtype === "Left") {
+    throw new SubtypingFailure(t1, t2);
+  }
+  if (subtype === "Right") {
+    throw new SubtypingFailure(t2, t1);
+  }
+
   throw new UnificationFail(t1, t2);
 };
 
-const unifyFuncs = (t1: t.TFun, t2: t.TFun, ctx: Context): t.Subst => {
+const unifyFuncs = (c: t.Constraint<t.TFun>, ctx: Context): t.Subst => {
+  const [t1, t2] = c.types;
+
   // infer() only ever creates a Lam node on the left side of a constraint
   // and an App on the right side of a constraint so this check is sufficient.
   if (t1.src === "Lam" && t2.src === "App") {
@@ -99,8 +149,8 @@ const unifyFuncs = (t1: t.TFun, t2: t.TFun, ctx: Context): t.Subst => {
         src: t1.src,
       };
       const constraints: readonly t.Constraint[] = [
-        ...zip(t1_partial.args, t2.args),
-        [t1_partial.ret, t2.ret],
+        ...zipTypes(t1_partial.args, t2.args, c.subtype),
+        { types: [t1_partial.ret, t2.ret], subtype: c.subtype },
       ];
       return unifyMany(constraints, ctx);
     }
@@ -117,8 +167,8 @@ const unifyFuncs = (t1: t.TFun, t2: t.TFun, ctx: Context): t.Subst => {
         src: t2.src,
       };
       const constraints: readonly t.Constraint[] = [
-        ...zip(t1.args, t2_without_extra_args.args),
-        [t1.ret, t2_without_extra_args.ret],
+        ...zipTypes(t1.args, t2_without_extra_args.args, c.subtype),
+        { types: [t1.ret, t2_without_extra_args.ret], subtype: c.subtype },
       ];
       return unifyMany(constraints, ctx);
     }
@@ -140,8 +190,8 @@ const unifyFuncs = (t1: t.TFun, t2: t.TFun, ctx: Context): t.Subst => {
         src: t1.src,
       };
       const constraints: readonly t.Constraint[] = [
-        ...zip(t1_without_extra_args.args, t2.args),
-        [t1_without_extra_args.ret, t2.ret],
+        ...zipTypes(t1_without_extra_args.args, t2.args, c.subtype),
+        { types: [t1_without_extra_args.ret, t2.ret], subtype: c.subtype },
       ];
       return unifyMany(constraints, ctx);
     }
@@ -152,15 +202,26 @@ const unifyFuncs = (t1: t.TFun, t2: t.TFun, ctx: Context): t.Subst => {
   if (t1.args.length !== t2.args.length) {
     throw new UnificationMismatch(t1.args, t2.args);
   }
+
+  if (c.subtype) {
+    const constraints: readonly t.Constraint[] = [
+      ...zipTypes(t1.args, t2.args, c.subtype),
+      { types: [t1.ret, t2.ret], subtype: c.subtype },
+    ];
+
+    return unifyMany(constraints, ctx);
+  }
+
   const constraints: readonly t.Constraint[] = [
-    ...zip(t1.args, t2.args),
-    [t1.ret, t2.ret],
+    ...zipTypes(t1.args, t2.args, c.subtype),
+    { types: [t1.ret, t2.ret], subtype: c.subtype },
   ];
 
   return unifyMany(constraints, ctx);
 };
 
-const unifyRecords = (t1: t.TRec, t2: t.TRec, ctx: Context): t.Subst => {
+const unifyRecords = (c: t.Constraint<t.TRec>, ctx: Context): t.Subst => {
+  const [t1, t2] = c.types;
   const keys1 = t1.properties.map((prop) => prop.name);
   const keys2 = t2.properties.map((prop) => prop.name);
 
@@ -204,10 +265,11 @@ const unifyRecords = (t1: t.TRec, t2: t.TRec, ctx: Context): t.Subst => {
   if (ot1.length !== ot2.length) {
     throw new UnificationMismatch(ot1, ot2);
   }
-  return unifyMany(zip(ot1, ot2), ctx);
+  return unifyMany(zipTypes(ot1, ot2, c.subtype), ctx);
 };
 
-const unifyTuples = (t1: t.TTuple, t2: t.TTuple, ctx: Context): t.Subst => {
+const unifyTuples = (c: t.Constraint<t.TTuple>, ctx: Context): t.Subst => {
+  const [t1, t2] = c.types;
   if (t1.types.length !== t2.types.length) {
     throw new UnificationFail(t1, t2);
   }
@@ -216,17 +278,18 @@ const unifyTuples = (t1: t.TTuple, t2: t.TTuple, ctx: Context): t.Subst => {
   if (t1.types.length !== t2.types.length) {
     throw new UnificationMismatch(t1.types, t2.types);
   }
-  return unifyMany(zip(t1.types, t2.types), ctx);
+  return unifyMany(zipTypes(t1.types, t2.types, c.subtype), ctx);
 };
 
-const unifyUnions = (t1: t.TUnion, t2: t.TUnion, ctx: Context): t.Subst => {
+const unifyUnions = (c: t.Constraint<t.TUnion>, ctx: Context): t.Subst => {
+  const [t1, t2] = c.types;
   // Assume that the union types have been normalized by this point
   // This only works if the types that make up the unions are ordered
   // consistently.  Is there a way to do this?
   if (t1.types.length !== t2.types.length) {
     throw new UnificationMismatch(t1.types, t2.types);
   }
-  return unifyMany(zip(t1.types, t2.types), ctx);
+  return unifyMany(zipTypes(t1.types, t2.types, c.subtype), ctx);
 };
 
 const composeSubs = (s1: t.Subst, s2: t.Subst): t.Subst => {

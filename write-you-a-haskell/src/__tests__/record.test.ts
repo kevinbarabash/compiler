@@ -122,7 +122,7 @@ describe("record", () => {
       ]);
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Couldn't unify string with true"`
+        `"true is not a subtype of string"`
       );
     });
   });

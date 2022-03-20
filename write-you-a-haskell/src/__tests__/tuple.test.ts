@@ -100,7 +100,7 @@ describe("tuple", () => {
       ]);
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Couldn't unify string with true"`
+        `"true is not a subtype of string"`
       );
     });
   });
@@ -113,7 +113,7 @@ describe("tuple", () => {
         eng.tfun(
           [eng.tcon("Array", [eng.tlit({ tag: "LNum", value: 5 })])],
           eng.tprim("number"),
-          "Lam",
+          "Lam"
         )
       );
 
@@ -146,18 +146,23 @@ describe("tuple", () => {
       eng.defType(
         "foo",
         eng.tfun(
-          [eng.ttuple([eng.tlit({tag: "LNum", value: 5}), eng.tlit({tag: "LNum", value: 10})])],
+          [
+            eng.ttuple([
+              eng.tlit({ tag: "LNum", value: 5 }),
+              eng.tlit({ tag: "LNum", value: 10 }),
+            ]),
+          ],
           eng.tprim("number"),
-          "Lam",
+          "Lam"
         )
       );
       eng.defType("numArray", eng.tcon("Array", [eng.tprim("number")]));
 
       expect(() =>
-        eng.inferExpr(
-          sb.app(sb._var("foo"), [sb._var("numArray")])
-        )
-      ).not.toThrow();
+        eng.inferExpr(sb.app(sb._var("foo"), [sb._var("numArray")]))
+      ).toThrowErrorMatchingInlineSnapshot(
+        `"Array<number> is not a subtype of [5, 10]"`
+      );
     });
   });
 });

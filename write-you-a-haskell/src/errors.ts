@@ -8,6 +8,14 @@ export class UnificationFail extends Error {
   }
 }
 
+export class SubtypingFailure extends Error {
+  constructor(sub: Type, sup: Type) {
+    const message = `${print(sub)} is not a subtype of ${print(sup)}`;
+    super(message);
+    this.name = "SubtypingFailure";
+  }
+}
+
 export class InfiniteType extends Error {
   constructor(a: TVar, b: Type) {
     const message = `${print(a)} appears in ${print(b)}`;
@@ -27,7 +35,7 @@ export class UnboundVariable extends Error {
 export class Ambiguous extends Error {
   constructor(constraints: Constraint[]) {
     const message = constraints
-      .map(([a, b]) => `${print(a)} = ${print(b)}`)
+      .map(({types: [a, b]}) => `${print(a)} = ${print(b)}`)
       .join(", ");
     super(message);
     this.name = "Ambiguous";

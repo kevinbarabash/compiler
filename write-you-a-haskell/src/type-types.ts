@@ -146,7 +146,11 @@ export const isTLit = (t: Type): t is TLit => t.tag === "TLit";
 export const isTMem = (t: Type): t is TMem => t.tag === "TMem";
 export const isScheme = (t: any): t is Scheme => t.tag === "Forall";
 
-export type Constraint = readonly [Type, Type];
+export type Constraint<T extends Type = Type> = {
+  types: readonly [T, T],
+  subtype: "Left" | "Right" | null,
+};
+
 export type Unifier = readonly [Subst, readonly Constraint[]];
 
 export type Subst = Map<number, Type>;
