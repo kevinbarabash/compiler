@@ -6,6 +6,7 @@ import { Env } from "../context";
 import { print, scheme } from "../type-types";
 import * as sb from "../syntax-builders";
 import * as tb from "../type-builders";
+import { createArrayScheme } from "../builtins";
 
 type Binding = [string, Expr];
 
@@ -333,6 +334,26 @@ describe("function subtyping", () => {
     const result = inferExpr(env, call, ctx.state);
 
     expect(print(result)).toEqual("Array<boolean>");
+  });
+
+  test("strArray.map((elem) => 5) -> Array<5>", () => {
+    const ctx = tb.createCtx();
+
+    let env: Env = Map();
+    env = env.set("Array", createArrayScheme(ctx));
+
+    env = env.set(
+      "strArray",
+      scheme([], tb.tcon("Array", [tb.tprim("string", ctx)], ctx))
+    );
+
+    // TODO: allow `(elem) => 5` to be passed as the callback
+    const expr: Expr = sb.app(sb.mem("strArray", "map"), [
+      sb.lam(["elem"], sb.num(5)),
+    ]);
+    const result = inferExpr(env, expr, ctx.state);
+
+    expect(print(result)).toMatchInlineSnapshot(`"Array<5>"`);
   });
 
   test("partial application of a callback", () => {

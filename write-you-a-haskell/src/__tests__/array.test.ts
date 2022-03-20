@@ -2,10 +2,11 @@ import { Map } from "immutable";
 
 import { inferExpr } from "../infer";
 import { Expr } from "../syntax-types";
-import { Context, Env } from "../context";
-import { Scheme, freeze, print, scheme } from "../type-types";
+import { Env } from "../context";
+import { print, scheme } from "../type-types";
 import * as sb from "../syntax-builders";
 import * as tb from "../type-builders";
+import { createArrayScheme } from "../builtins";
 
 describe("Array", () => {
   test("printing the type", () => {
@@ -125,7 +126,7 @@ describe("Array", () => {
       "strArray",
       scheme([], tb.tcon("Array", [tb.tprim("string", ctx)], ctx))
     );
-  
+
     const expr: Expr = sb.app(sb.mem("strArray", "map"), [
       sb.lam(["elem", "index", "array"], sb.mem("array", "length")),
     ]);
@@ -134,41 +135,3 @@ describe("Array", () => {
     expect(print(result)).toMatchInlineSnapshot(`"Array<number>"`);
   });
 });
-
-const createArrayScheme = (ctx: Context): Scheme => {
-  const tVar = tb.tvar("T", ctx);
-  const uVar = tb.tvar("U", ctx);
-  const sc = scheme(
-    [tVar],
-    tb.trec(
-      [
-        tb.tprop("length", tb.tprim("number", ctx)),
-        tb.tprop(
-          "map",
-          // TODO: properties need to be able to accept Schemes
-          // as well as types.
-          tb.tfun(
-            [
-              tb.tfun(
-                [
-                  tVar,
-                  tb.tprim("number", ctx),
-                  // TODO: how do we handle record types that
-                  // reference themselves.
-                  tb.tcon("Array", [tVar], ctx),
-                ],
-                uVar,
-                ctx
-              ),
-            ],
-            tb.tcon("Array", [uVar], ctx),
-            ctx
-          )
-        ),
-      ],
-      ctx
-    )
-  );
-  freeze(sc.type);
-  return sc;
-};
