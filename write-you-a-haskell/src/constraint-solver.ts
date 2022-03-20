@@ -4,7 +4,7 @@ import { assert } from "console";
 import { Context, lookupEnv } from "./context";
 import * as t from "./type-types";
 import * as tb from "./type-builders";
-import { apply, ftv } from "./util";
+import { apply, ftv, zip } from "./util";
 import {
   InfiniteType,
   UnificationFail,
@@ -27,25 +27,21 @@ export const runSolve = (
 };
 
 const unifyMany = (
-  ts1: readonly t.Type[],
-  ts2: readonly t.Type[],
+  constraints: readonly t.Constraint[],
   ctx: Context
 ): t.Subst => {
-  if (ts1.length !== ts2.length) {
-    throw new UnificationMismatch(ts1, ts2);
-  }
-  if (ts1.length === 0 && ts2.length === 0) {
+  if (constraints.length === 0) {
     return emptySubst;
   }
-  const [t1, ...rest1] = ts1;
-  const [t2, ...rest2] = ts2;
-  const su1 = unifies(t1, t2, ctx);
+  const [c, ...rest] = constraints;
+  const su1 = unifies(c, ctx);
   // TODO: figure out how to make this step non recursive
-  const su2 = unifyMany(apply(su1, rest1), apply(su1, rest2), ctx);
+  const su2 = unifyMany(apply(su1, rest), ctx);
   return composeSubs(su2, su1);
 };
 
-export const unifies = (t1: t.Type, t2: t.Type, ctx: Context): t.Subst => {
+export const unifies = (c: t.Constraint, ctx: Context): t.Subst => {
+  const [t1, t2] = c;
   if (t.isTVar(t1)) return bind(t1, t2, ctx);
   if (t.isTVar(t2)) return bind(t2, t1, ctx);
   if (t.isTFun(t1) && t.isTFun(t2)) return unifyFuncs(t1, t2, ctx);
@@ -60,14 +56,17 @@ export const unifies = (t1: t.Type, t2: t.Type, ctx: Context): t.Subst => {
     return emptySubst;
   }
   if (t.isTCon(t1) && t.isTCon(t2) && t1.name === t2.name) {
-    return unifyMany(t1.params, t2.params, ctx);
+    if (t1.params.length !== t2.params.length) {
+      throw new UnificationMismatch(t1.params, t2.params);
+    }
+    return unifyMany(zip(t1.params, t2.params), ctx);
   }
   if (t.isTUnion(t1) && t.isTUnion(t2)) return unifyUnions(t1, t2, ctx);
   if (t.isTTuple(t1) && t.isTTuple(t2)) return unifyTuples(t1, t2, ctx);
   if (t.isTRec(t1) && t.isTRec(t2)) return unifyRecords(t1, t2, ctx);
   if (t.isTMem(t1) && t.isTMem(t2) && t1.property === t2.property) {
-    const result = unifies(t1.object, t2.object, ctx);
-    return result; 
+    const result = unifies([t1.object, t2.object], ctx);
+    return result;
   }
 
   // TODO: we need to specify the .src so that the sub-type check
@@ -99,11 +98,11 @@ const unifyFuncs = (t1: t.TFun, t2: t.TFun, ctx: Context): t.Subst => {
         ret: tb.tfun(t1.args.slice(t2.args.length), t1.ret, ctx),
         src: t1.src,
       };
-      return unifyMany(
-        [...t1_partial.args, t1_partial.ret],
-        [...t2.args, t2.ret],
-        ctx
-      );
+      const constraints: readonly t.Constraint[] = [
+        ...zip(t1_partial.args, t2.args),
+        [t1_partial.ret, t2.ret],
+      ];
+      return unifyMany(constraints, ctx);
     }
 
     // subtyping: we ignore extra args
@@ -117,11 +116,11 @@ const unifyFuncs = (t1: t.TFun, t2: t.TFun, ctx: Context): t.Subst => {
         ret: t2.ret,
         src: t2.src,
       };
-      return unifyMany(
-        [...t1.args, t1.ret],
-        [...t2_without_extra_args.args, t2_without_extra_args.ret],
-        ctx
-      );
+      const constraints: readonly t.Constraint[] = [
+        ...zip(t1.args, t2_without_extra_args.args),
+        [t1.ret, t2_without_extra_args.ret],
+      ];
+      return unifyMany(constraints, ctx);
     }
   }
 
@@ -140,17 +139,25 @@ const unifyFuncs = (t1: t.TFun, t2: t.TFun, ctx: Context): t.Subst => {
         ret: t1.ret,
         src: t1.src,
       };
-      return unifyMany(
-        [...t1_without_extra_args.args, t1_without_extra_args.ret],
-        [...t2.args, t2.ret],
-        ctx
-      );
+      const constraints: readonly t.Constraint[] = [
+        ...zip(t1_without_extra_args.args, t2.args),
+        [t1_without_extra_args.ret, t2.ret],
+      ];
+      return unifyMany(constraints, ctx);
     }
   }
 
   // TODO: add support for optional params
   // we can model optional params as union types, e.g. int | void
-  return unifyMany([...t1.args, t1.ret], [...t2.args, t2.ret], ctx);
+  if (t1.args.length !== t2.args.length) {
+    throw new UnificationMismatch(t1.args, t2.args);
+  }
+  const constraints: readonly t.Constraint[] = [
+    ...zip(t1.args, t2.args),
+    [t1.ret, t2.ret],
+  ];
+
+  return unifyMany(constraints, ctx);
 };
 
 const unifyRecords = (t1: t.TRec, t2: t.TRec, ctx: Context): t.Subst => {
@@ -194,7 +201,10 @@ const unifyRecords = (t1: t.TRec, t2: t.TRec, ctx: Context): t.Subst => {
 
   // TODO: create a custom fork unifyMany() that knows how to report
   // errors from individual properties failing to unify.
-  return unifyMany(ot1, ot2, ctx);
+  if (ot1.length !== ot2.length) {
+    throw new UnificationMismatch(ot1, ot2);
+  }
+  return unifyMany(zip(ot1, ot2), ctx);
 };
 
 const unifyTuples = (t1: t.TTuple, t2: t.TTuple, ctx: Context): t.Subst => {
@@ -203,14 +213,20 @@ const unifyTuples = (t1: t.TTuple, t2: t.TTuple, ctx: Context): t.Subst => {
   }
   // TODO: create a custom fork unifyMany() that can report which elements
   // failed to unify within t1 and t2
-  return unifyMany(t1.types, t2.types, ctx);
+  if (t1.types.length !== t2.types.length) {
+    throw new UnificationMismatch(t1.types, t2.types);
+  }
+  return unifyMany(zip(t1.types, t2.types), ctx);
 };
 
 const unifyUnions = (t1: t.TUnion, t2: t.TUnion, ctx: Context): t.Subst => {
   // Assume that the union types have been normalized by this point
   // This only works if the types that make up the unions are ordered
   // consistently.  Is there a way to do this?
-  return unifyMany(t1.types, t2.types, ctx);
+  if (t1.types.length !== t2.types.length) {
+    throw new UnificationMismatch(t1.types, t2.types);
+  }
+  return unifyMany(zip(t1.types, t2.types), ctx);
 };
 
 const composeSubs = (s1: t.Subst, s2: t.Subst): t.Subst => {
@@ -223,23 +239,25 @@ const solver = (u: t.Unifier, ctx: Context): t.Subst => {
   if (cs.length === 0) {
     return su;
   }
-  const [[t1, t2], ...cs0] = cs;
-  const su1 = unifies(t1, t2, ctx);
-  return solver([composeSubs(su1, su), apply(su1, cs0)], ctx);
+  const [c, ...rest] = cs;
+  const su1 = unifies(c, ctx);
+  return solver([composeSubs(su1, su), apply(su1, rest)], ctx);
 };
 
 const bind = (tv: t.TVar, type: t.Type, ctx: Context): t.Subst => {
   if (type.tag === "TMem") {
-    const {object, property} = type;
+    const { object, property } = type;
     if (object.tag === "TCon") {
       // Checks if there's an alias for the object.
       const alias = lookupEnv(object.name, ctx);
       if (alias.tag === "TRec") {
-        const prop = alias.properties.find(prop => prop.name === property);
+        const prop = alias.properties.find((prop) => prop.name === property);
         if (prop) {
           type = prop.type;
         } else {
-          throw new Error(`${t.print(alias)} doesn't contain ${property} property`)
+          throw new Error(
+            `${t.print(alias)} doesn't contain ${property} property`
+          );
         }
       }
     }
@@ -265,6 +283,14 @@ const isSubType = (sub: t.Type, sup: t.Type): boolean => {
     if (t.isTUnion(sub) && sub.types.every((type) => isSubType(type, sup))) {
       return true;
     }
+  }
+
+  if (t.isTLit(sub) && t.isTLit(sup)) {
+    return sub.value.value === sup.value.value;
+  }
+
+  if (t.isTTuple(sub) && t.isTCon(sup) && sup.name === "Array") {
+    return sub.types.every((type) => isSubType(type, sup.params[0]));
   }
 
   // TODO: handle type aliases like Array<T> and Promise<T>

@@ -19,6 +19,7 @@ export function apply(s: Subst, scheme: Scheme): Scheme;
 export function apply(s: Subst, types: readonly Type[]): readonly Type[];
 export function apply(s: Subst, schemes: readonly Scheme[]): readonly Scheme[];
 export function apply(s: Subst, constraint: Constraint): Constraint; // special case of Type[]
+export function apply(s: Subst, constraint: readonly Constraint[]): readonly Constraint[]; 
 export function apply(
   s: Subst,
   constraint: readonly Constraint[]
