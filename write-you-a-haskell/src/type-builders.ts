@@ -58,6 +58,13 @@ export const tprop = (name: string, type: t.Type): t.TProp => ({
   type,
 });
 
+export const tmem = (object: t.Type, property: string, ctx: Context): t.TMem => ({
+  tag: "TMem",
+  id: newId(ctx),
+  object,
+  property,
+});
+
 export const createCtx = (): Context => {
   const ctx: Context = {
     env: Map(),

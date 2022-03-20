@@ -16,11 +16,10 @@ export type TCon = TCommon & { tag: "TCon"; name: string; params: readonly Type[
 export type TFun = TCommon & { tag: "TFun"; args: readonly Type[]; ret: Type; src?: Src }; // prettier-ignore
 export type TUnion = TCommon & { tag: "TUnion"; types: readonly Type[] };
 export type TRec = TCommon & { tag: "TRec"; properties: readonly TProp[] };
+export type TMem = TCommon & { tag: "TMem"; object: Type; property: string };
 export type TTuple = TCommon & { tag: "TTuple"; types: readonly Type[] };
 export type TLit = TCommon & { tag: "TLit"; value: Literal };
 export type TPrim = TCommon & { tag: "TPrim"; name: PrimName };
-// TODO: add TPrim to model the following primitive types:
-// - string, boolean, number, null, undefined, symbol, bigint
 // Each TLit must belong to at least one TPrimitive type
 // e.g. TLit(3) belongs to TPrim(number) (and also TPrim(bigint))
 // It would be nice if we could model the difference between ints and floats.
@@ -35,7 +34,7 @@ export type TPrim = TCommon & { tag: "TPrim"; name: PrimName };
 // TODO: add `optional: boolean` - equivalent to `T | undefined`
 export type TProp = { tag: "TProp"; name: string; type: Type };
 
-export type Type = TVar | TCon | TFun | TUnion | TTuple | TRec | TPrim | TLit;
+export type Type = TVar | TCon | TFun | TUnion | TTuple | TRec | TMem | TPrim | TLit;
 export type Scheme = { tag: "Forall"; qualifiers: readonly TVar[]; type: Type };
 
 export function print(t: Type | Scheme): string {
@@ -68,6 +67,9 @@ export function print(t: Type | Scheme): string {
       return t.value.tag === "LStr"
         ? `"${t.value.value}"`
         : t.value.value.toString();
+    }
+    case "TMem": {
+      return `${print(t.object)}['${t.property}']`;
     }
     case "Forall": {
       const quals = t.qualifiers.map((qual) => print(qual)).join(", ");
@@ -113,6 +115,10 @@ export function freeze(t: Type): void {
     case "TLit": {
       break;
     }
+    case "TMem": {
+      freeze(t.object);
+      break;
+    }
     default:
       assertUnreachable(t);
   }
@@ -137,6 +143,7 @@ export const isTRec = (t: Type): t is TRec => t.tag === "TRec";
 export const isTTuple = (t: Type): t is TTuple => t.tag === "TTuple";
 export const isTPrim = (t: Type): t is TPrim => t.tag === "TPrim";
 export const isTLit = (t: Type): t is TLit => t.tag === "TLit";
+export const isTMem = (t: Type): t is TMem => t.tag === "TMem";
 export const isScheme = (t: any): t is Scheme => t.tag === "Forall";
 
 export type Constraint = readonly [Type, Type];

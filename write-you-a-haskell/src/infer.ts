@@ -12,6 +12,7 @@ import {
   Type,
   TProp,
   TPrim,
+  TRec,
   print,
 } from "./type-types";
 import {
@@ -106,6 +107,8 @@ const normalize = (sc: Scheme): Scheme => {
         return [];
       case "TLit":
         return [];
+      case "TMem":
+        return fv(type.object);
       default:
         assertUnreachable(type);
     }
@@ -117,7 +120,6 @@ const normalize = (sc: Scheme): Scheme => {
     return { tag: "TVar", id: key, name: letterFromIndex(index) };
   });
   const mapping: Record<number, TVar> = Object.fromEntries(zip(keys, values));
-  mapping; // ?
 
   const normType = (type: Type): Type => {
     switch (type.tag) {
@@ -173,6 +175,12 @@ const normalize = (sc: Scheme): Scheme => {
       }
       case "TLit": {
         return type;
+      }
+      case "TMem": {
+        return {
+          ...type,
+          object: normType(type.object),
+        };
       }
       default:
         assertUnreachable(type);
@@ -231,7 +239,7 @@ const generalize = (env: Env, type: Type): Scheme => {
   return scheme(ftv(type).subtract(ftv(env)).toArray(), type);
 };
 
-type InferResult = readonly [Type, readonly Constraint[]];
+type InferResult<T extends Type = Type> = readonly [T, readonly Constraint[]];
 
 const infer = (expr: Expr, ctx: Context): InferResult => {
   // prettier-ignore
@@ -436,7 +444,7 @@ const inferOp = (expr: EOp, ctx: Context): InferResult => {
   return [tv, [...cs, [tb.tfun(ts, tv, ctx), ops(op, ctx)]]];
 };
 
-const inferRec = (expr: ERec, ctx: Context): InferResult => {
+const inferRec = (expr: ERec, ctx: Context): InferResult<TRec> => {
   const all_cs: Constraint[] = [];
   const properties = expr.properties.map((prop: EProp): TProp => {
     const [t, cs] = infer(prop.value, ctx);
@@ -457,22 +465,27 @@ const inferVar = (expr: EVar, ctx: Context): InferResult => {
 };
 
 const inferMem = (expr: EMem, ctx: Context): InferResult => {
-  // Start simple, assume the following:
-  // - expr.object and expr.property are both EVar's
-  // Then do the following:
-  // - look up expr.object in ctx.env
-  // - check that the scheme's type is a TRec
-  // - look up expr.property in the scheme's type
-  // - return that type after instantiating it
-  // NOTE: lookupEnv instantiates the object type, but properties
-  // on the object might have their own type parameters.
+  // TODO: handle nested property access, e.g. foo.bar.baz.
   const { object, property } = expr;
-
-  if (object.tag !== "Var") {
-    throw new Error("object must be a variable when accessing a member");
-  }
+  
   if (property.tag !== "Var") {
     throw new Error("property must be a variable when accessing a member");
+  }
+
+  // Handles member access on object literals
+  if (object.tag === "Rec") {
+    const tobj = fresh(ctx);
+    const [t, cs] = inferRec(object, ctx);
+    const tMem1 = tb.tmem(tobj, property.name, ctx);
+    const tMem2 = tb.tmem(t, property.name, ctx);
+    const prop = t.properties.find(prop => property.name === prop.name);
+    if (!prop) {
+      throw new Error(`Record literal doesn't contain property '${property.name}'`);
+    }
+    // This is sufficient since infer() will unify `tobj` with `t`.
+    return [prop.type, [...cs, [tMem1, tMem2]]];
+  } else if (object.tag !== "Var") {
+    throw new Error("object must be a variable when accessing a member");
   }
 
   // TODO: have separate namespaces for types and values so that we can
@@ -480,22 +493,17 @@ const inferMem = (expr: EMem, ctx: Context): InferResult => {
   const type = lookupEnv(object.name, ctx);
 
   if (type.tag === "TVar") {
-    // These should be the same
-    const tp = fresh(ctx); // type of the property within the object
-    const tmem = fresh(ctx); // type of the member expression
-    // TODO: instead of adding a constraint between TRec and type, we should
-    // introudce a TMem type.  This can be used to model MyRecType['myProp'].
-    // It should simplify the code in constraint-solver.ts as well since we
-    // won't have to look at all the properties in each TRec, we'll know exactly
-    // which property to compare.
-    const tRec = tb.trec([tb.tprop("length", tp)], ctx);
-    return [
-      tmem,
-      [
-        [tp, tmem],
-        [type, tRec],
-      ],
-    ];
+    const tobj = fresh(ctx);
+    const tMem1 = tb.tmem(tobj, property.name, ctx);
+    const tMem2 = tb.tmem(type, property.name, ctx);
+    // This is sufficient since inferTMem() will unify `tobj` with `type`.
+    return [tMem2, [[tMem1, tMem2]]];
+  } else if (type.tag === "TRec") {
+    const prop = type.properties.find(prop => prop.name === property.name);
+    if (!prop) {
+      throw new Error(`${print(type)} doesn't contain property ${property.name}`);
+    }
+    return [prop.type, []];
   } else if (type.tag !== "TCon") {
     throw new Error(`Can't use member access on ${type.tag}`);
   }

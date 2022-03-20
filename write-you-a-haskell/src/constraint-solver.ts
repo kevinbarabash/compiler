@@ -46,8 +46,8 @@ const unifyMany = (
 };
 
 export const unifies = (t1: t.Type, t2: t.Type, ctx: Context): t.Subst => {
-  if (t.isTVar(t1)) return bind(t1, t2);
-  if (t.isTVar(t2)) return bind(t2, t1);
+  if (t.isTVar(t1)) return bind(t1, t2, ctx);
+  if (t.isTVar(t2)) return bind(t2, t1, ctx);
   if (t.isTFun(t1) && t.isTFun(t2)) return unifyFuncs(t1, t2, ctx);
   if (t.isTPrim(t1) && t.isTPrim(t2) && t1.name === t2.name) return emptySubst;
   // TODO: create unifyLiterals()
@@ -65,52 +65,15 @@ export const unifies = (t1: t.Type, t2: t.Type, ctx: Context): t.Subst => {
   if (t.isTUnion(t1) && t.isTUnion(t2)) return unifyUnions(t1, t2, ctx);
   if (t.isTTuple(t1) && t.isTTuple(t2)) return unifyTuples(t1, t2, ctx);
   if (t.isTRec(t1) && t.isTRec(t2)) return unifyRecords(t1, t2, ctx);
+  if (t.isTMem(t1) && t.isTMem(t2) && t1.property === t2.property) {
+    const result = unifies(t1.object, t2.object, ctx);
+    return result; 
+  }
 
   // TODO: we need to specify the .src so that the sub-type check
   // only occurs in valid situations.
   if (isSubType(t2, t1) || isSubType(t1, t2)) {
     return emptySubst;
-  }
-
-  // Checks to see if TCon(Array) exists in ctx.env and if it is
-  // grabs that type and then tries to unify those types.
-  if (t1.tag === "TCon") {
-    const aliasedType = lookupEnv(t1.name, ctx);
-    // All aliased types should be frozen to prevent widening
-    if (aliasedType.frozen) {
-      // TODO:
-      // - check that each property in t2 appears in aliasedType
-      // - create arrays of the values for all of the shared properties
-      // - call unifyMany() with those arrays
-      if (t.isTRec(aliasedType) && t.isTRec(t2)) {
-        if (
-          t2.properties.every((prop) =>
-            aliasedType.properties.find((p) => prop.name === p.name)
-          )
-        ) {
-          const names = t2.properties.map((p) => p.name);
-          const valueTypes1: t.Type[] = names.map((name) => {
-            const prop = aliasedType.properties.find((p) => p.name === name);
-            if (!prop) {
-              // TODO: make this a better error
-              throw new Error("missing prop");
-            }
-            return prop.type;
-          });
-          return unifyMany(
-            valueTypes1,
-            t2.properties.map((p) => p.type),
-            ctx
-          );
-        } else {
-          throw new Error(
-            `${t.print(t1)} is missing some properties from ${t.print(t2)}`
-          );
-        }
-      }
-    }
-  } else if (t2.tag === "TCon") {
-    // TODO: check if t2 an alias.
   }
 
   // As long as the types haven't been frozen then this is okay
@@ -268,13 +231,28 @@ const solver = (u: t.Unifier, ctx: Context): t.Subst => {
   return solver([composeSubs(su1, su), apply(su1, cs0)], ctx);
 };
 
-const bind = (tv: t.TVar, t: t.Type): t.Subst => {
-  if (t.tag === "TVar" && t.id === tv.id) {
+const bind = (tv: t.TVar, type: t.Type, ctx: Context): t.Subst => {
+  if (type.tag === "TMem") {
+    const {object, property} = type;
+    if (object.tag === "TCon") {
+      // Checks if there's an alias for the object.
+      const alias = lookupEnv(object.name, ctx);
+      if (alias.tag === "TRec") {
+        const prop = alias.properties.find(prop => prop.name === property);
+        if (prop) {
+          type = prop.type;
+        } else {
+          throw new Error(`${t.print(alias)} doesn't contain ${property} property`)
+        }
+      }
+    }
+  }
+  if (type.tag === "TVar" && type.id === tv.id) {
     return emptySubst;
-  } else if (occursCheck(tv, t)) {
-    throw new InfiniteType(tv, t);
+  } else if (occursCheck(tv, type)) {
+    throw new InfiniteType(tv, type);
   } else {
-    return Map([[tv.id, t]]);
+    return Map([[tv.id, type]]);
   }
 };
 
