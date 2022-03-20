@@ -1,27 +1,23 @@
-import { Map } from "immutable";
-
-import { inferExpr } from "../infer";
 import { computeUnion } from "../constraint-solver";
 import { Expr } from "../syntax-types";
-import { Env } from "../context";
 import { print, scheme } from "../type-types";
 import * as sb from "../syntax-builders";
-import * as tb from "../type-builders";
+import { Engine } from "../engine";
 
 type Binding = [string, Expr];
 
 describe("Union types and type widening", () => {
   test("call function that returns a union type", () => {
-    const ctx = tb.createCtx();
-    const aVar = tb.tvar("a", ctx);
-    const bVar = tb.tvar("b", ctx);
+    const eng = new Engine();
+    const aVar = eng.tvar("a");
+    const bVar = eng.tvar("b");
 
     // We reuse TVars in multiple places since this is what happense when
     // inferring an expression because we use lookupEnv to get the TVar based
     // on name.
     const retUnion = scheme(
       [aVar, bVar],
-      tb.tfun([aVar, bVar], tb.tunion([aVar, bVar], ctx), ctx)
+      eng.tfun([aVar, bVar], eng.tunion([aVar, bVar]))
     );
 
     const call: Expr = {
@@ -29,17 +25,11 @@ describe("Union types and type widening", () => {
       fn: sb._var("retUnion"),
       args: [sb.num(5), sb.bool(true)],
     };
-    let env: Env = Map();
 
-    env = env.set("retUnion", retUnion);
+    eng.defScheme("retUnion", retUnion);
+    expect(print(retUnion)).toEqual("<a, b>(a, b) => a | b");
 
-    const result0 = env.get("retUnion");
-    if (!result0) {
-      throw new Error("retUnion is undefined");
-    }
-    expect(print(result0)).toEqual("<a, b>(a, b) => a | b");
-
-    const result1 = inferExpr(env, call, ctx.state);
+    const result1 = eng.inferExpr(call);
 
     expect(print(result1)).toEqual("5 | true");
 
@@ -49,8 +39,7 @@ describe("Union types and type widening", () => {
       args: [sb.bool(false), sb.num(10)],
     };
 
-    env = env.set("retUnion", retUnion);
-    const result2 = inferExpr(env, call2, ctx.state);
+    const result2 = eng.inferExpr(call2);
 
     expect(print(result2)).toEqual("false | 10");
   });
@@ -59,6 +48,7 @@ describe("Union types and type widening", () => {
   test.todo("order of types in union doesn't matter");
 
   test("infer lambda with union return type", () => {
+    const eng = new Engine();
     const expr: Expr = sb.lam(
       ["x", "y"],
       sb._if(
@@ -68,48 +58,48 @@ describe("Union types and type widening", () => {
       )
     );
 
-    const env: Env = Map();
-
-    const result = inferExpr(env, expr);
+    const result = eng.inferExpr(expr);
     expect(print(result)).toMatchInlineSnapshot(
       `"<a>(boolean, (5 | true) => a) => a"`
     );
   });
 
   test("infer union of function types", () => {
-    const ctx = tb.createCtx();
+    const eng = new Engine();
     const foo = scheme(
       [],
-      tb.tfun([tb.tprim("number", ctx)], tb.tprim("boolean", ctx), ctx)
+      eng.tfun([eng.tprim("number")], eng.tprim("boolean"))
     );
     const bar = scheme(
       [],
-      tb.tfun([tb.tprim("boolean", ctx)], tb.tprim("number", ctx), ctx)
+      eng.tfun([eng.tprim("boolean")], eng.tprim("number"))
     );
+    // We purposely don't use eng.defScheme() since that freezes types
+    // and widening of types only works on types that aren't frozen.
+    eng.ctx.env = eng.ctx.env.set("foo", foo);
+    eng.ctx.env = eng.ctx.env.set("bar", bar);
+
     const expr: Expr = sb.lam(
       ["x"],
       sb._if(sb._var("x"), sb._var("foo"), sb._var("bar"))
     );
 
-    let env: Env = Map();
-    env = env.set("foo", foo);
-    env = env.set("bar", bar);
-
-    const result = inferExpr(env, expr, ctx.state);
+    const result = eng.inferExpr(expr);
     expect(print(result)).toMatchInlineSnapshot(
       `"(boolean) => (number | boolean) => boolean | number"`
     );
   });
 
   test("widen existing union type", () => {
-    const ctx = tb.createCtx();
+    const eng = new Engine();
     const union = scheme(
       [],
-      tb.tunion([tb.tprim("number", ctx), tb.tprim("boolean", ctx)], ctx)
+      eng.tunion([eng.tprim("number"), eng.tprim("boolean")])
     );
 
-    let env: Env = Map();
-    env = env.set("union", union);
+    // We purposely don't use eng.defScheme() since that freezes types
+    // and widening of types only works on types that aren't frozen.
+    eng.ctx.env = eng.ctx.env.set("union", union);
     expect(print(union)).toEqual("number | boolean");
 
     const expr: Expr = sb.lam(
@@ -121,7 +111,7 @@ describe("Union types and type widening", () => {
       )
     );
 
-    const result = inferExpr(env, expr, ctx.state);
+    const result = eng.inferExpr(expr);
     // "<a>(boolean, (number | boolean | string) => a) => a"
     expect(print(result)).toMatchInlineSnapshot(
       `"<a>(boolean, (number | boolean | \\"hello\\") => a) => a"`
@@ -129,6 +119,7 @@ describe("Union types and type widening", () => {
   });
 
   test("widen inferred union type", () => {
+    const eng = new Engine();
     const expr: Expr = sb.lam(
       ["x"],
       sb._let(
@@ -142,8 +133,7 @@ describe("Union types and type widening", () => {
       )
     );
 
-    const env: Env = Map();
-    const result = inferExpr(env, expr);
+    const result = eng.inferExpr(expr);
 
     expect(print(result)).toMatchInlineSnapshot(
       `"<a>((5 | true | \\"hello\\") => a) => a"`
@@ -151,149 +141,149 @@ describe("Union types and type widening", () => {
   });
 
   test("should not widen frozen types", () => {
+    const eng = new Engine();
     const _add: Binding = [
       "add",
       sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
     ];
     const expr: Expr = sb.app(sb._var("add"), [sb.num(5), sb.bool(true)]);
 
-    let env: Env = Map();
-    env = env.set(_add[0], inferExpr(env, _add[1]));
+    eng.inferDecl(_add[0], _add[1]);
 
     // `add` was inferred to have type `(number, number) => number` so
     // we can't pass it a boolean, in this case, `true`
-    expect(() => inferExpr(env, expr)).toThrowErrorMatchingInlineSnapshot(
+    expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
       `"Couldn't unify number with true"`
     );
   });
 
   describe("computeUnion", () => {
     test("5 | number => number", () => {
-      const ctx = tb.createCtx();
-      const lit = tb.tlit({ tag: "LNum", value: 5 }, ctx);
-      const num = tb.tprim("number", ctx);
-      const result = computeUnion(lit, num, ctx);
+      const eng = new Engine();
+      const lit = eng.tlit({ tag: "LNum", value: 5 });
+      const num = eng.tprim("number");
+      const result = computeUnion(lit, num, eng.ctx);
 
       expect(print(result)).toEqual("number");
     });
 
     test("5 | 10 => 5 | 10", () => {
-      const ctx = tb.createCtx();
-      const lit5 = tb.tlit({ tag: "LNum", value: 5 }, ctx);
-      const lit10 = tb.tlit({ tag: "LNum", value: 10 }, ctx);
-      const result = computeUnion(lit5, lit10, ctx);
+      const eng = new Engine();
+      const lit5 = eng.tlit({ tag: "LNum", value: 5 });
+      const lit10 = eng.tlit({ tag: "LNum", value: 10 });
+      const result = computeUnion(lit5, lit10, eng.ctx);
 
       expect(print(result)).toEqual("5 | 10");
     });
 
     test("5 | 5 => 5", () => {
-      const ctx = tb.createCtx();
-      const lit5a = tb.tlit({ tag: "LNum", value: 5 }, ctx);
-      const lit5b = tb.tlit({ tag: "LNum", value: 5 }, ctx);
-      const result = computeUnion(lit5a, lit5b, ctx);
+      const eng = new Engine();
+      const lit5a = eng.tlit({ tag: "LNum", value: 5 });
+      const lit5b = eng.tlit({ tag: "LNum", value: 5 });
+      const result = computeUnion(lit5a, lit5b, eng.ctx);
 
       expect(print(result)).toEqual("5");
     });
 
     test("true | boolean => boolean", () => {
-      const ctx = tb.createCtx();
-      const litTrue = tb.tlit({ tag: "LBool", value: true }, ctx);
-      const bool = tb.tprim("boolean", ctx);
-      const result = computeUnion(litTrue, bool, ctx);
+      const eng = new Engine();
+      const litTrue = eng.tlit({ tag: "LBool", value: true });
+      const bool = eng.tprim("boolean");
+      const result = computeUnion(litTrue, bool, eng.ctx);
 
       expect(print(result)).toEqual("boolean");
     });
 
 
     test("true | false => boolean", () => {
-      const ctx = tb.createCtx();
-      const litTrue = tb.tlit({ tag: "LBool", value: true }, ctx);
-      const litFalse = tb.tlit({ tag: "LBool", value: false }, ctx);
-      const result = computeUnion(litTrue, litFalse, ctx);
+      const eng = new Engine();
+      const litTrue = eng.tlit({ tag: "LBool", value: true });
+      const litFalse = eng.tlit({ tag: "LBool", value: false });
+      const result = computeUnion(litTrue, litFalse, eng.ctx);
 
       expect(print(result)).toEqual("boolean");
     });
 
     test("true | true => true", () => {
-      const ctx = tb.createCtx();
-      const litTrue = tb.tlit({ tag: "LBool", value: true }, ctx);
-      const litFalse = tb.tlit({ tag: "LBool", value: true }, ctx);
-      const result = computeUnion(litTrue, litFalse, ctx);
+      const eng = new Engine();
+      const litTrue = eng.tlit({ tag: "LBool", value: true });
+      const litFalse = eng.tlit({ tag: "LBool", value: true });
+      const result = computeUnion(litTrue, litFalse, eng.ctx);
 
       expect(print(result)).toEqual("true");
     });
 
     test('"hello" | string => string', () => {
-      const ctx = tb.createCtx();
-      const hello = tb.tlit({tag: "LStr", value: "hello"}, ctx);
-      const str = tb.tprim("string", ctx);
-      const result = computeUnion(hello, str, ctx);
+      const eng = new Engine();
+      const hello = eng.tlit({tag: "LStr", value: "hello"});
+      const str = eng.tprim("string");
+      const result = computeUnion(hello, str, eng.ctx);
 
       expect(print(result)).toEqual("string");
     });
 
     test('"hello" | "world" => string', () => {
-      const ctx = tb.createCtx();
-      const hello = tb.tlit({tag: "LStr", value: "hello"}, ctx);
-      const world = tb.tlit({tag: "LStr", value: "world"}, ctx);
-      const result = computeUnion(hello, world, ctx);
+      const eng = new Engine();
+      const hello = eng.tlit({tag: "LStr", value: "hello"});
+      const world = eng.tlit({tag: "LStr", value: "world"});
+      const result = computeUnion(hello, world, eng.ctx);
 
       expect(print(result)).toEqual('"hello" | "world"');
     });
 
     test("number | number => number", () => {
-      const ctx = tb.createCtx();
-      const numa = tb.tprim("number", ctx);
-      const numb = tb.tprim("number", ctx);
-      const result = computeUnion(numa, numb, ctx);
+      const eng = new Engine();
+      const numa = eng.tprim("number");
+      const numb = eng.tprim("number");
+      const result = computeUnion(numa, numb, eng.ctx);
 
       expect(print(result)).toEqual("number");
     });
 
     test("string | string => string", () => {
-      const ctx = tb.createCtx();
-      const stra = tb.tprim("string", ctx);
-      const strb = tb.tprim("string", ctx);
-      const result = computeUnion(stra, strb, ctx);
+      const eng = new Engine();
+      const stra = eng.tprim("string");
+      const strb = eng.tprim("string");
+      const result = computeUnion(stra, strb, eng.ctx);
 
       expect(print(result)).toEqual("string");
     });
 
     test("string | number => string | number", () => {
-      const ctx = tb.createCtx();
-      const str = tb.tprim("string", ctx);
-      const num = tb.tprim("number", ctx);
-      const result = computeUnion(str, num, ctx);
+      const eng = new Engine();
+      const str = eng.tprim("string");
+      const num = eng.tprim("number");
+      const result = computeUnion(str, num, eng.ctx);
 
       expect(print(result)).toEqual("string | number");
     });
 
     test("number | string => string | number", () => {
-      const ctx = tb.createCtx();
-      const num = tb.tprim("number", ctx);
-      const str = tb.tprim("string", ctx);
-      const result = computeUnion(num, str, ctx);
+      const eng = new Engine();
+      const num = eng.tprim("number");
+      const str = eng.tprim("string");
+      const result = computeUnion(num, str, eng.ctx);
 
       expect(print(result)).toEqual("number | string");
     });
 
     test("(5 | 10) | 15 => 5 | 10 | 15", () => {
-      const ctx = tb.createCtx();
-      const lit5 = tb.tlit({ tag: "LNum", value: 5 }, ctx);
-      const lit10 = tb.tlit({ tag: "LNum", value: 10 }, ctx);
-      const union = computeUnion(lit5, lit10, ctx);
-      const lit15 = tb.tlit({ tag: "LNum", value: 15 }, ctx);
-      const result = computeUnion(union, lit15, ctx);
+      const eng = new Engine();
+      const lit5 = eng.tlit({ tag: "LNum", value: 5 });
+      const lit10 = eng.tlit({ tag: "LNum", value: 10 });
+      const union = computeUnion(lit5, lit10, eng.ctx);
+      const lit15 = eng.tlit({ tag: "LNum", value: 15 });
+      const result = computeUnion(union, lit15, eng.ctx);
 
       expect(print(result)).toEqual("5 | 10 | 15");
     });
 
     test("(5 | 10) | number => number", () => {
-      const ctx = tb.createCtx();
-      const lit5 = tb.tlit({ tag: "LNum", value: 5 }, ctx);
-      const lit10 = tb.tlit({ tag: "LNum", value: 10 }, ctx);
-      const union = computeUnion(lit5, lit10, ctx);
-      const result = computeUnion(union, tb.tprim("number", ctx), ctx);
+      const eng = new Engine();
+      const lit5 = eng.tlit({ tag: "LNum", value: 5 });
+      const lit10 = eng.tlit({ tag: "LNum", value: 10 });
+      const union = computeUnion(lit5, lit10, eng.ctx);
+      const result = computeUnion(union, eng.tprim("number"), eng.ctx);
 
       expect(print(result)).toEqual("number");
     });
