@@ -61,7 +61,7 @@ describe("tuple", () => {
 
       // TODO: fix message to use [a, b] instead of [e, f];
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Couldn't unify [e, f] with [5, \\"hello\\", true]"`
+        `"Couldn't unify [5, \\"hello\\", true] with [e, f]"`
       );
     });
 
@@ -79,18 +79,12 @@ describe("tuple", () => {
 
       // TODO: fix message to use [a, b] instead of [e, f];
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Couldn't unify [e, f] with [5]"`
+        `"Couldn't unify [5] with [e, f]"`
       );
     });
 
     test("element mismatch", () => {
       const eng = new Engine();
-      const aVar = eng.tvar("a");
-      const bVar = eng.tvar("b");
-      const snd: Scheme = scheme(
-        [aVar, bVar],
-        eng.tfun([eng.ttuple([aVar, bVar])], bVar)
-      );
       const foo: Scheme = scheme(
         [],
         eng.tfun(
@@ -106,10 +100,67 @@ describe("tuple", () => {
       ]);
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Couldn't unify string with true"`
+        `"true is not a subtype of string"`
       );
     });
   });
 
-  // TODO: tuple subtyping
+  describe("subtyping", () => {
+    test("[5, 5] is a subtype of Array<5>", () => {
+      const eng = new Engine();
+      eng.defType(
+        "foo",
+        eng.tfun(
+          [eng.tcon("Array", [eng.tlit({ tag: "LNum", value: 5 })])],
+          eng.tprim("number")
+        )
+      );
+
+      expect(() =>
+        eng.inferExpr(
+          sb.app(sb._var("foo"), [sb.tuple([sb.num(5), sb.num(5)])])
+        )
+      ).not.toThrow();
+    });
+
+    test("[1, 2, 3] is a subtype of Array<number>", () => {
+      const eng = new Engine();
+      eng.defType(
+        "foo",
+        eng.tfun(
+          [eng.tcon("Array", [eng.tprim("number")])],
+          eng.tprim("number")
+        )
+      );
+
+      expect(() =>
+        eng.inferExpr(
+          sb.app(sb._var("foo"), [sb.tuple([sb.num(1), sb.num(2), sb.num(3)])])
+        )
+      ).not.toThrow();
+    });
+
+    test("Array<number> is not a subtype of [5, 10]", () => {
+      const eng = new Engine();
+      eng.defType(
+        "foo",
+        eng.tfun(
+          [
+            eng.ttuple([
+              eng.tlit({ tag: "LNum", value: 5 }),
+              eng.tlit({ tag: "LNum", value: 10 }),
+            ]),
+          ],
+          eng.tprim("number")
+        )
+      );
+      eng.defType("numArray", eng.tcon("Array", [eng.tprim("number")]));
+
+      expect(() =>
+        eng.inferExpr(sb.app(sb._var("foo"), [sb._var("numArray")]))
+      ).toThrowErrorMatchingInlineSnapshot(
+        `"Array<number> is not a subtype of [5, 10]"`
+      );
+    });
+  });
 });

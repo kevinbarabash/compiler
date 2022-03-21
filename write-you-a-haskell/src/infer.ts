@@ -10,7 +10,11 @@ import * as tb from "./type-builders";
 
 const emptyEnv: Env = Map();
 
-export const inferExpr = (env: Env, expr: st.Expr, state?: State): tt.Scheme => {
+export const inferExpr = (
+  env: Env,
+  expr: st.Expr,
+  state?: State
+): tt.Scheme => {
   const initCtx: Context = {
     env: env,
     state: state || { count: 0 },
@@ -64,7 +68,9 @@ const normalize = (sc: tt.Scheme): tt.Scheme => {
   const values: tt.TVar[] = keys.map((key, index) => {
     return { tag: "TVar", id: key, name: letterFromIndex(index) };
   });
-  const mapping: Record<number, tt.TVar> = Object.fromEntries(zip(keys, values));
+  const mapping: Record<number, tt.TVar> = Object.fromEntries(
+    zip(keys, values)
+  );
 
   const normType = (type: tt.Type): tt.Type => {
     switch (type.tag) {
@@ -183,7 +189,10 @@ const generalize = (env: Env, type: tt.Type): tt.Scheme => {
   return tt.scheme(ftv(type).subtract(ftv(env)).toArray(), type);
 };
 
-type InferResult<T extends tt.Type = tt.Type> = readonly [T, readonly tt.Constraint[]];
+type InferResult<T extends tt.Type = tt.Type> = readonly [
+  T,
+  readonly tt.Constraint[]
+];
 
 const infer = (expr: st.Expr, ctx: Context): InferResult => {
   // prettier-ignore
@@ -210,7 +219,14 @@ const inferApp = (expr: st.EApp, ctx: Context): InferResult => {
   const [t_args, cs_args] = inferMany(args, ctx);
   const tv = fresh(ctx);
   // This is almost the reverse of what we return from the "Lam" case
-  return [tv, [...cs_fn, ...cs_args, [t_fn, tb.tfun(t_args, tv, ctx, "App")]]];
+  return [
+    tv,
+    [
+      ...cs_fn,
+      ...cs_args,
+      { types: [tb.tfun(t_args, tv, ctx), t_fn], subtype: true },
+    ],
+  ];
 };
 
 const inferAwait = (expr: st.EAwait, ctx: Context): InferResult => {
@@ -240,7 +256,7 @@ const inferFix = (expr: st.EFix, ctx: Context): InferResult => {
   const { expr: e } = expr;
   const [t, cs] = infer(e, ctx);
   const tv = fresh(ctx);
-  return [tv, [...cs, [tb.tfun([tv], tv, ctx, "Fix"), t]]];
+  return [tv, [...cs, { types: [tb.tfun([tv], tv, ctx), t], subtype: false }]];
 };
 
 const inferIf = (expr: st.EIf, ctx: Context): InferResult => {
@@ -250,7 +266,16 @@ const inferIf = (expr: st.EIf, ctx: Context): InferResult => {
   const [t3, cs3] = infer(el, ctx);
   // This is similar how we'll handle n-ary apply
   const bool = tb.tprim("boolean", ctx);
-  return [t2, [...cs1, ...cs2, ...cs3, [t1, bool], [t2, t3]]];
+  return [
+    t2,
+    [
+      ...cs1,
+      ...cs2,
+      ...cs3,
+      { types: [t1, bool], subtype: false },
+      { types: [t2, t3], subtype: false },
+    ],
+  ];
 };
 
 const inferLam = (expr: st.ELam, ctx: Context): InferResult => {
@@ -277,7 +302,7 @@ const inferLam = (expr: st.ELam, ctx: Context): InferResult => {
       ? type
       : freshTCon(ctx, "Promise", [type]);
 
-  return [tb.tfun(tvs, ret, ctx, "Lam"), cs];
+  return [tb.tfun(tvs, ret, ctx), cs];
 };
 
 const inferLet = (expr: st.ELet, ctx: Context): InferResult => {
@@ -316,7 +341,7 @@ const inferPattern = (
     case "PLit": {
       const litType = tb.tlit(pattern.value, ctx);
       tt.freeze(litType); // prevents widening of inferred type
-      return [ctx, [[litType, type]]]; // doesn't affect binding
+      return [ctx, [{ types: [litType, type], subtype: false }]]; // doesn't affect binding
     }
     // NOTE: it only makes sense to infer PPrim patterns as part of pattern matching
     // since destructuring number | string to number isn't sound
@@ -334,7 +359,7 @@ const inferPattern = (
         );
       }
       tt.freeze(primType);
-      return [ctx, [[primType, type]]];
+      return [ctx, [{ types: [primType, type], subtype: false }]];
     }
     case "PRec": {
       if (type.tag !== "TRec") {
@@ -385,7 +410,10 @@ const inferOp = (expr: st.EOp, ctx: Context): InferResult => {
   const { op, left, right } = expr;
   const [ts, cs] = inferMany([left, right], ctx);
   const tv = fresh(ctx);
-  return [tv, [...cs, [tb.tfun(ts, tv, ctx), ops(op, ctx)]]];
+  return [
+    tv,
+    [...cs, { types: [tb.tfun(ts, tv, ctx), ops(op, ctx)], subtype: true }],
+  ];
 };
 
 const inferRec = (expr: st.ERec, ctx: Context): InferResult<tt.TRec> => {
@@ -411,7 +439,7 @@ const inferVar = (expr: st.EVar, ctx: Context): InferResult => {
 const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
   // TODO: handle nested property access, e.g. foo.bar.baz.
   const { object, property } = expr;
-  
+
   if (property.tag !== "Var") {
     throw new Error("property must be a variable when accessing a member");
   }
@@ -422,12 +450,14 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
     const [type, cs] = inferRec(object, ctx);
     const tMem1 = tb.tmem(tobj, property.name, ctx);
     const tMem2 = tb.tmem(type, property.name, ctx);
-    const prop = type.properties.find(prop => property.name === prop.name);
+    const prop = type.properties.find((prop) => property.name === prop.name);
     if (!prop) {
-      throw new Error(`Record literal doesn't contain property '${property.name}'`);
+      throw new Error(
+        `Record literal doesn't contain property '${property.name}'`
+      );
     }
     // This is sufficient since infer() will unify `tobj` with `type`.
-    return [prop.type, [...cs, [tMem1, tMem2]]];
+    return [prop.type, [...cs, { types: [tMem1, tMem2], subtype: false }]];
   } else if (object.tag !== "Var") {
     throw new Error("object must be a variable when accessing a member");
   }
@@ -441,11 +471,13 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
     const tMem1 = tb.tmem(tobj, property.name, ctx);
     const tMem2 = tb.tmem(type, property.name, ctx);
     // This is sufficient since inferTMem() will unify `tobj` with `type`.
-    return [tMem2, [[tMem1, tMem2]]];
+    return [tMem2, [{ types: [tMem1, tMem2], subtype: false }]];
   } else if (type.tag === "TRec") {
-    const prop = type.properties.find(prop => prop.name === property.name);
+    const prop = type.properties.find((prop) => prop.name === property.name);
     if (!prop) {
-      throw new Error(`${tt.print(type)} doesn't contain property ${property.name}`);
+      throw new Error(
+        `${tt.print(type)} doesn't contain property ${property.name}`
+      );
     }
     return [prop.type, []];
   } else if (type.tag !== "TCon") {
@@ -490,7 +522,9 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
   }
 
   // Replaces all free variables with fresh ones
-  const subs2: tt.Subst = Map([...ftv(prop.type)].map((v) => [v.id, fresh(ctx)]));
+  const subs2: tt.Subst = Map(
+    [...ftv(prop.type)].map((v) => [v.id, fresh(ctx)])
+  );
   const resultType = apply(subs2, prop.type);
 
   return [resultType, []];

@@ -1,7 +1,15 @@
 import { Map, OrderedSet } from "immutable";
 
 import { Env } from "./context";
-import { Type, TVar, Subst, Constraint, Scheme, isTLit, isTMem } from "./type-types";
+import {
+  Type,
+  TVar,
+  Subst,
+  Constraint,
+  Scheme,
+  isTLit,
+  isTMem,
+} from "./type-types";
 import {
   isTCon,
   isTVar,
@@ -19,6 +27,10 @@ export function apply(s: Subst, scheme: Scheme): Scheme;
 export function apply(s: Subst, types: readonly Type[]): readonly Type[];
 export function apply(s: Subst, schemes: readonly Scheme[]): readonly Scheme[];
 export function apply(s: Subst, constraint: Constraint): Constraint; // special case of Type[]
+export function apply(
+  s: Subst,
+  constraint: readonly Constraint[]
+): readonly Constraint[];
 export function apply(
   s: Subst,
   constraint: readonly Constraint[]
@@ -85,7 +97,7 @@ export function apply(s: Subst, a: any): any {
         ...a,
         object: apply(s, a.object),
       }
-    )
+    );
   }
 
   // instance Substitutable Scheme
@@ -113,6 +125,13 @@ export function apply(s: Subst, a: any): any {
     return (a as Env).map((sc) => apply(s, sc));
   }
 
+  if (Array.isArray(a.types)) {
+    return {
+      ...a,
+      types: apply(s, a.types),
+    };
+  }
+
   throw new Error(`apply doesn't handle ${a}`);
 }
 
@@ -121,6 +140,7 @@ export function ftv(scheme: Scheme): OrderedSet<TVar>;
 export function ftv(types: readonly Type[]): OrderedSet<TVar>;
 export function ftv(schemes: readonly Scheme[]): OrderedSet<TVar>;
 export function ftv(constraint: Constraint): OrderedSet<TVar>; // special case of Type[]
+export function ftv(constraint: readonly Constraint[]): OrderedSet<TVar>; // special case of Type[]
 export function ftv(env: Env): OrderedSet<TVar>;
 export function ftv(a: any): any {
   // instance Substitutable Type
@@ -173,11 +193,40 @@ export function ftv(a: any): any {
   throw new Error(`ftv doesn't handle ${a}`);
 }
 
-export function zip<A, B>(as: readonly A[], bs: readonly B[]): [A, B][] {
+export function zip<A, B>(
+  as: readonly A[],
+  bs: readonly B[]
+): readonly [A, B][] {
   const length = Math.min(as.length, bs.length);
   const result: [A, B][] = [];
   for (let i = 0; i < length; i++) {
     result.push([as[i], bs[i]]);
+  }
+  return result;
+}
+
+export function zipTypes(
+  ts1: readonly Type[],
+  ts2: readonly Type[],
+  subtype: boolean,
+  funcArgs?: boolean
+): readonly Constraint[] {
+  const length = Math.min(ts1.length, ts2.length);
+  const result: Constraint[] = [];
+  for (let i = 0; i < length; i++) {
+    // If the types that we're zipping are args passed to a function
+    // then we need to set the `subtype` direction correctly.
+    if (funcArgs && ts2[i].tag === "TFun") {
+      // Reverses the order of the types so that the TFun is first.
+      // This can happen when a function is passed as a callback.
+      // The callback passed should be a subtype of the expected param
+      // type.
+      result.push({ types: [ts2[i], ts1[i]], subtype: true });
+    } else if (funcArgs && ts1[i].tag === "TFun") {
+      result.push({ types: [ts1[i], ts2[i]], subtype: true });
+    } else {
+      result.push({ types: [ts1[i], ts2[i]], subtype });
+    }
   }
   return result;
 }

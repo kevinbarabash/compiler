@@ -60,7 +60,7 @@ describe("Union types and type widening", () => {
 
     const result = eng.inferExpr(expr);
     expect(print(result)).toMatchInlineSnapshot(
-      `"<a>(boolean, (5 | true) => a) => a"`
+      `"<a>(boolean, (true | 5) => a) => a"`
     );
   });
 
@@ -136,7 +136,7 @@ describe("Union types and type widening", () => {
     const result = eng.inferExpr(expr);
 
     expect(print(result)).toMatchInlineSnapshot(
-      `"<a>((5 | true | \\"hello\\") => a) => a"`
+      `"<a>((\\"hello\\" | true | 5) => a) => a"`
     );
   });
 
@@ -153,7 +153,7 @@ describe("Union types and type widening", () => {
     // `add` was inferred to have type `(number, number) => number` so
     // we can't pass it a boolean, in this case, `true`
     expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-      `"Couldn't unify number with true"`
+      `"true is not a subtype of number"`
     );
   });
 
@@ -194,7 +194,6 @@ describe("Union types and type widening", () => {
       expect(print(result)).toEqual("boolean");
     });
 
-
     test("true | false => boolean", () => {
       const eng = new Engine();
       const litTrue = eng.tlit({ tag: "LBool", value: true });
@@ -215,7 +214,7 @@ describe("Union types and type widening", () => {
 
     test('"hello" | string => string', () => {
       const eng = new Engine();
-      const hello = eng.tlit({tag: "LStr", value: "hello"});
+      const hello = eng.tlit({ tag: "LStr", value: "hello" });
       const str = eng.tprim("string");
       const result = computeUnion(hello, str, eng.ctx);
 
@@ -224,8 +223,8 @@ describe("Union types and type widening", () => {
 
     test('"hello" | "world" => string', () => {
       const eng = new Engine();
-      const hello = eng.tlit({tag: "LStr", value: "hello"});
-      const world = eng.tlit({tag: "LStr", value: "world"});
+      const hello = eng.tlit({ tag: "LStr", value: "hello" });
+      const world = eng.tlit({ tag: "LStr", value: "world" });
       const result = computeUnion(hello, world, eng.ctx);
 
       expect(print(result)).toEqual('"hello" | "world"');

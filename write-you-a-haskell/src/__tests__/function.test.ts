@@ -291,7 +291,7 @@ describe("function subtyping", () => {
         [
           eng.tcon("Array", [aVar]),
           // Why is this TFun's `src` an "App"?
-          eng.tfun([aVar, eng.tprim("number")], bVar, "App"),
+          eng.tfun([aVar, eng.tprim("number")], bVar),
         ],
         eng.tcon("Array", [bVar])
       )
@@ -343,7 +343,7 @@ describe("function subtyping", () => {
       eng.tfun(
         [
           eng.tcon("Array", [aVar]),
-          eng.tfun([aVar, eng.tprim("number")], bVar, "App"),
+          eng.tfun([aVar, eng.tprim("number")], bVar),
         ],
         eng.tcon("Array", [bVar])
       )
