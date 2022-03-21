@@ -163,4 +163,65 @@ describe("tuple", () => {
       );
     });
   });
+
+  describe("member access", () => {
+    test("is should return the correct type", () => {
+      const eng = new Engine();
+      eng.defType(
+        "foo",
+        eng.tfun(
+          [eng.tcon("Array", [eng.tlit({ tag: "LNum", value: 5 })])],
+          eng.tprim("number")
+        )
+      );
+
+      const result = eng.inferExpr(
+        sb._let("foo", sb.tuple([sb.num(5), sb.num(10)]), sb.mem("foo", 1))
+      );
+
+      expect(print(result)).toEqual("10");
+    });
+
+    test("is should throw if the indexer is not valid", () => {
+      const eng = new Engine();
+      eng.defType(
+        "foo",
+        eng.tfun(
+          [eng.tcon("Array", [eng.tlit({ tag: "LNum", value: 5 })])],
+          eng.tprim("number")
+        )
+      );
+
+      expect(() =>
+        eng.inferExpr(
+          sb._let("foo", sb.tuple([sb.num(5), sb.num(10)]), {
+            tag: "Mem",
+            object: sb._var("foo"),
+            property: sb.bool(true),
+          })
+        )
+      ).toThrowErrorMatchingInlineSnapshot(
+        `"property must be a number when accessing an index on a tuple"`
+      );
+    });
+
+    test("is should throw if the indexer out of bounds", () => {
+      const eng = new Engine();
+      eng.defType(
+        "foo",
+        eng.tfun(
+          [eng.tcon("Array", [eng.tlit({ tag: "LNum", value: 5 })])],
+          eng.tprim("number")
+        )
+      );
+
+      expect(() =>
+        eng.inferExpr(
+          sb._let("foo", sb.tuple([sb.num(5), sb.num(10)]), sb.mem("foo", 2))
+        )
+      ).toThrowErrorMatchingInlineSnapshot(
+        `"index is greater than the size of the tuple"`
+      );
+    });
+  });
 });

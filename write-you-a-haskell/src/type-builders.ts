@@ -58,7 +58,7 @@ export const tprop = (name: string, type: t.Type): t.TProp => ({
 
 export const tmem = (
   object: t.Type,
-  property: string,
+  property: string | number,
   ctx: Context
 ): t.TMem => ({
   tag: "TMem",

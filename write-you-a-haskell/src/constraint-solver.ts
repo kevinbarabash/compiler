@@ -271,6 +271,9 @@ const bind = (tv: t.TVar, type: t.Type, ctx: Context): t.Subst => {
       // Checks if there's an alias for the object.
       const alias = lookupEnv(object.name, ctx);
       if (alias.tag === "TRec") {
+        if (typeof property !== "string") {
+          throw new Error("property must be a string");
+        }
         const prop = alias.properties.find((prop) => prop.name === property);
         if (prop) {
           type = prop.type;
@@ -279,6 +282,8 @@ const bind = (tv: t.TVar, type: t.Type, ctx: Context): t.Subst => {
             `${t.print(alias)} doesn't contain ${property} property`
           );
         }
+      } else if (alias.tag === "TTuple") {
+        throw new Error("TODO: implement alias type lookups for tuples");
       }
     }
   }
