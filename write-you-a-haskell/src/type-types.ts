@@ -8,12 +8,11 @@ function assertUnreachable(x: never): never {
 
 type TCommon = { frozen?: boolean; id: number };
 
-export type Src = "App" | "Fix" | "Lam";
 export type PrimName = "boolean" | "number" | "string" | "null" | "undefined";
 
 export type TVar = TCommon & { tag: "TVar"; name: string };
 export type TCon = TCommon & { tag: "TCon"; name: string; params: readonly Type[] }; // prettier-ignore
-export type TFun = TCommon & { tag: "TFun"; args: readonly Type[]; ret: Type; src?: Src }; // prettier-ignore
+export type TFun = TCommon & { tag: "TFun"; args: readonly Type[]; ret: Type }; // prettier-ignore
 export type TUnion = TCommon & { tag: "TUnion"; types: readonly Type[] };
 export type TRec = TCommon & { tag: "TRec"; properties: readonly TProp[] };
 export type TMem = TCommon & { tag: "TMem"; object: Type; property: string };

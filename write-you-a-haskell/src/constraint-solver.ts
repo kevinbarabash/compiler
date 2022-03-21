@@ -138,7 +138,7 @@ const unifyFuncs = (c: t.Constraint<t.TFun>, ctx: Context): t.Subst => {
 
   // infer() only ever creates a Lam node on the left side of a constraint
   // and an App on the right side of a constraint so this check is sufficient.
-  if (t1.src === "Lam" && t2.src === "App") {
+  if (c.subtype === "Right") {
     // partial application
     if (t1.args.length > t2.args.length) {
       const t1_partial: t.Type = {
@@ -146,10 +146,9 @@ const unifyFuncs = (c: t.Constraint<t.TFun>, ctx: Context): t.Subst => {
         id: t1.id, // is it safe to reuse `id` here?
         args: t1.args.slice(0, t2.args.length),
         ret: tb.tfun(t1.args.slice(t2.args.length), t1.ret, ctx),
-        src: t1.src,
       };
       const constraints: readonly t.Constraint[] = [
-        ...zipTypes(t1_partial.args, t2.args, c.subtype),
+        ...zipTypes(t1_partial.args, t2.args, c.subtype, true),
         { types: [t1_partial.ret, t2.ret], subtype: c.subtype },
       ];
       return unifyMany(constraints, ctx);
@@ -164,10 +163,9 @@ const unifyFuncs = (c: t.Constraint<t.TFun>, ctx: Context): t.Subst => {
         id: t2.id, // is it safe to reuse `id` here?
         args: t2.args.slice(0, t1.args.length),
         ret: t2.ret,
-        src: t2.src,
       };
       const constraints: readonly t.Constraint[] = [
-        ...zipTypes(t1.args, t2_without_extra_args.args, c.subtype),
+        ...zipTypes(t1.args, t2_without_extra_args.args, c.subtype, true),
         { types: [t1.ret, t2_without_extra_args.ret], subtype: c.subtype },
       ];
       return unifyMany(constraints, ctx);
@@ -175,7 +173,7 @@ const unifyFuncs = (c: t.Constraint<t.TFun>, ctx: Context): t.Subst => {
   }
 
   // The reverse can happen when a callback is passed as an arg
-  if (t1.src === "App" && t2.src === "Lam") {
+  if (c.subtype === "Left") {
     // Can partial application happen in this situation?
 
     // subtyping: we ignore extra args
@@ -187,10 +185,9 @@ const unifyFuncs = (c: t.Constraint<t.TFun>, ctx: Context): t.Subst => {
         id: t1.id, // is it safe to reuse `id` here?
         args: t1.args.slice(0, t2.args.length),
         ret: t1.ret,
-        src: t1.src,
       };
       const constraints: readonly t.Constraint[] = [
-        ...zipTypes(t1_without_extra_args.args, t2.args, c.subtype),
+        ...zipTypes(t1_without_extra_args.args, t2.args, c.subtype, true),
         { types: [t1_without_extra_args.ret, t2.ret], subtype: c.subtype },
       ];
       return unifyMany(constraints, ctx);
@@ -205,7 +202,7 @@ const unifyFuncs = (c: t.Constraint<t.TFun>, ctx: Context): t.Subst => {
 
   if (c.subtype) {
     const constraints: readonly t.Constraint[] = [
-      ...zipTypes(t1.args, t2.args, c.subtype),
+      ...zipTypes(t1.args, t2.args, c.subtype, true),
       { types: [t1.ret, t2.ret], subtype: c.subtype },
     ];
 
@@ -213,7 +210,7 @@ const unifyFuncs = (c: t.Constraint<t.TFun>, ctx: Context): t.Subst => {
   }
 
   const constraints: readonly t.Constraint[] = [
-    ...zipTypes(t1.args, t2.args, c.subtype),
+    ...zipTypes(t1.args, t2.args, c.subtype, true),
     { types: [t1.ret, t2.ret], subtype: c.subtype },
   ];
 

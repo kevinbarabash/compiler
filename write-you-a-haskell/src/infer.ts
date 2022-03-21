@@ -224,7 +224,7 @@ const inferApp = (expr: st.EApp, ctx: Context): InferResult => {
     [
       ...cs_fn,
       ...cs_args,
-      { types: [t_fn, tb.tfun(t_args, tv, ctx, "App")], subtype: "Right" },
+      { types: [t_fn, tb.tfun(t_args, tv, ctx)], subtype: "Right" },
     ],
   ];
 };
@@ -256,10 +256,7 @@ const inferFix = (expr: st.EFix, ctx: Context): InferResult => {
   const { expr: e } = expr;
   const [t, cs] = infer(e, ctx);
   const tv = fresh(ctx);
-  return [
-    tv,
-    [...cs, { types: [tb.tfun([tv], tv, ctx, "Fix"), t], subtype: null }],
-  ];
+  return [tv, [...cs, { types: [tb.tfun([tv], tv, ctx), t], subtype: null }]];
 };
 
 const inferIf = (expr: st.EIf, ctx: Context): InferResult => {
@@ -305,7 +302,7 @@ const inferLam = (expr: st.ELam, ctx: Context): InferResult => {
       ? type
       : freshTCon(ctx, "Promise", [type]);
 
-  return [tb.tfun(tvs, ret, ctx, "Lam"), cs];
+  return [tb.tfun(tvs, ret, ctx), cs];
 };
 
 const inferLet = (expr: st.ELet, ctx: Context): InferResult => {

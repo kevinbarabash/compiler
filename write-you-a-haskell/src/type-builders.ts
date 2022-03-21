@@ -24,14 +24,12 @@ export const tcon = (
 export const tfun = (
   args: readonly t.Type[],
   ret: t.Type,
-  ctx: Context,
-  src?: "App" | "Fix" | "Lam"
+  ctx: Context
 ): t.TFun => ({
   tag: "TFun",
   id: newId(ctx),
   args,
   ret,
-  src,
 });
 
 export const tunion = (types: readonly t.Type[], ctx: Context): t.TUnion => ({
@@ -58,7 +56,11 @@ export const tprop = (name: string, type: t.Type): t.TProp => ({
   type,
 });
 
-export const tmem = (object: t.Type, property: string, ctx: Context): t.TMem => ({
+export const tmem = (
+  object: t.Type,
+  property: string,
+  ctx: Context
+): t.TMem => ({
   tag: "TMem",
   id: newId(ctx),
   object,

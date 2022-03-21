@@ -169,7 +169,7 @@ describe("inferExpr", () => {
       // <a>(a) => Promise<a>
       const promisifyScheme = scheme(
         [aVar],
-        eng.tfun([aVar], eng.tcon("Promise", [aVar]), "Lam")
+        eng.tfun([aVar], eng.tcon("Promise", [aVar]))
       );
 
       eng.defScheme("promisify", promisifyScheme);
@@ -194,7 +194,7 @@ describe("inferExpr", () => {
       // <a>(Foo<a>) => a
       const extractScheme = scheme(
         [aVar],
-        eng.tfun([eng.tcon("Foo", [aVar])], aVar, "Lam")
+        eng.tfun([eng.tcon("Foo", [aVar])], aVar)
       );
 
       eng.defScheme("extract", extractScheme);
@@ -217,7 +217,7 @@ describe("inferExpr", () => {
       // <a>(Foo<a>) => a
       const extractScheme = scheme(
         [aVar],
-        eng.tfun([eng.tcon("Foo", [aVar])], aVar, "Lam")
+        eng.tfun([eng.tcon("Foo", [aVar])], aVar)
       );
 
       eng.defScheme("extract", extractScheme);
