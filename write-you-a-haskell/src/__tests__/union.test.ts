@@ -60,7 +60,7 @@ describe("Union types and type widening", () => {
 
     const result = eng.inferExpr(expr);
     expect(print(result)).toMatchInlineSnapshot(
-      `"<a>(boolean, (5 | true) => a) => a"`
+      `"<a>(boolean, (true | 5) => a) => a"`
     );
   });
 
@@ -136,7 +136,7 @@ describe("Union types and type widening", () => {
     const result = eng.inferExpr(expr);
 
     expect(print(result)).toMatchInlineSnapshot(
-      `"<a>((5 | true | \\"hello\\") => a) => a"`
+      `"<a>((\\"hello\\" | true | 5) => a) => a"`
     );
   });
 

@@ -61,7 +61,7 @@ describe("tuple", () => {
 
       // TODO: fix message to use [a, b] instead of [e, f];
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Couldn't unify [e, f] with [5, \\"hello\\", true]"`
+        `"Couldn't unify [5, \\"hello\\", true] with [e, f]"`
       );
     });
 
@@ -79,7 +79,7 @@ describe("tuple", () => {
 
       // TODO: fix message to use [a, b] instead of [e, f];
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Couldn't unify [e, f] with [5]"`
+        `"Couldn't unify [5] with [e, f]"`
       );
     });
 
@@ -112,8 +112,7 @@ describe("tuple", () => {
         "foo",
         eng.tfun(
           [eng.tcon("Array", [eng.tlit({ tag: "LNum", value: 5 })])],
-          eng.tprim("number"),
-          "Lam"
+          eng.tprim("number")
         )
       );
 
@@ -152,8 +151,7 @@ describe("tuple", () => {
               eng.tlit({ tag: "LNum", value: 10 }),
             ]),
           ],
-          eng.tprim("number"),
-          "Lam"
+          eng.tprim("number")
         )
       );
       eng.defType("numArray", eng.tcon("Array", [eng.tprim("number")]));

@@ -224,7 +224,7 @@ const inferApp = (expr: st.EApp, ctx: Context): InferResult => {
     [
       ...cs_fn,
       ...cs_args,
-      { types: [t_fn, tb.tfun(t_args, tv, ctx)], subtype: "Right" },
+      { types: [tb.tfun(t_args, tv, ctx), t_fn], subtype: true },
     ],
   ];
 };
@@ -256,7 +256,7 @@ const inferFix = (expr: st.EFix, ctx: Context): InferResult => {
   const { expr: e } = expr;
   const [t, cs] = infer(e, ctx);
   const tv = fresh(ctx);
-  return [tv, [...cs, { types: [tb.tfun([tv], tv, ctx), t], subtype: null }]];
+  return [tv, [...cs, { types: [tb.tfun([tv], tv, ctx), t], subtype: false }]];
 };
 
 const inferIf = (expr: st.EIf, ctx: Context): InferResult => {
@@ -272,8 +272,8 @@ const inferIf = (expr: st.EIf, ctx: Context): InferResult => {
       ...cs1,
       ...cs2,
       ...cs3,
-      { types: [t1, bool], subtype: null },
-      { types: [t2, t3], subtype: null },
+      { types: [t1, bool], subtype: false },
+      { types: [t2, t3], subtype: false },
     ],
   ];
 };
@@ -341,7 +341,7 @@ const inferPattern = (
     case "PLit": {
       const litType = tb.tlit(pattern.value, ctx);
       tt.freeze(litType); // prevents widening of inferred type
-      return [ctx, [{ types: [litType, type], subtype: null }]]; // doesn't affect binding
+      return [ctx, [{ types: [litType, type], subtype: false }]]; // doesn't affect binding
     }
     // NOTE: it only makes sense to infer PPrim patterns as part of pattern matching
     // since destructuring number | string to number isn't sound
@@ -359,7 +359,7 @@ const inferPattern = (
         );
       }
       tt.freeze(primType);
-      return [ctx, [{ types: [primType, type], subtype: null }]];
+      return [ctx, [{ types: [primType, type], subtype: false }]];
     }
     case "PRec": {
       if (type.tag !== "TRec") {
@@ -412,7 +412,7 @@ const inferOp = (expr: st.EOp, ctx: Context): InferResult => {
   const tv = fresh(ctx);
   return [
     tv,
-    [...cs, { types: [tb.tfun(ts, tv, ctx), ops(op, ctx)], subtype: "Left" }],
+    [...cs, { types: [tb.tfun(ts, tv, ctx), ops(op, ctx)], subtype: true }],
   ];
 };
 
@@ -457,7 +457,7 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
       );
     }
     // This is sufficient since infer() will unify `tobj` with `type`.
-    return [prop.type, [...cs, { types: [tMem1, tMem2], subtype: null }]];
+    return [prop.type, [...cs, { types: [tMem1, tMem2], subtype: false }]];
   } else if (object.tag !== "Var") {
     throw new Error("object must be a variable when accessing a member");
   }
@@ -471,7 +471,7 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
     const tMem1 = tb.tmem(tobj, property.name, ctx);
     const tMem2 = tb.tmem(type, property.name, ctx);
     // This is sufficient since inferTMem() will unify `tobj` with `type`.
-    return [tMem2, [{ types: [tMem1, tMem2], subtype: null }]];
+    return [tMem2, [{ types: [tMem1, tMem2], subtype: false }]];
   } else if (type.tag === "TRec") {
     const prop = type.properties.find((prop) => prop.name === property.name);
     if (!prop) {

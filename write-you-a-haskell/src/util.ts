@@ -208,7 +208,7 @@ export function zip<A, B>(
 export function zipTypes(
   ts1: readonly Type[],
   ts2: readonly Type[],
-  subtype: "Left" | "Right" | null,
+  subtype: boolean,
   funcArgs?: boolean
 ): readonly Constraint[] {
   const length = Math.min(ts1.length, ts2.length);
@@ -216,10 +216,14 @@ export function zipTypes(
   for (let i = 0; i < length; i++) {
     // If the types that we're zipping are args passed to a function
     // then we need to set the `subtype` direction correctly.
-    if (funcArgs && ts1[i].tag === "TFun") {
-      result.push({ types: [ts1[i], ts2[i]], subtype: "Left" });
-    } else if (funcArgs && ts2[i].tag === "TFun") {
-      result.push({ types: [ts1[i], ts2[i]], subtype: "Right" });
+    if (funcArgs && ts2[i].tag === "TFun") {
+      // Reverses the order of the types so that the TFun is first.
+      // This can happen when a function is passed as a callback.
+      // The callback passed should be a subtype of the expected param
+      // type.
+      result.push({ types: [ts2[i], ts1[i]], subtype: true });
+    } else if (funcArgs && ts1[i].tag === "TFun") {
+      result.push({ types: [ts1[i], ts2[i]], subtype: true });
     } else {
       result.push({ types: [ts1[i], ts2[i]], subtype });
     }
