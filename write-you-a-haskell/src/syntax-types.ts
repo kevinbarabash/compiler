@@ -38,7 +38,9 @@ export type EProp = { tag: "EProp"; name: string; value: Expr };
 export type Literal =
   | { tag: "LNum"; value: number }
   | { tag: "LBool"; value: boolean }
-  | { tag: "LStr"; value: string };
+  | { tag: "LStr"; value: string }
+  | { tag: "LNull" }
+  | { tag: "LUndefined" };
 
 export type Binop = "Add" | "Sub" | "Mul" | "Eql";
 

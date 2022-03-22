@@ -8,6 +8,7 @@ function assertUnreachable(x: never): never {
 
 type TCommon = { frozen?: boolean; id: number };
 
+// What's the difference between `null` as a primtive type vs `null` as a type literal?
 export type PrimName = "boolean" | "number" | "string" | "null" | "undefined";
 
 export type TVar = TCommon & { tag: "TVar"; name: string };
@@ -15,6 +16,10 @@ export type TCon = TCommon & { tag: "TCon"; name: string; params: readonly Type[
 export type TFun = TCommon & { tag: "TFun"; args: readonly Type[]; ret: Type }; // prettier-ignore
 export type TUnion = TCommon & { tag: "TUnion"; types: readonly Type[] };
 export type TRec = TCommon & { tag: "TRec"; properties: readonly TProp[] };
+// TODO: need a better way model the following:
+// - a.b (equivalent to a['b'])
+// - a[b] (right now we don't have a way to describe this)
+// - a['b'] / a[1]
 export type TMem = TCommon & { tag: "TMem"; object: Type; property: string | number };
 export type TTuple = TCommon & { tag: "TTuple"; types: readonly Type[] };
 export type TLit = TCommon & { tag: "TLit"; value: Literal };
@@ -63,9 +68,13 @@ export function print(t: Type | Scheme): string {
       return t.name;
     }
     case "TLit": {
-      return t.value.tag === "LStr"
-        ? `"${t.value.value}"`
-        : t.value.value.toString();
+      switch (t.value.tag) {
+        case "LStr": return `"${t.value.value}"`;
+        case "LNum": return t.value.value.toString();
+        case "LBool": return t.value.value.toString();
+        case "LNull": return "null";
+        case "LUndefined": return "undefined";
+      }
     }
     case "TMem": {
       return `${print(t.object)}['${t.property}']`;

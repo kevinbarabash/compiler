@@ -4,6 +4,7 @@ import { assert } from "console";
 import { Context, lookupEnv } from "./context";
 import * as t from "./type-types";
 import * as tb from "./type-builders";
+import { Literal } from "./syntax-types";
 import { apply, ftv, zipTypes } from "./util";
 import {
   InfiniteType,
@@ -69,7 +70,7 @@ export const isTRec = (c: t.Constraint): c is t.Constraint<t.TRec> => {
 export const isTMem = (c: t.Constraint): c is t.Constraint<t.TMem> => {
   const [t1, t2] = c.types;
   return t.isTMem(t1) && t.isTMem(t2);
-}
+};
 
 export const unifies = (c: t.Constraint, ctx: Context): t.Subst => {
   const {
@@ -81,12 +82,7 @@ export const unifies = (c: t.Constraint, ctx: Context): t.Subst => {
   if (isTFun(c)) return unifyFuncs(c, ctx);
   if (t.isTPrim(t1) && t.isTPrim(t2) && t1.name === t2.name) return emptySubst;
   // TODO: create unifyLiterals()
-  if (
-    t.isTLit(t1) &&
-    t.isTLit(t2) &&
-    t1.value.tag === t2.value.tag &&
-    t1.value.value === t2.value.value
-  ) {
+  if (t.isTLit(t1) && t.isTLit(t2) && compareLiterals(t1.value, t2.value)) {
     return emptySubst;
   }
   if (isTCon(c)) {
@@ -104,7 +100,10 @@ export const unifies = (c: t.Constraint, ctx: Context): t.Subst => {
   if (isTMem(c)) {
     const [t1, t2] = c.types;
     if (t1.property === t2.property) {
-      const result = unifies({ types: [t1.object, t2.object], subtype: c.subtype }, ctx);
+      const result = unifies(
+        { types: [t1.object, t2.object], subtype: c.subtype },
+        ctx
+      );
       return result;
     }
   }
@@ -300,6 +299,13 @@ const occursCheck = (tv: t.TVar, t: t.Type): boolean => {
   return ftv(t).includes(tv);
 };
 
+const compareLiterals = (lit1: Literal, lit2: Literal): boolean => {
+  if ("value" in lit1 && "value" in lit2) {
+    return lit1.value === lit2.value;
+  }
+  return lit1.tag === lit2.tag;
+};
+
 const isSubType = (sub: t.Type, sup: t.Type): boolean => {
   if (t.isTPrim(sup) && sup.name === "number") {
     if (t.isTLit(sub) && sub.value.tag === "LNum") {
@@ -311,7 +317,7 @@ const isSubType = (sub: t.Type, sup: t.Type): boolean => {
   }
 
   if (t.isTLit(sub) && t.isTLit(sup)) {
-    return sub.value.value === sup.value.value;
+    return compareLiterals(sub.value, sup.value);
   }
 
   if (t.isTTuple(sub) && t.isTCon(sup) && sup.name === "Array") {
@@ -409,8 +415,22 @@ const nubPrimTypes = (primTypes: readonly t.TPrim[]): t.TPrim[] => {
 };
 
 const nubLitTypes = (litTypes: readonly t.TLit[]): t.TLit[] => {
-  const values: (number | string | boolean)[] = [];
+  const values: (number | string | boolean | null | undefined)[] = [];
   return litTypes.filter((lt) => {
+    if (lt.value.tag === "LNull") {
+      if (!values.includes(null)) {
+        values.push(null);
+        return true;
+      }
+      return false;
+    }
+    if (lt.value.tag === "LUndefined") {
+      if (!values.includes(undefined)) {
+        values.push(undefined);
+        return true;
+      }
+      return false;
+    }
     if (!values.includes(lt.value.value)) {
       values.push(lt.value.value);
       return true;

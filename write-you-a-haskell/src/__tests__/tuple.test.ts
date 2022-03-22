@@ -2,6 +2,7 @@ import { Expr } from "../syntax-types";
 import * as sb from "../syntax-builders";
 import { print, scheme, Scheme } from "../type-types";
 import { Engine } from "../engine";
+import { createArrayScheme } from "../builtins";
 
 describe("tuple", () => {
   test("can infer a tuple containing different types", () => {
@@ -165,7 +166,7 @@ describe("tuple", () => {
   });
 
   describe("member access", () => {
-    test("is should return the correct type", () => {
+    it("should return the correct type", () => {
       const eng = new Engine();
 
       const result = eng.inferExpr(
@@ -175,7 +176,33 @@ describe("tuple", () => {
       expect(print(result)).toEqual("10");
     });
 
-    test("is should throw if the indexer is not valid", () => {
+    it("should work on a tuple literal", () => {
+      const eng = new Engine();
+
+      const result = eng.inferExpr({
+        tag: "Mem",
+        object: sb.tuple([sb.num(5), sb.num(10)]),
+        property: sb.num(1),
+      });
+
+      expect(print(result)).toEqual("10");
+    });
+
+    it("should work on an array", () => {
+      const eng = new Engine();
+      eng.defScheme("Array", createArrayScheme(eng.ctx));
+
+      eng.defType("foo", eng.tcon("Array", [eng.tprim("number")]))
+      const result = eng.inferExpr(sb.mem("foo", 1));
+
+      // TODO: once we start add type refinements, if a person checks
+      // the length of an array is greater or equal to a certain value
+      // we should be able to treat it like a tuple when using indices
+      // that are less than that value.
+      expect(print(result)).toEqual("number | undefined");
+    });
+
+    it("should throw if the indexer is not valid", () => {
       const eng = new Engine();
 
       expect(() =>
@@ -191,7 +218,21 @@ describe("tuple", () => {
       );
     });
 
-    test("is should throw if the indexer out of bounds", () => {
+    it("should throw if the indexer is not valid on tuple literal", () => {
+      const eng = new Engine();
+
+      expect(() =>
+        eng.inferExpr({
+          tag: "Mem",
+          object: sb.tuple([sb.num(5), sb.num(10)]),
+          property: sb.bool(true),
+        })
+      ).toThrowErrorMatchingInlineSnapshot(
+        `"property must be a number when accessing an index on a tuple"`
+      );
+    });
+
+    it("should throw if the indexer out of bounds", () => {
       const eng = new Engine();
 
       expect(() =>
@@ -203,6 +244,18 @@ describe("tuple", () => {
       );
     });
 
-    // TODO: indexing a variable that was assigned a touple
+    it("should throw if the indexer out of bounds on a tuple literal", () => {
+      const eng = new Engine();
+
+      expect(() =>
+        eng.inferExpr({
+          tag: "Mem",
+          object: sb.tuple([sb.num(5), sb.num(10)]),
+          property: sb.num(2),
+        })
+      ).toThrowErrorMatchingInlineSnapshot(
+        `"index is greater than the size of the tuple"`
+      );
+    });
   });
 });
