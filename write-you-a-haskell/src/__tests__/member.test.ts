@@ -147,4 +147,55 @@ describe("Member access", () => {
       expect(print(result)).toMatchInlineSnapshot(`"\\"hello\\""`);
     });
   });
+
+  it("should work on a record inside an tuple", () => {
+    const eng = new Engine();
+
+    const result = eng.inferExpr(
+      sb._let(
+        "nested",
+        sb.tuple([
+          sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))]),
+
+          sb.rec([sb.prop("foo", sb.str("hello")), sb.prop("bar", sb.num(5))]),
+        ]),
+        {
+          tag: "Mem",
+          object: {
+            tag: "Mem",
+            object: sb._var("nested"),
+            property: sb.num(1),
+          },
+          property: sb._var("foo"),
+        }
+      )
+    );
+
+    expect(print(result)).toEqual('"hello"');
+  });
+
+  it("should work on a tuple inside a record", () => {
+    const eng = new Engine();
+
+    const result = eng.inferExpr(
+      sb._let(
+        "nested",
+        sb.rec([
+          sb.prop("foo", sb.tuple([sb.num(5), sb.num(10)])),
+          sb.prop("bar", sb.tuple([sb.str("hello"), sb.str("world")])),
+        ]),
+        {
+          tag: "Mem",
+          object: {
+            tag: "Mem",
+            object: sb._var("nested"),
+            property: sb._var("foo"),
+          },
+          property: sb.num(1),
+        }
+      )
+    );
+
+    expect(print(result)).toEqual("10");
+  });
 });

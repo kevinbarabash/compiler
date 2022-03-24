@@ -65,6 +65,21 @@ describe("record", () => {
     expect(print(expr)).toEqual("5");
   });
 
+  test("simple member access on a literal", () => {
+    const eng = new Engine();
+
+    const expr = eng.inferExpr({
+      tag: "Mem",
+      object: sb.rec([
+        sb.prop("foo", sb.str("hello")),
+        sb.prop("bar", sb.num(5)),
+      ]),
+      property: sb._var("bar"),
+    });
+
+    expect(print(expr)).toEqual("5");
+  });
+
   test("nested member access", () => {
     const eng = new Engine();
 
@@ -86,9 +101,31 @@ describe("record", () => {
             property: sb._var("bar"),
           },
           property: sb._var("y"),
-        },
+        }
       )
     );
+
+    expect(print(expr)).toEqual("10");
+  });
+
+  test("nested member access on a literal", () => {
+    const eng = new Engine();
+
+    const expr = eng.inferExpr({
+      tag: "Mem",
+      object: {
+        tag: "Mem",
+        object: sb.rec([
+          sb.prop("foo", sb.str("hello")),
+          sb.prop(
+            "bar",
+            sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))])
+          ),
+        ]),
+        property: sb._var("bar"),
+      },
+      property: sb._var("y"),
+    });
 
     expect(print(expr)).toEqual("10");
   });

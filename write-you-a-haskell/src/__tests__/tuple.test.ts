@@ -280,7 +280,26 @@ describe("tuple", () => {
         )
       );
 
-      expect(print(result)).toEqual("\"world\"");
+      expect(print(result)).toEqual('"world"');
+    });
+
+    it("should work on nested tuples literal", () => {
+      const eng = new Engine();
+
+      const result = eng.inferExpr({
+        tag: "Mem",
+        object: {
+          tag: "Mem",
+          object: sb.tuple([
+            sb.tuple([sb.num(5), sb.num(10)]),
+            sb.tuple([sb.str("hello"), sb.str("world")]),
+          ]),
+          property: sb.num(1),
+        },
+        property: sb.num(1),
+      });
+
+      expect(print(result)).toEqual('"world"');
     });
   });
 });
