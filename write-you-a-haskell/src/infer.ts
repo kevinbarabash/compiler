@@ -537,9 +537,6 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
     throw new Error("Didn't expect member access here");
   }
 
-  // NOTE: inferVar returns [] for the constraints so we don't need 
-  // to bother using `cs` beyond this point.
-
   const aliasedScheme = ctx.env.get(type.name);
   if (!aliasedScheme) {
     throw new Error(`No type named ${type.name} in environment`);
@@ -572,7 +569,7 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
       [type.params[0], tb.tlit({ tag: "LUndefined" }, ctx)],
       ctx
     );
-    return [resultType, []];
+    return [resultType, cs];
   }
 
   // TODO: handle aliased tuple types (not common so we can punt on it for now)
@@ -602,7 +599,7 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
   );
   const resultType = apply(subs2, prop.type);
 
-  return [resultType, []];
+  return [resultType, cs];
 };
 
 const inferMany = (
