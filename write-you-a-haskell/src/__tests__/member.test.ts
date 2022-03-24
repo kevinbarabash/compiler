@@ -23,7 +23,7 @@ describe("Member access", () => {
 
     test("using a property that isn't a TVar doesn't work", () => {
       const eng = new Engine();
-      eng.defType("foo", eng.tNum());
+      eng.defType("foo", eng.trec([eng.tprop("hello", eng.tNum())]));
 
       const expr: Expr = {
         tag: "Mem",
@@ -33,7 +33,7 @@ describe("Member access", () => {
       };
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"property must be a variable when accessing a member"`
+        `"property must be a variable when accessing a member on a record"`
       );
     });
 

@@ -1,8 +1,8 @@
 import * as tb from "./type-builders";
-import {Context} from "./context";
-import {Expr, Literal} from "./syntax-types";
+import { Context } from "./context";
+import { Expr, Literal } from "./syntax-types";
 import * as t from "./type-types";
-import {inferExpr} from "./infer";
+import { inferExpr } from "./infer";
 
 export class Engine {
   ctx: Context;
@@ -58,7 +58,7 @@ export class Engine {
     return tb.tprop(name, type);
   }
 
-  tmem(object: t.Type, property: string) {
+  tmem(object: t.Type, property: string | number) {
     return tb.tmem(object, property, this.ctx);
   }
 

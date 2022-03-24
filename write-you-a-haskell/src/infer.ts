@@ -426,7 +426,7 @@ const inferRec = (expr: st.ERec, ctx: Context): InferResult<tt.TRec> => {
   return [tb.trec(properties, ctx), all_cs];
 };
 
-const inferTuple = (expr: st.ETuple, ctx: Context): InferResult => {
+const inferTuple = (expr: st.ETuple, ctx: Context): InferResult<tt.TTuple> => {
   const [ts, cs] = inferMany(expr.elements, ctx);
   return [tb.ttuple(ts, ctx), cs];
 };
@@ -436,20 +436,30 @@ const inferVar = (expr: st.EVar, ctx: Context): InferResult => {
   return [type, []];
 };
 
+const unwrapProperty = (property: st.Expr): number | string => {
+  if (property.tag === "Var") {
+    return property.name;
+  } else if (property.tag === "Lit" && property.value.tag === "LNum") {
+    return property.value.value;
+  } else {
+    throw new Error("Not a valid property");
+  }
+};
+
 const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
   // TODO: handle nested property access, e.g. foo.bar.baz.
   const { object, property } = expr;
 
-  if (property.tag !== "Var") {
-    throw new Error("property must be a variable when accessing a member");
-  }
-
   // Handles member access on object literals
   if (object.tag === "Rec") {
+    if (property.tag !== "Var") {
+      throw new Error("property must be a variable when accessing a member");
+    }
+
     const tobj = fresh(ctx);
     const [type, cs] = inferRec(object, ctx);
-    const tMem1 = tb.tmem(tobj, property.name, ctx);
-    const tMem2 = tb.tmem(type, property.name, ctx);
+    const tMem1 = tb.tmem(tobj, unwrapProperty(property), ctx);
+    const tMem2 = tb.tmem(type, unwrapProperty(property), ctx);
     const prop = type.properties.find((prop) => property.name === prop.name);
     if (!prop) {
       throw new Error(
@@ -458,6 +468,24 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
     }
     // This is sufficient since infer() will unify `tobj` with `type`.
     return [prop.type, [...cs, { types: [tMem1, tMem2], subtype: false }]];
+  } else if (object.tag === "Tuple") {
+    if (property.tag !== "Lit" || property.value.tag !== "LNum") {
+      throw new Error(
+        "property must be a number when accessing an index on a tuple"
+      );
+    }
+
+    const tobj = fresh(ctx);
+    const [type, cs] = inferTuple(object, ctx);
+    const tMem1 = tb.tmem(tobj, unwrapProperty(property), ctx);
+    const tMem2 = tb.tmem(type, unwrapProperty(property), ctx);
+
+    if (property.value.value >= type.types.length) {
+      throw new Error("index is greater than the size of the tuple");
+    }
+
+    const elemType = type.types[property.value.value];
+    return [elemType, [...cs, { types: [tMem1, tMem2], subtype: false }]];
   } else if (object.tag !== "Var") {
     throw new Error("object must be a variable when accessing a member");
   }
@@ -468,11 +496,17 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
 
   if (type.tag === "TVar") {
     const tobj = fresh(ctx);
-    const tMem1 = tb.tmem(tobj, property.name, ctx);
-    const tMem2 = tb.tmem(type, property.name, ctx);
+    const tMem1 = tb.tmem(tobj, unwrapProperty(property), ctx);
+    const tMem2 = tb.tmem(type, unwrapProperty(property), ctx);
     // This is sufficient since inferTMem() will unify `tobj` with `type`.
     return [tMem2, [{ types: [tMem1, tMem2], subtype: false }]];
   } else if (type.tag === "TRec") {
+    if (property.tag !== "Var") {
+      throw new Error(
+        "property must be a variable when accessing a member on a record"
+      );
+    }
+
     const prop = type.properties.find((prop) => prop.name === property.name);
     if (!prop) {
       throw new Error(
@@ -480,6 +514,19 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
       );
     }
     return [prop.type, []];
+  } else if (type.tag === "TTuple") {
+    if (property.tag !== "Lit" || property.value.tag !== "LNum") {
+      throw new Error(
+        "property must be a number when accessing an index on a tuple"
+      );
+    }
+
+    if (property.value.value >= type.types.length) {
+      throw new Error("index is greater than the size of the tuple");
+    }
+
+    const elemType = type.types[property.value.value];
+    return [elemType, []];
   } else if (type.tag !== "TCon") {
     throw new Error(`Can't use member access on ${type.tag}`);
   }
@@ -507,8 +554,27 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
   // Applies the substitutions to get a type matches the type alias we looked up
   const aliasedType = apply(subs1, aliasedScheme.type);
 
+  if (
+    type.name === "Array" &&
+    property.tag === "Lit" &&
+    property.value.tag === "LNum"
+  ) {
+    const resultType = tb.tunion(
+      [type.params[0], tb.tlit({ tag: "LUndefined" }, ctx)],
+      ctx
+    );
+    return [resultType, []];
+  }
+
+  // TODO: handle aliased tuple types (not common so we can punt on it for now)
   if (aliasedType.tag !== "TRec") {
     throw new Error(`Can't use member access on ${aliasedType.tag}`);
+  }
+
+  if (property.tag !== "Var") {
+    throw new Error(
+      "property must be a variable when accessing a member on a record"
+    );
   }
 
   const prop = aliasedType.properties.find(
