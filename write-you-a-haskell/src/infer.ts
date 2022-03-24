@@ -486,13 +486,15 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
 
     const elemType = type.types[property.value.value];
     return [elemType, [...cs, { types: [tMem1, tMem2], subtype: false }]];
-  } else if (object.tag !== "Var") {
+  } else if (object.tag !== "Var" && object.tag !== "Mem") {
     throw new Error("object must be a variable when accessing a member");
   }
 
   // TODO: have separate namespaces for types and values so that we can
   // support TypeScript's ability to use the same identifier for both.
-  const type = lookupEnv(object.name, ctx);
+  const [type, cs] = object.tag === "Var" 
+    ? inferVar(object, ctx)
+    : inferMem(object, ctx);
 
   if (type.tag === "TVar") {
     const tobj = fresh(ctx);
@@ -513,7 +515,7 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
         `${tt.print(type)} doesn't contain property ${property.name}`
       );
     }
-    return [prop.type, []];
+    return [prop.type, cs];
   } else if (type.tag === "TTuple") {
     if (property.tag !== "Lit" || property.value.tag !== "LNum") {
       throw new Error(
@@ -526,9 +528,13 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
     }
 
     const elemType = type.types[property.value.value];
-    return [elemType, []];
+    return [elemType, cs];
   } else if (type.tag !== "TCon") {
     throw new Error(`Can't use member access on ${type.tag}`);
+  }
+
+  if (object.tag === "Mem") {
+    throw new Error("Didn't expect member access here");
   }
 
   const aliasedScheme = ctx.env.get(type.name);
@@ -563,7 +569,7 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
       [type.params[0], tb.tlit({ tag: "LUndefined" }, ctx)],
       ctx
     );
-    return [resultType, []];
+    return [resultType, cs];
   }
 
   // TODO: handle aliased tuple types (not common so we can punt on it for now)
@@ -593,7 +599,7 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
   );
   const resultType = apply(subs2, prop.type);
 
-  return [resultType, []];
+  return [resultType, cs];
 };
 
 const inferMany = (

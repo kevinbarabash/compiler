@@ -192,7 +192,7 @@ describe("tuple", () => {
       const eng = new Engine();
       eng.defScheme("Array", createArrayScheme(eng.ctx));
 
-      eng.defType("foo", eng.tcon("Array", [eng.tprim("number")]))
+      eng.defType("foo", eng.tcon("Array", [eng.tprim("number")]));
       const result = eng.inferExpr(sb.mem("foo", 1));
 
       // TODO: once we start add type refinements, if a person checks
@@ -256,6 +256,50 @@ describe("tuple", () => {
       ).toThrowErrorMatchingInlineSnapshot(
         `"index is greater than the size of the tuple"`
       );
+    });
+
+    it("should work on nested tuples", () => {
+      const eng = new Engine();
+
+      const result = eng.inferExpr(
+        sb._let(
+          "nested",
+          sb.tuple([
+            sb.tuple([sb.num(5), sb.num(10)]),
+            sb.tuple([sb.str("hello"), sb.str("world")]),
+          ]),
+          {
+            tag: "Mem",
+            object: {
+              tag: "Mem",
+              object: sb._var("nested"),
+              property: sb.num(1),
+            },
+            property: sb.num(1),
+          }
+        )
+      );
+
+      expect(print(result)).toEqual('"world"');
+    });
+
+    it("should work on nested tuples literal", () => {
+      const eng = new Engine();
+
+      const result = eng.inferExpr({
+        tag: "Mem",
+        object: {
+          tag: "Mem",
+          object: sb.tuple([
+            sb.tuple([sb.num(5), sb.num(10)]),
+            sb.tuple([sb.str("hello"), sb.str("world")]),
+          ]),
+          property: sb.num(1),
+        },
+        property: sb.num(1),
+      });
+
+      expect(print(result)).toEqual('"world"');
     });
   });
 });
