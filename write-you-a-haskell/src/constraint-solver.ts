@@ -57,9 +57,9 @@ export const isTUnion = (c: t.Constraint): c is t.Constraint<t.TUnion> => {
   return t.isTUnion(t1) && t.isTUnion(t2);
 };
 
-export const isTCon = (c: t.Constraint): c is t.Constraint<t.TCon> => {
+export const isTCon = (c: t.Constraint): c is t.Constraint<t.TGen> => {
   const [t1, t2] = c.types;
-  return t.isTCon(t1) && t.isTCon(t2);
+  return t.isTGen(t1) && t.isTGen(t2);
 };
 
 export const isTRec = (c: t.Constraint): c is t.Constraint<t.TRec> => {
@@ -266,8 +266,8 @@ const solver = (u: t.Unifier, ctx: Context): t.Subst => {
 const bind = (tv: t.TVar, type: t.Type, ctx: Context): t.Subst => {
   if (type.tag === "TMem") {
     const { object, property } = type;
-    if (object.tag === "TCon") {
-      // Checks if there's an alias for the object.
+    if (object.tag === "TGen") {
+      // Checks if there's an alias for the generic type.
       const alias = lookupEnv(object.name, ctx);
       if (alias.tag === "TRec") {
         if (typeof property !== "string") {
@@ -320,7 +320,7 @@ const isSubType = (sub: t.Type, sup: t.Type): boolean => {
     return compareLiterals(sub.value, sup.value);
   }
 
-  if (t.isTTuple(sub) && t.isTCon(sup) && sup.name === "Array") {
+  if (t.isTTuple(sub) && t.isTGen(sup) && sup.name === "Array") {
     return sub.types.every((type) => isSubType(type, sup.params[0]));
   }
 

@@ -17,7 +17,7 @@ describe("Array", () => {
   test("strArray = Array<string>", () => {
     const eng = new Engine();
     eng.defScheme("Array", createArrayScheme(eng.ctx));
-    eng.defType("strArray", eng.tcon("Array", [eng.tprim("string")]));
+    eng.defType("strArray", eng.tgen("Array", [eng.tprim("string")]));
 
     const result = eng.inferExpr(sb.ident("strArray"));
 
@@ -27,7 +27,7 @@ describe("Array", () => {
   test("type of strArray.map", () => {
     const eng = new Engine();
     eng.defScheme("Array", createArrayScheme(eng.ctx));
-    eng.defType("strArray", eng.tcon("Array", [eng.tprim("string")]));
+    eng.defType("strArray", eng.tgen("Array", [eng.tprim("string")]));
 
     const result = eng.inferExpr(sb.mem(sb.ident("strArray"), sb.ident("map")));
 
@@ -42,7 +42,7 @@ describe("Array", () => {
   test("strArray.map((elem) => 5) -> Array<5>", () => {
     const eng = new Engine();
     eng.defScheme("Array", createArrayScheme(eng.ctx));
-    eng.defType("strArray", eng.tcon("Array", [eng.tprim("string")]));
+    eng.defType("strArray", eng.tgen("Array", [eng.tprim("string")]));
 
     const expr = sb.app(sb.mem(sb.ident("strArray"), sb.ident("map")), [
       sb.lam(["elem"], sb.num(5)),
@@ -55,7 +55,7 @@ describe("Array", () => {
   test("strArray.map((elem, index, array) => index) -> Array<number>", () => {
     const eng = new Engine();
     eng.defScheme("Array", createArrayScheme(eng.ctx));
-    eng.defType("strArray", eng.tcon("Array", [eng.tprim("string")]));
+    eng.defType("strArray", eng.tgen("Array", [eng.tprim("string")]));
 
     const expr = sb.app(sb.mem(sb.ident("strArray"), sb.ident("map")), [
       sb.lam(["elem", "index", "array"], sb.ident("index")),
@@ -68,7 +68,7 @@ describe("Array", () => {
   test("strArray.map((elem, index, array) => array) -> Array<Array<string>>", () => {
     const eng = new Engine();
     eng.defScheme("Array", createArrayScheme(eng.ctx));
-    eng.defType("strArray", eng.tcon("Array", [eng.tprim("string")]));
+    eng.defType("strArray", eng.tgen("Array", [eng.tprim("string")]));
 
     const expr = sb.app(sb.mem(sb.ident("strArray"), sb.ident("map")), [
       sb.lam(["elem", "index", "array"], sb.ident("array")),
@@ -81,7 +81,7 @@ describe("Array", () => {
   test("member access on TVar that doesn't exist in env", () => {
     const eng = new Engine();
     eng.defScheme("Array", createArrayScheme(eng.ctx));
-    eng.defType("strArray", eng.tcon("Array", [eng.tprim("string")]));
+    eng.defType("strArray", eng.tgen("Array", [eng.tprim("string")]));
 
     const expr = sb.app(sb.mem(sb.ident("strArray"), sb.ident("map")), [
       sb.lam(

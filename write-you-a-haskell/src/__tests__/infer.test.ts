@@ -132,7 +132,10 @@ describe("inferExpr", () => {
       const eng = new Engine();
       const innerlet: Binding = [
         "innerlet",
-        sb.lam(["x"], sb._let("y", sb.lam(["z"], sb.ident("z")), sb.ident("y"))),
+        sb.lam(
+          ["x"],
+          sb._let("y", sb.lam(["z"], sb.ident("z")), sb.ident("y"))
+        ),
       ];
 
       const result = eng.inferExpr(innerlet[1]);
@@ -162,14 +165,14 @@ describe("inferExpr", () => {
     });
   });
 
-  describe("Type Constructors", () => {
+  describe("Generic types", () => {
     test("infer promise type", () => {
       const eng = new Engine();
       const aVar = eng.tvar("a");
       // <a>(a) => Promise<a>
       const promisifyScheme = scheme(
         [aVar],
-        eng.tfun([aVar], eng.tcon("Promise", [aVar]))
+        eng.tfun([aVar], eng.tgen("Promise", [aVar]))
       );
 
       eng.defScheme("promisify", promisifyScheme);
@@ -188,13 +191,17 @@ describe("inferExpr", () => {
       expect(print(boolResult)).toEqual("Promise<true>");
     });
 
+    // TODO: re-introduce 'TCon' type to model type constructors
+    // since it doesn't make sense to extract a value from a generic
+    // type like Promise<T> or Array<T>, but it would make sense to
+    // extract a value from Some<T> (which is a variant of Maybe<T>).
     test("extract value from type constructor", () => {
       const eng = new Engine();
       const aVar = eng.tvar("a");
       // <a>(Foo<a>) => a
       const extractScheme = scheme(
         [aVar],
-        eng.tfun([eng.tcon("Foo", [aVar])], aVar)
+        eng.tfun([eng.tgen("Foo", [aVar])], aVar)
       );
 
       eng.defScheme("extract", extractScheme);
@@ -211,23 +218,22 @@ describe("inferExpr", () => {
       expect(print(result)).toEqual("(Foo<number>, Foo<number>) => number");
     });
 
+    // TODO: re-introduce 'TCon' type to model type constructors
+    // since it doesn't make sense to extract a value from a generic
+    // type like Promise<T> or Array<T>, but it would make sense to
+    // extract a value from Some<T> (which is a variant of Maybe<T>).
     test("extract value from type constructor 2", () => {
       const eng = new Engine();
       const aVar = eng.tvar("a");
       // <a>(Foo<a>) => a
       const extractScheme = scheme(
         [aVar],
-        eng.tfun([eng.tcon("Foo", [aVar])], aVar)
+        eng.tfun([eng.tgen("Foo", [aVar])], aVar)
       );
 
       eng.defScheme("extract", extractScheme);
       // x is of type Foo<number>
-      eng.defType("x", {
-        tag: "TCon",
-        id: 3,
-        name: "Foo",
-        params: [{ tag: "TCon", id: 4, name: "number", params: [] }],
-      });
+      eng.defType("x", eng.tgen("Foo", [eng.tgen("number", [])]));
 
       const extractedX = sb.app(sb.ident("extract"), [sb.ident("x")]);
 
@@ -255,7 +261,7 @@ describe("inferExpr", () => {
         "add",
         sb.lam(["a", "b"], sb.add(sb.ident("a"), sb.ident("b"))),
       ];
-      const expr: Expr = sb.app(sb.ident("add"), [sb.num(5), sb.bool(true)]);
+      const expr = sb.app(sb.ident("add"), [sb.num(5), sb.bool(true)]);
 
       eng.inferDecl(_add[0], _add[1]);
 

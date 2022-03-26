@@ -17,7 +17,7 @@ describe("Async/Await", () => {
     const eng = new Engine();
     const retVal = scheme(
       [],
-      eng.tcon("Promise", [eng.tprim("number")]),
+      eng.tgen("Promise", [eng.tprim("number")]),
     );
     eng.defScheme("retVal", retVal);
 
@@ -31,7 +31,7 @@ describe("Async/Await", () => {
     const eng = new Engine();
     const retVal = scheme(
       [],
-      eng.tcon("Promise", [eng.tprim("number")]),
+      eng.tgen("Promise", [eng.tprim("number")]),
     );
     eng.defScheme("retVal", retVal);
 

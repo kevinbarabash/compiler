@@ -22,13 +22,13 @@ export const createArrayScheme = (ctx: Context): Scheme => {
                   tb.tprim("number", ctx),
                   // TODO: how do we handle record types that
                   // reference themselves.
-                  tb.tcon("Array", [tVar], ctx),
+                  tb.tgen("Array", [tVar], ctx),
                 ],
                 uVar,
                 ctx
               ),
             ],
-            tb.tcon("Array", [uVar], ctx),
+            tb.tgen("Array", [uVar], ctx),
             ctx
           )
         ),

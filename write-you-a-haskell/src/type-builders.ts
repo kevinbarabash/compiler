@@ -10,12 +10,12 @@ export const tvar = (name: string, ctx: Context): t.TVar => ({
   name,
 });
 
-export const tcon = (
+export const tgen = (
   name: string,
   params: readonly t.Type[],
   ctx: Context
-): t.TCon => ({
-  tag: "TCon",
+): t.TGen => ({
+  tag: "TGen",
   id: newId(ctx),
   name,
   params,

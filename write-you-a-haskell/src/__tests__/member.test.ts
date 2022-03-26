@@ -39,7 +39,7 @@ describe("Member access", () => {
 
     test("access property on TCon that hasn't been defined fails", () => {
       const eng = new Engine();
-      eng.defType("foo", eng.tcon("Foo", []));
+      eng.defType("foo", eng.tgen("Foo", []));
 
       const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
@@ -52,7 +52,7 @@ describe("Member access", () => {
       const eng = new Engine();
       const tVar = eng.tvar("T");
       eng.defScheme("Foo", scheme([tVar], eng.tNum()));
-      eng.defType("foo", eng.tcon("Foo", []));
+      eng.defType("foo", eng.tgen("Foo", []));
 
       const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
@@ -64,7 +64,7 @@ describe("Member access", () => {
     test("alias type is not a TRec", () => {
       const eng = new Engine();
       eng.defScheme("Foo", scheme([], eng.tNum()));
-      eng.defType("foo", eng.tcon("Foo", []));
+      eng.defType("foo", eng.tgen("Foo", []));
 
       const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
@@ -76,7 +76,7 @@ describe("Member access", () => {
     test("property doesn't exist on aliased TRec type", () => {
       const eng = new Engine();
       eng.defScheme("Foo", scheme([], eng.trec([])));
-      eng.defType("foo", eng.tcon("Foo", []));
+      eng.defType("foo", eng.tgen("Foo", []));
 
       const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 

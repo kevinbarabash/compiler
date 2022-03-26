@@ -34,8 +34,8 @@ export class Engine {
     return tb.tvar(name, this.ctx);
   }
 
-  tcon(name: string, params: readonly t.Type[]) {
-    return tb.tcon(name, params, this.ctx);
+  tgen(name: string, params: readonly t.Type[]) {
+    return tb.tgen(name, params, this.ctx);
   }
 
   tfun(args: readonly t.Type[], ret: t.Type) {

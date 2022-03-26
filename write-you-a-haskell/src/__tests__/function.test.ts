@@ -289,17 +289,17 @@ describe("function subtyping", () => {
       [aVar, bVar],
       eng.tfun(
         [
-          eng.tcon("Array", [aVar]),
+          eng.tgen("Array", [aVar]),
           // Why is this TFun's `src` an "App"?
           eng.tfun([aVar, eng.tprim("number")], bVar),
         ],
-        eng.tcon("Array", [bVar])
+        eng.tgen("Array", [bVar])
       )
     );
 
     eng.defScheme("map", mapScheme);
 
-    const intArray = scheme([], eng.tcon("Array", [eng.tprim("number")]));
+    const intArray = scheme([], eng.tgen("Array", [eng.tprim("number")]));
 
     eng.defScheme("array", intArray);
 
@@ -320,7 +320,7 @@ describe("function subtyping", () => {
 
     eng.defScheme(
       "strArray",
-      scheme([], eng.tcon("Array", [eng.tprim("string")]))
+      scheme([], eng.tgen("Array", [eng.tprim("string")]))
     );
 
     // TODO: allow `(elem) => 5` to be passed as the callback
@@ -341,16 +341,16 @@ describe("function subtyping", () => {
       [aVar, bVar],
       eng.tfun(
         [
-          eng.tcon("Array", [aVar]),
+          eng.tgen("Array", [aVar]),
           eng.tfun([aVar, eng.tprim("number")], bVar),
         ],
-        eng.tcon("Array", [bVar])
+        eng.tgen("Array", [bVar])
       )
     );
 
     eng.defScheme("map", mapScheme);
 
-    const intArray = scheme([], eng.tcon("Array", [eng.tprim("number")]));
+    const intArray = scheme([], eng.tgen("Array", [eng.tprim("number")]));
 
     eng.defScheme("array", intArray);
 

@@ -82,7 +82,7 @@ const normalize = (sc: tt.Scheme): tt.Scheme => {
           ret: normType(ret),
         };
       }
-      case "TCon":
+      case "TGen":
         // TODO: Lookup the definition of Array, Promise, etc.
         // TODO: fix - type variable s not in signature Array<s>
         // s is clearly in Array<s>
@@ -170,8 +170,8 @@ export const freshTCon = (
   ctx: Context,
   name: string,
   params: tt.Type[] = []
-): tt.TCon => {
-  return tb.tcon(name, params, ctx);
+): tt.TGen => {
+  return tb.tgen(name, params, ctx);
 };
 
 const instantiate = (sc: tt.Scheme, ctx: Context): tt.Type => {
@@ -237,7 +237,7 @@ const inferAwait = (expr: st.EAwait, ctx: Context): InferResult => {
   const [type, cs] = infer(expr.expr, ctx);
 
   // TODO: convert Promise from t.TCon to TAbs/TGen
-  if (tt.isTCon(type) && type.name === "Promise") {
+  if (tt.isTGen(type) && type.name === "Promise") {
     if (type.params.length !== 1) {
       // TODO: How do we prevent people from overwriting built-in types
       // TODO: How do we allow local shadowing of other types within a module?
@@ -298,7 +298,7 @@ const inferLam = (expr: st.ELam, ctx: Context): InferResult => {
   // - its inferred return value isn't already in a promise
   // TODO: add more general support for conditional types
   const ret =
-    !expr.async || (type.tag === "TCon" && type.name === "Promise")
+    !expr.async || (type.tag === "TGen" && type.name === "Promise")
       ? type
       : freshTCon(ctx, "Promise", [type]);
 
@@ -529,7 +529,7 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
 
     const elemType = type.types[property.value.value];
     return [elemType, cs];
-  } else if (type.tag !== "TCon") {
+  } else if (type.tag !== "TGen") {
     throw new Error(`Can't use member access on ${type.tag}`);
   }
 

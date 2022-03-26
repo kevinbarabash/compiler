@@ -11,7 +11,7 @@ import {
   isTMem,
 } from "./type-types";
 import {
-  isTCon,
+  isTGen,
   isTVar,
   isTFun,
   isTUnion,
@@ -47,7 +47,7 @@ export function apply(s: Subst, a: any): any {
   if (isTLit(a)) {
     return s.get(a.id) ?? a;
   }
-  if (isTCon(a)) {
+  if (isTGen(a)) {
     return (
       s.get(a.id) ?? {
         ...a,
@@ -144,7 +144,7 @@ export function ftv(constraint: readonly Constraint[]): OrderedSet<TVar>; // spe
 export function ftv(env: Env): OrderedSet<TVar>;
 export function ftv(a: any): any {
   // instance Substitutable Type
-  if (isTCon(a)) {
+  if (isTGen(a)) {
     return OrderedSet(a.params).flatMap(ftv);
   }
   if (isTVar(a)) {

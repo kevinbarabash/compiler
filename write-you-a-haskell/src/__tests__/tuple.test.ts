@@ -111,7 +111,7 @@ describe("tuple", () => {
       eng.defType(
         "foo",
         eng.tfun(
-          [eng.tcon("Array", [eng.tlit({ tag: "LNum", value: 5 })])],
+          [eng.tgen("Array", [eng.tlit({ tag: "LNum", value: 5 })])],
           eng.tprim("number")
         )
       );
@@ -128,7 +128,7 @@ describe("tuple", () => {
       eng.defType(
         "foo",
         eng.tfun(
-          [eng.tcon("Array", [eng.tprim("number")])],
+          [eng.tgen("Array", [eng.tprim("number")])],
           eng.tprim("number")
         )
       );
@@ -154,7 +154,7 @@ describe("tuple", () => {
           eng.tprim("number")
         )
       );
-      eng.defType("numArray", eng.tcon("Array", [eng.tprim("number")]));
+      eng.defType("numArray", eng.tgen("Array", [eng.tprim("number")]));
 
       expect(() =>
         eng.inferExpr(sb.app(sb.ident("foo"), [sb.ident("numArray")]))
@@ -193,7 +193,7 @@ describe("tuple", () => {
       const eng = new Engine();
       eng.defScheme("Array", createArrayScheme(eng.ctx));
 
-      eng.defType("foo", eng.tcon("Array", [eng.tprim("number")]));
+      eng.defType("foo", eng.tgen("Array", [eng.tprim("number")]));
       const result = eng.inferExpr(sb.mem(sb.ident("foo"), sb.num(1)));
 
       // TODO: once we start add type refinements, if a person checks

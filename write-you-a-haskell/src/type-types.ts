@@ -12,7 +12,7 @@ type TCommon = { frozen?: boolean; id: number };
 export type PrimName = "boolean" | "number" | "string" | "null" | "undefined";
 
 export type TVar = TCommon & { tag: "TVar"; name: string };
-export type TCon = TCommon & { tag: "TCon"; name: string; params: readonly Type[] }; // prettier-ignore
+export type TGen = TCommon & { tag: "TGen"; name: string; params: readonly Type[] }; // prettier-ignore
 export type TFun = TCommon & { tag: "TFun"; args: readonly Type[]; ret: Type }; // prettier-ignore
 export type TUnion = TCommon & { tag: "TUnion"; types: readonly Type[] };
 export type TRec = TCommon & { tag: "TRec"; properties: readonly TProp[] };
@@ -38,7 +38,7 @@ export type TPrim = TCommon & { tag: "TPrim"; name: PrimName };
 // TODO: add `optional: boolean` - equivalent to `T | undefined`
 export type TProp = { tag: "TProp"; name: string; type: Type };
 
-export type Type = TVar | TCon | TFun | TUnion | TTuple | TRec | TMem | TPrim | TLit;
+export type Type = TVar | TGen | TFun | TUnion | TTuple | TRec | TMem | TPrim | TLit;
 export type Scheme = { tag: "Forall"; qualifiers: readonly TVar[]; type: Type };
 
 export function print(t: Type | Scheme): string {
@@ -46,7 +46,7 @@ export function print(t: Type | Scheme): string {
     case "TVar": {
       return t.name;
     }
-    case "TCon": {
+    case "TGen": {
       const params = t.params.map(print).join(", ");
       return t.params.length > 0 ? `${t.name}<${params}>` : t.name;
     }
@@ -98,7 +98,7 @@ export function freeze(t: Type): void {
       freeze(t.ret);
       break;
     }
-    case "TCon": {
+    case "TGen": {
       t.params.map(freeze);
       break;
     }
@@ -143,7 +143,7 @@ export const scheme = (qualifiers: readonly TVar[], type: Type): Scheme => {
   };
 };
 
-export const isTCon = (t: Type): t is TCon => t.tag === "TCon";
+export const isTGen = (t: Type): t is TGen => t.tag === "TGen";
 export const isTVar = (t: Type): t is TVar => t.tag === "TVar";
 export const isTFun = (t: Type): t is TFun => t.tag === "TFun";
 export const isTUnion = (t: Type): t is TUnion => t.tag === "TUnion";
