@@ -7,7 +7,7 @@ describe("destructuring", () => {
   test("single property - let {x} = {x: 5, y: true} in x", () => {
     const eng = new Engine();
     const expr: Expr = {
-      tag: "Let",
+      tag: "ELet",
       pattern: sb.prec([sb.pprop("x")]),
       value: sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.bool(true))]),
       body: sb.ident("x"),
@@ -28,7 +28,7 @@ describe("destructuring", () => {
     eng.inferDecl("myRec", myRec);
 
     const expr: Expr = {
-      tag: "Let",
+      tag: "ELet",
       pattern: sb.prec([sb.pprop("x")]),
       value: sb.ident("myRec"),
       body: sb.ident("x"),
@@ -42,7 +42,7 @@ describe("destructuring", () => {
   test("multiple properties - let {x, y} = {x: 5, y: 10} in x + y", () => {
     const eng = new Engine();
     const expr: Expr = {
-      tag: "Let",
+      tag: "ELet",
       pattern: sb.prec([sb.pprop("x"), sb.pprop("y")]),
       value: sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))]),
       body: sb.add(sb.ident("x"), sb.ident("y")),
@@ -56,7 +56,7 @@ describe("destructuring", () => {
   test("renaming a property - let {x: a} = {x: 5, y: 10} in a", () => {
     const eng = new Engine();
     const expr: Expr = {
-      tag: "Let",
+      tag: "ELet",
       pattern: sb.prec([sb.pprop("x", sb.pvar("a"))]),
       value: sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))]),
       body: sb.ident("a"),
@@ -70,7 +70,7 @@ describe("destructuring", () => {
   test("record with wildcard - let {x: a, y: _} = {x: 5, y: 10} in a", () => {
     const eng = new Engine();
     const expr: Expr = {
-      tag: "Let",
+      tag: "ELet",
       pattern: sb.prec([
         sb.pprop("x", sb.pvar("a")),
         sb.pprop("y", sb.pwild()),
@@ -87,7 +87,7 @@ describe("destructuring", () => {
   test("nested record - let {p:{x: a}} = {p:{x: 5, y: 10}} in a", () => {
     const eng = new Engine();
     const expr: Expr = {
-      tag: "Let",
+      tag: "ELet",
       pattern: sb.prec([sb.pprop("p", sb.prec([sb.pprop("x", sb.pvar("a"))]))]),
       value: sb.rec([
         sb.prop(
@@ -106,7 +106,7 @@ describe("destructuring", () => {
   test("matching literal - let {x, y: 10} = {x: 5, y: 10} in x + y", () => {
     const eng = new Engine();
     const expr: Expr = {
-      tag: "Let",
+      tag: "ELet",
       pattern: sb.prec([
         sb.pprop("x"),
         sb.pprop("y", sb.plit(sb.num(10).value)),
@@ -123,7 +123,7 @@ describe("destructuring", () => {
   test("mismatched literal - let {x, y: true} = {x: 5, y: 10} in x", () => {
     const eng = new Engine();
     const expr: Expr = {
-      tag: "Let",
+      tag: "ELet",
       pattern: sb.prec([
         sb.pprop("x"),
         sb.pprop("y", sb.plit(sb.bool(true).value)),
@@ -141,7 +141,7 @@ describe("destructuring", () => {
   test("missing property - let {x, z} = {x: 5, y: 10} in x", () => {
     const eng = new Engine();
     const expr: Expr = {
-      tag: "Let",
+      tag: "ELet",
       pattern: sb.prec([sb.pprop("x"), sb.pprop("z")]),
       value: sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))]),
       body: sb.ident("x"),
@@ -159,7 +159,7 @@ describe("destructuring", () => {
     eng.inferDecl("myTuple", myTuple);
 
     const expr: Expr = {
-      tag: "Let",
+      tag: "ELet",
       pattern: sb.ptuple([sb.pvar("x"), sb.pvar("y")]),
       value: sb.ident("myTuple"),
       body: sb.ident("x"),
@@ -176,7 +176,7 @@ describe("destructuring", () => {
     eng.inferDecl("myTuple", myTuple);
 
     const expr: Expr = {
-      tag: "Let",
+      tag: "ELet",
       pattern: sb.ptuple([sb.pvar("x")]),
       value: sb.ident("myTuple"),
       body: sb.ident("x"),
@@ -197,7 +197,7 @@ describe("destructuring", () => {
     eng.inferDecl("myRec", myRec);
 
     const expr: Expr = {
-      tag: "Let",
+      tag: "ELet",
       pattern: sb.ptuple([sb.pvar("x"), sb.pvar("y")]),
       value: sb.ident("myRec"),
       body: sb.ident("x"),
@@ -214,7 +214,7 @@ describe("destructuring", () => {
     eng.inferDecl("myTuple", myTuple);
 
     const expr: Expr = {
-      tag: "Let",
+      tag: "ELet",
       pattern: sb.prec([sb.pprop("x"), sb.pprop("y")]),
       value: sb.ident("myTuple"),
       body: sb.ident("x"),
@@ -228,7 +228,7 @@ describe("destructuring", () => {
   test("parametrized record", () => {
     const eng = new Engine();
     const expr: Expr = sb.lam(["x"], {
-      tag: "Let",
+      tag: "ELet",
       pattern: sb.prec([sb.pprop("x", sb.pvar("a"))]),
       value: sb.rec([sb.prop("x", sb.ident("x"))]),
       body: sb.ident("a"),
@@ -242,7 +242,7 @@ describe("destructuring", () => {
   test("parametrized tuple", () => {
     const eng = new Engine();
     const expr: Expr = sb.lam(["x"], {
-      tag: "Let",
+      tag: "ELet",
       pattern: sb.ptuple([sb.pvar("a")]),
       value: sb.tuple([sb.ident("x")]),
       body: sb.ident("a"),

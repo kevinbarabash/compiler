@@ -2,41 +2,41 @@ import { Pattern, PProp } from "./syntax-types";
 import * as t from "./syntax-types";
 
 export const app = (fn: t.Expr, args: readonly t.Expr[]): t.EApp => ({
-  tag: "App",
+  tag: "EApp",
   fn,
   args,
 });
 export const _if = (cond: t.Expr, th: t.Expr, el: t.Expr): t.EIf => ({
-  tag: "If",
+  tag: "EIf",
   cond,
   th,
   el,
 });
-export const fix = (expr: t.Expr): t.EFix => ({ tag: "Fix", expr });
+export const fix = (expr: t.Expr): t.EFix => ({ tag: "EFix", expr });
 export const lam = (
   args: readonly string[],
   body: t.Expr,
   async?: boolean
 ): t.ELam => ({
-  tag: "Lam",
+  tag: "ELam",
   args,
   body,
   async,
 });
 export const _let = (name: string, value: t.Expr, body: t.Expr): t.ELet => ({
-  tag: "Let",
+  tag: "ELet",
   pattern: pvar(name),
   value,
   body,
 });
-export const ident = (name: string): t.EIdent => ({ tag: "Ident", name });
-export const _await = (expr: t.Expr): t.EAwait => ({ tag: "Await", expr });
+export const ident = (name: string): t.EIdent => ({ tag: "EIdent", name });
+export const _await = (expr: t.Expr): t.EAwait => ({ tag: "EAwait", expr });
 export const tuple = (elements: readonly t.Expr[]): t.ETuple => ({
-  tag: "Tuple",
+  tag: "ETuple",
   elements,
 });
 export const rec = (properties: readonly t.EProp[]): t.ERec => ({
-  tag: "Rec",
+  tag: "ERec",
   properties,
 });
 export const prop = (name: string, value: t.Expr): t.EProp => ({
@@ -45,45 +45,45 @@ export const prop = (name: string, value: t.Expr): t.EProp => ({
   value,
 });
 export const mem = (object: string, property: string | number): t.EMem => ({
-  tag: "Mem",
+  tag: "EMem",
   // This is just a convenience for now.
   object: ident(object),
   property: typeof property === "string" ? ident(property) : num(property),
 });
 
 export const num = (value: number): t.ELit => ({
-  tag: "Lit",
+  tag: "ELit",
   value: { tag: "LNum", value },
 });
 export const bool = (value: boolean): t.ELit => ({
-  tag: "Lit",
+  tag: "ELit",
   value: { tag: "LBool", value },
 });
 export const str = (value: string): t.ELit => ({
-  tag: "Lit",
+  tag: "ELit",
   value: { tag: "LStr", value },
 });
 
 export const add = (left: t.Expr, right: t.Expr): t.EOp => ({
-  tag: "Op",
+  tag: "EOp",
   op: "Add",
   left,
   right,
 });
 export const sub = (left: t.Expr, right: t.Expr): t.EOp => ({
-  tag: "Op",
+  tag: "EOp",
   op: "Sub",
   left,
   right,
 });
 export const mul = (left: t.Expr, right: t.Expr): t.EOp => ({
-  tag: "Op",
+  tag: "EOp",
   op: "Mul",
   left,
   right,
 });
 export const eql = (left: t.Expr, right: t.Expr): t.EOp => ({
-  tag: "Op",
+  tag: "EOp",
   op: "Eql",
   left,
   right,

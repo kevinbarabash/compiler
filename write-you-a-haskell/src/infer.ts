@@ -197,18 +197,18 @@ type InferResult<T extends tt.Type = tt.Type> = readonly [
 const infer = (expr: st.Expr, ctx: Context): InferResult => {
   // prettier-ignore
   switch (expr.tag) {
-    case "Lit":   return inferLit  (expr, ctx);
-    case "Ident": return inferIdent(expr, ctx);
-    case "Lam":   return inferLam  (expr, ctx);
-    case "App":   return inferApp  (expr, ctx);
-    case "Let":   return inferLet  (expr, ctx);
-    case "Fix":   return inferFix  (expr, ctx);
-    case "Op":    return inferOp   (expr, ctx);
-    case "If":    return inferIf   (expr, ctx);
-    case "Await": return inferAwait(expr, ctx);
-    case "Rec":   return inferRec  (expr, ctx);
-    case "Tuple": return inferTuple(expr, ctx);
-    case "Mem":   return inferMem  (expr, ctx);
+    case "ELit":   return inferLit  (expr, ctx);
+    case "EIdent": return inferIdent(expr, ctx);
+    case "ELam":   return inferLam  (expr, ctx);
+    case "EApp":   return inferApp  (expr, ctx);
+    case "ELet":   return inferLet  (expr, ctx);
+    case "EFix":   return inferFix  (expr, ctx);
+    case "EOp":    return inferOp   (expr, ctx);
+    case "EIf":    return inferIf   (expr, ctx);
+    case "EAwait": return inferAwait(expr, ctx);
+    case "ERec":   return inferRec  (expr, ctx);
+    case "ETuple": return inferTuple(expr, ctx);
+    case "EMem":   return inferMem  (expr, ctx);
     default: assertUnreachable(expr);
   }
 };
@@ -437,9 +437,9 @@ const inferIdent = (expr: st.EIdent, ctx: Context): InferResult => {
 };
 
 const unwrapProperty = (property: st.Expr): number | string => {
-  if (property.tag === "Ident") {
+  if (property.tag === "EIdent") {
     return property.name;
-  } else if (property.tag === "Lit" && property.value.tag === "LNum") {
+  } else if (property.tag === "ELit" && property.value.tag === "LNum") {
     return property.value.value;
   } else {
     throw new Error("Not a valid property");
@@ -451,8 +451,8 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
   const { object, property } = expr;
 
   // Handles member access on object literals
-  if (object.tag === "Rec") {
-    if (property.tag !== "Ident") {
+  if (object.tag === "ERec") {
+    if (property.tag !== "EIdent") {
       throw new Error("property must be a variable when accessing a member");
     }
 
@@ -468,8 +468,8 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
     }
     // This is sufficient since infer() will unify `tobj` with `type`.
     return [prop.type, [...cs, { types: [tMem1, tMem2], subtype: false }]];
-  } else if (object.tag === "Tuple") {
-    if (property.tag !== "Lit" || property.value.tag !== "LNum") {
+  } else if (object.tag === "ETuple") {
+    if (property.tag !== "ELit" || property.value.tag !== "LNum") {
       throw new Error(
         "property must be a number when accessing an index on a tuple"
       );
@@ -486,13 +486,13 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
 
     const elemType = type.types[property.value.value];
     return [elemType, [...cs, { types: [tMem1, tMem2], subtype: false }]];
-  } else if (object.tag !== "Ident" && object.tag !== "Mem") {
+  } else if (object.tag !== "EIdent" && object.tag !== "EMem") {
     throw new Error("object must be a variable when accessing a member");
   }
 
   // TODO: have separate namespaces for types and values so that we can
   // support TypeScript's ability to use the same identifier for both.
-  const [type, cs] = object.tag === "Ident" 
+  const [type, cs] = object.tag === "EIdent" 
     ? inferIdent(object, ctx)
     : inferMem(object, ctx);
 
@@ -503,7 +503,7 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
     // This is sufficient since inferTMem() will unify `tobj` with `type`.
     return [tMem2, [{ types: [tMem1, tMem2], subtype: false }]];
   } else if (type.tag === "TRec") {
-    if (property.tag !== "Ident") {
+    if (property.tag !== "EIdent") {
       throw new Error(
         "property must be a variable when accessing a member on a record"
       );
@@ -517,7 +517,7 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
     }
     return [prop.type, cs];
   } else if (type.tag === "TTuple") {
-    if (property.tag !== "Lit" || property.value.tag !== "LNum") {
+    if (property.tag !== "ELit" || property.value.tag !== "LNum") {
       throw new Error(
         "property must be a number when accessing an index on a tuple"
       );
@@ -533,7 +533,7 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
     throw new Error(`Can't use member access on ${type.tag}`);
   }
 
-  if (object.tag === "Mem") {
+  if (object.tag === "EMem") {
     throw new Error("Didn't expect member access here");
   }
 
@@ -562,7 +562,7 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
 
   if (
     type.name === "Array" &&
-    property.tag === "Lit" &&
+    property.tag === "ELit" &&
     property.value.tag === "LNum"
   ) {
     const resultType = tb.tunion(
@@ -577,7 +577,7 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
     throw new Error(`Can't use member access on ${aliasedType.tag}`);
   }
 
-  if (property.tag !== "Ident") {
+  if (property.tag !== "EIdent") {
     throw new Error(
       "property must be a variable when accessing a member on a record"
     );

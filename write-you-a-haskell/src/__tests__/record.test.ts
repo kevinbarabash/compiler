@@ -69,7 +69,7 @@ describe("record", () => {
     const eng = new Engine();
 
     const expr = eng.inferExpr({
-      tag: "Mem",
+      tag: "EMem",
       object: sb.rec([
         sb.prop("foo", sb.str("hello")),
         sb.prop("bar", sb.num(5)),
@@ -94,9 +94,9 @@ describe("record", () => {
           ),
         ]),
         {
-          tag: "Mem",
+          tag: "EMem",
           object: {
-            tag: "Mem",
+            tag: "EMem",
             object: sb.ident("obj"),
             property: sb.ident("bar"),
           },
@@ -112,9 +112,9 @@ describe("record", () => {
     const eng = new Engine();
 
     const expr = eng.inferExpr({
-      tag: "Mem",
+      tag: "EMem",
       object: {
-        tag: "Mem",
+        tag: "EMem",
         object: sb.rec([
           sb.prop("foo", sb.str("hello")),
           sb.prop(

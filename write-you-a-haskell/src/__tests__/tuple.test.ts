@@ -180,7 +180,7 @@ describe("tuple", () => {
       const eng = new Engine();
 
       const result = eng.inferExpr({
-        tag: "Mem",
+        tag: "EMem",
         object: sb.tuple([sb.num(5), sb.num(10)]),
         property: sb.num(1),
       });
@@ -208,7 +208,7 @@ describe("tuple", () => {
       expect(() =>
         eng.inferExpr(
           sb._let("foo", sb.tuple([sb.num(5), sb.num(10)]), {
-            tag: "Mem",
+            tag: "EMem",
             object: sb.ident("foo"),
             property: sb.bool(true),
           })
@@ -223,7 +223,7 @@ describe("tuple", () => {
 
       expect(() =>
         eng.inferExpr({
-          tag: "Mem",
+          tag: "EMem",
           object: sb.tuple([sb.num(5), sb.num(10)]),
           property: sb.bool(true),
         })
@@ -249,7 +249,7 @@ describe("tuple", () => {
 
       expect(() =>
         eng.inferExpr({
-          tag: "Mem",
+          tag: "EMem",
           object: sb.tuple([sb.num(5), sb.num(10)]),
           property: sb.num(2),
         })
@@ -269,9 +269,9 @@ describe("tuple", () => {
             sb.tuple([sb.str("hello"), sb.str("world")]),
           ]),
           {
-            tag: "Mem",
+            tag: "EMem",
             object: {
-              tag: "Mem",
+              tag: "EMem",
               object: sb.ident("nested"),
               property: sb.num(1),
             },
@@ -287,9 +287,9 @@ describe("tuple", () => {
       const eng = new Engine();
 
       const result = eng.inferExpr({
-        tag: "Mem",
+        tag: "EMem",
         object: {
-          tag: "Mem",
+          tag: "EMem",
           object: sb.tuple([
             sb.tuple([sb.num(5), sb.num(10)]),
             sb.tuple([sb.str("hello"), sb.str("world")]),

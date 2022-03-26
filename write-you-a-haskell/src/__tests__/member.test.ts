@@ -10,7 +10,7 @@ describe("Member access", () => {
       const eng = new Engine();
 
       const expr: Expr = {
-        tag: "Mem",
+        tag: "EMem",
         // This is just a convenience for now.
         object: sb.str("foo"),
         property: sb.ident("bar"),
@@ -26,7 +26,7 @@ describe("Member access", () => {
       eng.defType("foo", eng.trec([eng.tprop("hello", eng.tNum())]));
 
       const expr: Expr = {
-        tag: "Mem",
+        tag: "EMem",
         // This is just a convenience for now.
         object: sb.ident("foo"),
         property: sb.str("hello"),
@@ -111,7 +111,7 @@ describe("Member access", () => {
       const eng = new Engine();
 
       const expr: Expr = {
-        tag: "Mem",
+        tag: "EMem",
         object: sb.rec([sb.prop("foo", sb.str("hello"))]),
         property: sb.ident("bar"),
       };
@@ -137,7 +137,7 @@ describe("Member access", () => {
       const eng = new Engine();
 
       const expr: Expr = {
-        tag: "Mem",
+        tag: "EMem",
         object: sb.rec([sb.prop("foo", sb.str("hello"))]),
         property: sb.ident("foo"),
       };
@@ -160,9 +160,9 @@ describe("Member access", () => {
           sb.rec([sb.prop("foo", sb.str("hello")), sb.prop("bar", sb.num(5))]),
         ]),
         {
-          tag: "Mem",
+          tag: "EMem",
           object: {
-            tag: "Mem",
+            tag: "EMem",
             object: sb.ident("nested"),
             property: sb.num(1),
           },
@@ -185,9 +185,9 @@ describe("Member access", () => {
           sb.prop("bar", sb.tuple([sb.str("hello"), sb.str("world")])),
         ]),
         {
-          tag: "Mem",
+          tag: "EMem",
           object: {
-            tag: "Mem",
+            tag: "EMem",
             object: sb.ident("nested"),
             property: sb.ident("foo"),
           },

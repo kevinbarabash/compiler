@@ -20,11 +20,7 @@ describe("Union types and type widening", () => {
       eng.tfun([aVar, bVar], eng.tunion([aVar, bVar]))
     );
 
-    const call: Expr = {
-      tag: "App",
-      fn: sb.ident("retUnion"),
-      args: [sb.num(5), sb.bool(true)],
-    };
+    const call = sb.app(sb.ident("retUnion"), [sb.num(5), sb.bool(true)]);
 
     eng.defScheme("retUnion", retUnion);
     expect(print(retUnion)).toEqual("<a, b>(a, b) => a | b");
@@ -33,11 +29,7 @@ describe("Union types and type widening", () => {
 
     expect(print(result1)).toEqual("5 | true");
 
-    const call2: Expr = {
-      tag: "App",
-      fn: sb.ident("retUnion"),
-      args: [sb.bool(false), sb.num(10)],
-    };
+    const call2 = sb.app(sb.ident("retUnion"), [sb.bool(false), sb.num(10)]);
 
     const result2 = eng.inferExpr(call2);
 

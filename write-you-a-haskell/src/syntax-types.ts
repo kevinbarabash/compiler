@@ -5,19 +5,18 @@ import { PrimName } from "./type-types";
 // It will also help simplify writing tests where we need to define the type of
 // of something that we can't easily infer from an expression.
 
-// TODO: update tags to match type name
-export type EApp = { tag: "App"; fn: Expr; args: readonly Expr[] };
-export type EAwait = { tag: "Await"; expr: Expr };
-export type EFix = { tag: "Fix"; expr: Expr };
-export type EIf = { tag: "If"; cond: Expr; th: Expr; el: Expr };
-export type ELam = { tag: "Lam"; args: readonly string[]; body: Expr; async?: boolean }; // prettier-ignore
-export type ELet = { tag: "Let"; pattern: Pattern; value: Expr; body: Expr };
-export type ELit = { tag: "Lit"; value: Literal };
-export type EOp = { tag: "Op"; op: Binop; left: Expr; right: Expr };
-export type ERec = { tag: "Rec"; properties: readonly EProp[] }; // rename to EObj
-export type ETuple = { tag: "Tuple"; elements: readonly Expr[] };
-export type EIdent = { tag: "Ident"; name: string }; // rename to EIdent?
-export type EMem = { tag: "Mem"; object: Expr; property: Expr };
+export type EApp = { tag: "EApp"; fn: Expr; args: readonly Expr[] };
+export type EAwait = { tag: "EAwait"; expr: Expr };
+export type EFix = { tag: "EFix"; expr: Expr };
+export type EIf = { tag: "EIf"; cond: Expr; th: Expr; el: Expr };
+export type ELam = { tag: "ELam"; args: readonly string[]; body: Expr; async?: boolean }; // prettier-ignore
+export type ELet = { tag: "ELet"; pattern: Pattern; value: Expr; body: Expr };
+export type ELit = { tag: "ELit"; value: Literal };
+export type EOp = { tag: "EOp"; op: Binop; left: Expr; right: Expr };
+export type ERec = { tag: "ERec"; properties: readonly EProp[] };
+export type ETuple = { tag: "ETuple"; elements: readonly Expr[] };
+export type EIdent = { tag: "EIdent"; name: string };
+export type EMem = { tag: "EMem"; object: Expr; property: Expr };
 
 export type Expr =
   | EApp
