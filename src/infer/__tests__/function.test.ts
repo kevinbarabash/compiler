@@ -529,5 +529,44 @@ describe("function subtyping", () => {
         `"<a, b, c>(a) => (b, ...Array<c>) => b"`
       );
     });
+
+    test("calling a pre-defined func with variadic callback", () => {
+      const eng = new Engine();
+      eng.defType(
+        "foo",
+        eng.tfun(
+          [eng.tgen("Array", [eng.tprim("number")])],
+          eng.tprim("number"),
+          true
+        )
+      );
+
+      const result = eng.inferExpr(
+        sb.lam([sb.ident("x")], sb.app(sb.ident("foo"), [sb.ident("x")]))
+      );
+
+      expect(print(result)).toMatchInlineSnapshot(`"(number) => number"`);
+    });
+
+    test("passing a variadic function as an arg", () => {
+      const eng = new Engine();
+      eng.defType(
+        "foo",
+        eng.tfun(
+          [eng.tgen("Array", [eng.tprim("number")])],
+          eng.tprim("number"),
+          true
+        )
+      );
+      eng.inferDecl(_const[0], _const[1]);
+
+      const result = eng.inferExpr(
+        sb.app(sb.ident("const"), [sb.ident("foo"), sb.str("hello")])
+      );
+
+      expect(print(result)).toMatchInlineSnapshot(
+        `"(...Array<number>) => number"`
+      );
+    });
   });
 });

@@ -457,8 +457,6 @@ const inferTuple = (expr: st.ETuple, ctx: Context): InferResult<tt.TTuple> => {
 
 const inferIdent = (expr: st.EIdent, ctx: Context): InferResult => {
   const type = lookupEnv(expr.name, ctx);
-  expr.name; // ?
-  type.tag; // ?
   return [type, []];
 };
 

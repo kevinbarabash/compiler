@@ -214,15 +214,13 @@ export function zipTypes(
   const length = Math.min(ts1.length, ts2.length);
   const result: Constraint[] = [];
   for (let i = 0; i < length; i++) {
-    if (funcArgs && ts2[i].tag === "TFun") {
+    if (funcArgs && ts1[i].tag === "TFun" && ts2[i].tag === "TFun") {
       // Reverses the order of the types so that the TFun is first.
       // This can happen when a function is passed as a callback.
       // The callback passed should be a subtype of the expected param
       // type.  We always want to type that is a subtype to be first
-      // in the constraint tuple.
+      // when `subtype` is set to true.
       result.push({ types: [ts2[i], ts1[i]], subtype: true });
-    } else if (funcArgs && ts1[i].tag === "TFun") {
-      result.push({ types: [ts1[i], ts2[i]], subtype: true });
     } else {
       result.push({ types: [ts1[i], ts2[i]], subtype });
     }

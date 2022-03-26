@@ -165,7 +165,7 @@ export const isScheme = (t: any): t is Scheme => t.tag === "Forall";
 
 export type Constraint<T extends Type = Type> = {
   types: readonly [T, T],
-  subtype: boolean,
+  subtype: boolean, // indicates whether or not to allow types[0] to be a subtype of types[1]
 };
 
 export type Unifier = readonly [Subst, readonly Constraint[]];
