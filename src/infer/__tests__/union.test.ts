@@ -42,7 +42,7 @@ describe("Union types and type widening", () => {
   test("infer lambda with union return type", () => {
     const eng = new Engine();
     const expr: Expr = sb.lam(
-      ["x", "y"],
+      [sb.ident("x"), sb.ident("y")],
       sb._if(
         sb.ident("x"),
         sb.app(sb.ident("y"), [sb.num(5)]),
@@ -72,7 +72,7 @@ describe("Union types and type widening", () => {
     eng.ctx.env = eng.ctx.env.set("bar", bar);
 
     const expr: Expr = sb.lam(
-      ["x"],
+      [sb.ident("x")],
       sb._if(sb.ident("x"), sb.ident("foo"), sb.ident("bar"))
     );
 
@@ -95,7 +95,7 @@ describe("Union types and type widening", () => {
     expect(print(union)).toEqual("number | boolean");
 
     const expr: Expr = sb.lam(
-      ["x", "y"],
+      [sb.ident("x"), sb.ident("y")],
       sb._if(
         sb.ident("x"),
         sb.app(sb.ident("y"), [sb.ident("union")]), // number | boolean
@@ -113,7 +113,7 @@ describe("Union types and type widening", () => {
   test("widen inferred union type", () => {
     const eng = new Engine();
     const expr: Expr = sb.lam(
-      ["x"],
+      [sb.ident("x")],
       sb._let(
         "a",
         sb.app(sb.ident("x"), [sb.num(5)]),
@@ -136,7 +136,7 @@ describe("Union types and type widening", () => {
     const eng = new Engine();
     const _add: Binding = [
       "add",
-      sb.lam(["a", "b"], sb.add(sb.ident("a"), sb.ident("b"))),
+      sb.lam([sb.ident("a"), sb.ident("b")], sb.add(sb.ident("a"), sb.ident("b"))),
     ];
     const expr: Expr = sb.app(sb.ident("add"), [sb.num(5), sb.bool(true)]);
 

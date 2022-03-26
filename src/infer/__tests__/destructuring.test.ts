@@ -227,7 +227,7 @@ describe("destructuring", () => {
 
   test("parametrized record", () => {
     const eng = new Engine();
-    const expr: Expr = sb.lam(["x"], {
+    const expr: Expr = sb.lam([sb.ident("x")], {
       tag: "ELet",
       pattern: sb.prec([sb.pprop("x", sb.pvar("a"))]),
       value: sb.rec([sb.prop("x", sb.ident("x"))]),
@@ -241,7 +241,7 @@ describe("destructuring", () => {
 
   test("parametrized tuple", () => {
     const eng = new Engine();
-    const expr: Expr = sb.lam(["x"], {
+    const expr: Expr = sb.lam([sb.ident("x")], {
       tag: "ELet",
       pattern: sb.ptuple([sb.pvar("a")]),
       value: sb.tuple([sb.ident("x")]),

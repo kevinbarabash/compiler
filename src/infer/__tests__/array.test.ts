@@ -45,7 +45,7 @@ describe("Array", () => {
     eng.defType("strArray", eng.tgen("Array", [eng.tprim("string")]));
 
     const expr = sb.app(sb.mem(sb.ident("strArray"), sb.ident("map")), [
-      sb.lam(["elem"], sb.num(5)),
+      sb.lam([sb.ident("elem")], sb.num(5)),
     ]);
     const result = eng.inferExpr(expr);
 
@@ -58,7 +58,10 @@ describe("Array", () => {
     eng.defType("strArray", eng.tgen("Array", [eng.tprim("string")]));
 
     const expr = sb.app(sb.mem(sb.ident("strArray"), sb.ident("map")), [
-      sb.lam(["elem", "index", "array"], sb.ident("index")),
+      sb.lam(
+        [sb.ident("elem"), sb.ident("index"), sb.ident("array")],
+        sb.ident("index")
+      ),
     ]);
     const result = eng.inferExpr(expr);
 
@@ -71,7 +74,10 @@ describe("Array", () => {
     eng.defType("strArray", eng.tgen("Array", [eng.tprim("string")]));
 
     const expr = sb.app(sb.mem(sb.ident("strArray"), sb.ident("map")), [
-      sb.lam(["elem", "index", "array"], sb.ident("array")),
+      sb.lam(
+        [sb.ident("elem"), sb.ident("index"), sb.ident("array")],
+        sb.ident("array")
+      ),
     ]);
     const result = eng.inferExpr(expr);
 
@@ -85,7 +91,7 @@ describe("Array", () => {
 
     const expr = sb.app(sb.mem(sb.ident("strArray"), sb.ident("map")), [
       sb.lam(
-        ["elem", "index", "array"],
+        [sb.ident("elem"), sb.ident("index"), sb.ident("array")],
         sb.mem(sb.ident("array"), sb.ident("length"))
       ),
     ]);

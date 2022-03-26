@@ -77,6 +77,7 @@ export const unifies = (c: t.Constraint, ctx: Context): t.Subst => {
     types: [t1, t2],
     subtype,
   } = c;
+
   if (t.isTVar(t1)) return bind(t1, t2, ctx);
   if (t.isTVar(t2)) return bind(t2, t1, ctx);
   if (isTFun(c)) return unifyFuncs(c, ctx);
@@ -108,6 +109,18 @@ export const unifies = (c: t.Constraint, ctx: Context): t.Subst => {
     }
   }
 
+  if (
+    t.isTTuple(t1) &&
+    t.isTGen(t2) &&
+    t2.name === "Array" &&
+    t2.params.length === 1 // Array<T> should only have a single param
+  ) {
+    const constraints: t.Constraint[] = t1.types.map((type) => {
+      return { types: [type, t2.params[0]], subtype: c.subtype };
+    });
+    return unifyMany(constraints, ctx);
+  }
+
   if (subtype && isSubType(t1, t2)) {
     return emptySubst;
   }
@@ -129,11 +142,30 @@ export const unifies = (c: t.Constraint, ctx: Context): t.Subst => {
 const unifyFuncs = (c: t.Constraint<t.TFun>, ctx: Context): t.Subst => {
   const [t1, t2] = c.types;
 
+  // varargs
+  // Are there any situations where t1 is variadiac? callbacks maybe?
+  if (t2.variadic) {
+    const t1_regular_args = t1.args.slice(0, t2.args.length - 1);
+    const t1_rest_args = t1.args.slice(t2.args.length - 1);
+    const t1_varargs: t.TFun = {
+      ...t1,
+      args: [...t1_regular_args, tb.ttuple(t1_rest_args, ctx)],
+    };
+    const t2_no_varargs: t.TFun = {
+      ...t2,
+      variadic: false, // Defends against processing varargs more than once.
+    };
+    // TODO: make sure that this handles subtyping of varargs functions.
+    return unifyFuncs(
+      { types: [t1_varargs, t2_no_varargs], subtype: c.subtype },
+      ctx
+    );
+  }
+
   // partial application
   if (t1.args.length < t2.args.length) {
     const t2_partial: t.Type = {
-      tag: "TFun",
-      id: t2.id, // is it safe to reuse `id` here?
+      ...t2,
       args: t2.args.slice(0, t1.args.length),
       ret: tb.tfun(t2.args.slice(t1.args.length), t2.ret, ctx),
     };
@@ -149,10 +181,8 @@ const unifyFuncs = (c: t.Constraint<t.TFun>, ctx: Context): t.Subst => {
     // TODO: update this once we support rest params
     if (t1.args.length > t2.args.length) {
       const t1_without_extra_args: t.Type = {
-        tag: "TFun",
-        id: t1.id, // is it safe to reuse `id` here?
+        ...t1,
         args: t1.args.slice(0, t2.args.length),
-        ret: t1.ret,
       };
       const constraints: readonly t.Constraint[] = [
         ...zipTypes(t1_without_extra_args.args, t2.args, c.subtype, true),
@@ -318,10 +348,6 @@ const isSubType = (sub: t.Type, sup: t.Type): boolean => {
 
   if (t.isTLit(sub) && t.isTLit(sup)) {
     return compareLiterals(sub.value, sup.value);
-  }
-
-  if (t.isTTuple(sub) && t.isTGen(sup) && sup.name === "Array") {
-    return sub.types.every((type) => isSubType(type, sup.params[0]));
   }
 
   // TODO: handle type aliases like Array<T> and Promise<T>

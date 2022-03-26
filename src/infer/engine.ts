@@ -38,8 +38,8 @@ export class Engine {
     return tb.tgen(name, params, this.ctx);
   }
 
-  tfun(args: readonly t.Type[], ret: t.Type) {
-    return tb.tfun(args, ret, this.ctx);
+  tfun(args: readonly t.Type[], ret: t.Type, vardiaic?: boolean) {
+    return tb.tfun(args, ret, this.ctx, vardiaic);
   }
 
   tunion(types: readonly t.Type[]) {

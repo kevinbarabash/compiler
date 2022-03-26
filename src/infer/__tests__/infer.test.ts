@@ -5,17 +5,20 @@ import { Engine } from "../engine";
 
 type Binding = [string, Expr];
 
-const I: Binding = ["I", sb.lam(["x"], sb.ident("x"))];
-const K: Binding = ["K", sb.lam(["x"], sb.lam(["y"], sb.ident("x")))];
+const I: Binding = ["I", sb.lam([sb.ident("x")], sb.ident("x"))];
+const K: Binding = [
+  "K",
+  sb.lam([sb.ident("x")], sb.lam([sb.ident("y")], sb.ident("x"))),
+];
 // let S = (f) => (g) => (x) => f(x)(g(x))
 const S: Binding = [
   "S",
   sb.lam(
-    ["f"],
+    [sb.ident("f")],
     sb.lam(
-      ["g"],
+      [sb.ident("g")],
       sb.lam(
-        ["x"],
+        [sb.ident("x")],
         sb.app(sb.app(sb.ident("f"), [sb.ident("x")]), [
           sb.app(sb.ident("g"), [sb.ident("x")]),
         ])
@@ -67,7 +70,7 @@ describe("inferExpr", () => {
       const eng = new Engine();
       const Mu: Binding = [
         "Mu",
-        sb.lam(["f"], sb.app(sb.ident("f"), [sb.fix(sb.ident("f"))])),
+        sb.lam([sb.ident("f")], sb.app(sb.ident("f"), [sb.fix(sb.ident("f"))])),
       ];
 
       const result = eng.inferExpr(Mu[1]);
@@ -81,7 +84,7 @@ describe("inferExpr", () => {
       const eng = new Engine();
       const nsucc: Binding = [
         "nsucc",
-        sb.lam(["x"], sb.add(sb.ident("x"), sb.num(1))),
+        sb.lam([sb.ident("x")], sb.add(sb.ident("x"), sb.num(1))),
       ];
 
       const result = eng.inferExpr(nsucc[1]);
@@ -93,7 +96,7 @@ describe("inferExpr", () => {
       const eng = new Engine();
       const nsucc: Binding = [
         "nsucc",
-        sb.lam(["x"], sb.add(sb.ident("x"), sb.num(1))),
+        sb.lam([sb.ident("x")], sb.add(sb.ident("x"), sb.num(1))),
       ];
 
       const result = eng.inferExpr(nsucc[1]);
@@ -120,7 +123,9 @@ describe("inferExpr", () => {
       const eng = new Engine();
       const self: Binding = [
         "self",
-        sb.app(sb.lam(["x"], sb.ident("x")), [sb.lam(["x"], sb.ident("x"))]),
+        sb.app(sb.lam([sb.ident("x")], sb.ident("x")), [
+          sb.lam([sb.ident("x")], sb.ident("x")),
+        ]),
       ];
 
       const result = eng.inferExpr(self[1]);
@@ -133,8 +138,8 @@ describe("inferExpr", () => {
       const innerlet: Binding = [
         "innerlet",
         sb.lam(
-          ["x"],
-          sb._let("y", sb.lam(["z"], sb.ident("z")), sb.ident("y"))
+          [sb.ident("x")],
+          sb._let("y", sb.lam([sb.ident("z")], sb.ident("z")), sb.ident("y"))
         ),
       ];
 
@@ -154,7 +159,10 @@ describe("inferExpr", () => {
         "f",
         sb._let(
           "add",
-          sb.lam(["a", "b"], sb.add(sb.ident("a"), sb.ident("b"))),
+          sb.lam(
+            [sb.ident("a"), sb.ident("b")],
+            sb.add(sb.ident("a"), sb.ident("b"))
+          ),
           sb.ident("add")
         ),
       ];
@@ -207,7 +215,7 @@ describe("inferExpr", () => {
       eng.defScheme("extract", extractScheme);
 
       const addFoos = sb.lam(
-        ["x", "y"],
+        [sb.ident("x"), sb.ident("y")],
         sb.add(
           sb.app(sb.ident("extract"), [sb.ident("x")]),
           sb.app(sb.ident("extract"), [sb.ident("y")])
@@ -259,7 +267,10 @@ describe("inferExpr", () => {
       const eng = new Engine();
       const _add: Binding = [
         "add",
-        sb.lam(["a", "b"], sb.add(sb.ident("a"), sb.ident("b"))),
+        sb.lam(
+          [sb.ident("a"), sb.ident("b")],
+          sb.add(sb.ident("a"), sb.ident("b"))
+        ),
       ];
       const expr = sb.app(sb.ident("add"), [sb.num(5), sb.bool(true)]);
 
@@ -276,7 +287,7 @@ describe("inferExpr", () => {
       const eng = new Engine();
       const omega: Binding = [
         "omega",
-        sb.lam(["x"], sb.app(sb.ident("x"), [sb.ident("x")])),
+        sb.lam([sb.ident("x")], sb.app(sb.ident("x"), [sb.ident("x")])),
       ];
 
       expect(() => eng.inferExpr(omega[1])).toThrowErrorMatchingInlineSnapshot(

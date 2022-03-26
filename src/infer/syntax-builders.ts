@@ -14,7 +14,7 @@ export const _if = (cond: t.Expr, th: t.Expr, el: t.Expr): t.EIf => ({
 });
 export const fix = (expr: t.Expr): t.EFix => ({ tag: "EFix", expr });
 export const lam = (
-  args: readonly string[],
+  args: readonly (t.EIdent | t.ERest)[],
   body: t.Expr,
   async?: boolean
 ): t.ELam => ({
@@ -51,6 +51,10 @@ export const mem = (
   tag: "EMem",
   object,
   property,
+});
+export const rest = (name: string): t.ERest => ({
+  tag: "ERest",
+  identifier: ident(name),
 });
 
 export const num = (value: number): t.ELit<t.LNum> => ({
