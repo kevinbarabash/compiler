@@ -111,7 +111,7 @@ describe("tuple", () => {
       eng.defType(
         "foo",
         eng.tfun(
-          [eng.tgen("Array", [eng.tlit({ tag: "LNum", value: 5 })])],
+          [eng.tgen("Array", [eng.tlit({ __type: "LNum", value: 5 })])],
           eng.tprim("number")
         )
       );
@@ -147,8 +147,8 @@ describe("tuple", () => {
         eng.tfun(
           [
             eng.ttuple([
-              eng.tlit({ tag: "LNum", value: 5 }),
-              eng.tlit({ tag: "LNum", value: 10 }),
+              eng.tlit({ __type: "LNum", value: 5 }),
+              eng.tlit({ __type: "LNum", value: 10 }),
             ]),
           ],
           eng.tprim("number")

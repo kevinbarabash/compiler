@@ -66,14 +66,14 @@ const normalize = (sc: tt.Scheme): tt.Scheme => {
   const body = sc.type;
   const keys = nub([...ftv(body)]).map((tv) => tv.id);
   const values: tt.TVar[] = keys.map((key, index) => {
-    return { tag: "TVar", id: key, name: letterFromIndex(index) };
+    return { __type: "TVar", id: key, name: letterFromIndex(index) };
   });
   const mapping: Record<number, tt.TVar> = Object.fromEntries(
     zip(keys, values)
   );
 
   const normType = (type: tt.Type): tt.Type => {
-    switch (type.tag) {
+    switch (type.__type) {
       case "TFun": {
         const { args, ret } = type;
         return {
@@ -160,7 +160,7 @@ const letterFromIndex = (index: number): string =>
 export const fresh = (ctx: Context): tt.TVar => {
   const id = newId(ctx);
   return {
-    tag: "TVar",
+    __type: "TVar",
     id: id,
     name: letterFromIndex(id),
   };
@@ -196,7 +196,7 @@ type InferResult<T extends tt.Type = tt.Type> = readonly [
 
 const infer = (expr: st.Expr, ctx: Context): InferResult => {
   // prettier-ignore
-  switch (expr.tag) {
+  switch (expr.__type) {
     case "ELit":   return inferLit  (expr, ctx);
     case "EIdent": return inferIdent(expr, ctx);
     case "ELam":   return inferLam  (expr, ctx);
@@ -284,7 +284,7 @@ const inferLam = (expr: st.ELam, ctx: Context): InferResult => {
   let variadic = false;
   const argCount = args.length;
   const tvs = args.map((arg, index) => {
-    if (arg.tag === "EIdent") {
+    if (arg.__type === "EIdent") {
       return fresh(ctx);
     } else {
       if (index !== argCount - 1) {
@@ -300,7 +300,7 @@ const inferLam = (expr: st.ELam, ctx: Context): InferResult => {
     env: ctx.env.withMutations((env) => {
       for (const [arg, tv] of zip(args, tvs)) {
         // t.scheme([], tv) is a type variable without any qualifiers
-        switch (arg.tag) {
+        switch (arg.__type) {
           case "EIdent": {
             env.set(arg.name, tt.scheme([], tv));
             break;
@@ -322,7 +322,7 @@ const inferLam = (expr: st.ELam, ctx: Context): InferResult => {
   // - its inferred return value isn't already in a promise
   // TODO: add more general support for conditional types
   const ret =
-    !expr.async || (type.tag === "TGen" && type.name === "Promise")
+    !expr.async || (tt.isTGen(type) && type.name === "Promise")
       ? type
       : freshTCon(ctx, "Promise", [type]);
 
@@ -352,7 +352,7 @@ const inferPattern = (
 
   const sc = generalize(apply(subs, ctx.env), apply(subs, type));
 
-  switch (pattern.tag) {
+  switch (pattern.__type) {
     case "PVar": {
       // TODO: throw if the same name is used more than once in a pattern
       // we can have a separate function that traverses a pattern to collect
@@ -386,7 +386,7 @@ const inferPattern = (
       return [ctx, [{ types: [primType, type], subtype: false }]];
     }
     case "PRec": {
-      if (type.tag !== "TRec") {
+      if (!tt.isTRec(type)) {
         throw new Error("type doesn't match pattern");
       }
       const cs: tt.Constraint[] = [];
@@ -405,7 +405,7 @@ const inferPattern = (
       return [newCtx, cs];
     }
     case "PTuple": {
-      if (type.tag !== "TTuple") {
+      if (!tt.isTTuple(type)) {
         throw new Error("type doesn't match pattern");
       }
       if (pattern.patterns.length !== type.types.length) {
@@ -461,9 +461,9 @@ const inferIdent = (expr: st.EIdent, ctx: Context): InferResult => {
 };
 
 const unwrapProperty = (property: st.Expr): number | string => {
-  if (property.tag === "EIdent") {
+  if (property.__type === "EIdent") {
     return property.name;
-  } else if (property.tag === "ELit" && property.value.tag === "LNum") {
+  } else if (property.__type === "ELit" && property.value.__type === "LNum") {
     return property.value.value;
   } else {
     throw new Error("Not a valid property");
@@ -475,8 +475,8 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
   const { object, property } = expr;
 
   // Handles member access on object literals
-  if (object.tag === "ERec") {
-    if (property.tag !== "EIdent") {
+  if (object.__type === "ERec") {
+    if (property.__type !== "EIdent") {
       throw new Error("property must be a variable when accessing a member");
     }
 
@@ -492,8 +492,8 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
     }
     // This is sufficient since infer() will unify `tobj` with `type`.
     return [prop.type, [...cs, { types: [tMem1, tMem2], subtype: false }]];
-  } else if (object.tag === "ETuple") {
-    if (property.tag !== "ELit" || property.value.tag !== "LNum") {
+  } else if (object.__type === "ETuple") {
+    if (property.__type !== "ELit" || property.value.__type !== "LNum") {
       throw new Error(
         "property must be a number when accessing an index on a tuple"
       );
@@ -510,23 +510,23 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
 
     const elemType = type.types[property.value.value];
     return [elemType, [...cs, { types: [tMem1, tMem2], subtype: false }]];
-  } else if (object.tag !== "EIdent" && object.tag !== "EMem") {
+  } else if (object.__type !== "EIdent" && object.__type !== "EMem") {
     throw new Error("object must be a variable when accessing a member");
   }
 
   // TODO: have separate namespaces for types and values so that we can
   // support TypeScript's ability to use the same identifier for both.
   const [type, cs] =
-    object.tag === "EIdent" ? inferIdent(object, ctx) : inferMem(object, ctx);
+    object.__type === "EIdent" ? inferIdent(object, ctx) : inferMem(object, ctx);
 
-  if (type.tag === "TVar") {
+  if (tt.isTVar(type)) {
     const tobj = fresh(ctx);
     const tMem1 = tb.tmem(tobj, unwrapProperty(property), ctx);
     const tMem2 = tb.tmem(type, unwrapProperty(property), ctx);
     // This is sufficient since inferTMem() will unify `tobj` with `type`.
     return [tMem2, [{ types: [tMem1, tMem2], subtype: false }]];
-  } else if (type.tag === "TRec") {
-    if (property.tag !== "EIdent") {
+  } else if (tt.isTRec(type)) {
+    if (property.__type !== "EIdent") {
       throw new Error(
         "property must be a variable when accessing a member on a record"
       );
@@ -539,8 +539,8 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
       );
     }
     return [prop.type, cs];
-  } else if (type.tag === "TTuple") {
-    if (property.tag !== "ELit" || property.value.tag !== "LNum") {
+  } else if (tt.isTTuple(type)) {
+    if (property.__type !== "ELit" || property.value.__type !== "LNum") {
       throw new Error(
         "property must be a number when accessing an index on a tuple"
       );
@@ -552,11 +552,11 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
 
     const elemType = type.types[property.value.value];
     return [elemType, cs];
-  } else if (type.tag !== "TGen") {
-    throw new Error(`Can't use member access on ${type.tag}`);
+  } else if (!tt.isTGen(type)) {
+    throw new Error(`Can't use member access on ${type.__type}`);
   }
 
-  if (object.tag === "EMem") {
+  if (object.__type === "EMem") {
     throw new Error("Didn't expect member access here");
   }
 
@@ -585,22 +585,22 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
 
   if (
     type.name === "Array" &&
-    property.tag === "ELit" &&
-    property.value.tag === "LNum"
+    property.__type === "ELit" &&
+    property.value.__type === "LNum"
   ) {
     const resultType = tb.tunion(
-      [type.params[0], tb.tlit({ tag: "LUndefined" }, ctx)],
+      [type.params[0], tb.tlit({ __type: "LUndefined" }, ctx)],
       ctx
     );
     return [resultType, cs];
   }
 
   // TODO: handle aliased tuple types (not common so we can punt on it for now)
-  if (aliasedType.tag !== "TRec") {
-    throw new Error(`Can't use member access on ${aliasedType.tag}`);
+  if (!tt.isTRec(aliasedType)) {
+    throw new Error(`Can't use member access on ${aliasedType.__type}`);
   }
 
-  if (property.tag !== "EIdent") {
+  if (property.__type !== "EIdent") {
     throw new Error(
       "property must be a variable when accessing a member on a record"
     );
@@ -645,7 +645,7 @@ const inferMany = (
 
 // NOTE: It's okay to reuse tNum here because the type is frozen.
 const tNum: tt.TPrim = {
-  tag: "TPrim",
+  __type: "TPrim",
   id: -1,
   name: "number",
   frozen: true,

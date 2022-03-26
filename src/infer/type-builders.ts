@@ -5,7 +5,7 @@ import { Context, newId } from "./context";
 import * as t from "./type-types";
 
 export const tvar = (name: string, ctx: Context): t.TVar => ({
-  tag: "TVar",
+  __type: "TVar",
   id: newId(ctx),
   name,
 });
@@ -15,7 +15,7 @@ export const tgen = (
   params: readonly t.Type[],
   ctx: Context
 ): t.TGen => ({
-  tag: "TGen",
+  __type: "TGen",
   id: newId(ctx),
   name,
   params,
@@ -27,7 +27,7 @@ export const tfun = (
   ctx: Context,
   variadic: boolean = false,
 ): t.TFun => ({
-  tag: "TFun",
+  __type: "TFun",
   id: newId(ctx),
   args,
   ret,
@@ -35,25 +35,25 @@ export const tfun = (
 });
 
 export const tunion = (types: readonly t.Type[], ctx: Context): t.TUnion => ({
-  tag: "TUnion",
+  __type: "TUnion",
   id: newId(ctx),
   types,
 });
 
 export const ttuple = (types: readonly t.Type[], ctx: Context): t.TTuple => ({
-  tag: "TTuple",
+  __type: "TTuple",
   id: newId(ctx),
   types,
 });
 
 export const trec = (properties: readonly t.TProp[], ctx: Context): t.TRec => ({
-  tag: "TRec",
+  __type: "TRec",
   id: newId(ctx),
   properties,
 });
 
 export const tprop = (name: string, type: t.Type): t.TProp => ({
-  tag: "TProp",
+  __type: "TProp",
   name,
   type,
 });
@@ -63,7 +63,7 @@ export const tmem = (
   property: string | number,
   ctx: Context
 ): t.TMem => ({
-  tag: "TMem",
+  __type: "TMem",
   id: newId(ctx),
   object,
   property,
@@ -78,7 +78,7 @@ export const createCtx = (): Context => {
 };
 
 export const tprim = (name: t.PrimName, ctx: Context): t.TPrim => ({
-  tag: "TPrim",
+  __type: "TPrim",
   id: newId(ctx),
   name,
 });
@@ -88,7 +88,7 @@ export const tStr = (ctx: Context): t.TPrim => tprim("string", ctx);
 export const tBool = (ctx: Context): t.TPrim => tprim("boolean", ctx);
 
 export const tlit = (lit: Literal, ctx: Context): t.TLit => ({
-  tag: "TLit",
+  __type: "TLit",
   id: newId(ctx),
   value: lit,
 });

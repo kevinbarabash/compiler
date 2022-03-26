@@ -1,6 +1,8 @@
 import { PrimName } from "./type-types";
 
-export type Program = { tag: "Program"; decls: readonly Decl[]; expr: Expr };
+type Node<T extends string, P extends {} = {}> = { __type: T } & P;
+
+export type Program = Node<"Program", { decls: readonly Decl[]; expr: Expr }>;
 export type Decl = [string, Expr];
 
 // TODO: provide a way to declare types as part of the syntax AST
@@ -12,22 +14,22 @@ export type Decl = [string, Expr];
  * Expression types
  */
 
-export type EApp = { tag: "EApp"; fn: Expr; args: readonly Expr[] };
-export type EAwait = { tag: "EAwait"; expr: Expr };
-export type EFix = { tag: "EFix"; expr: Expr };
-export type EIf = { tag: "EIf"; cond: Expr; th: Expr; el: Expr };
-export type ELam = { tag: "ELam"; args: readonly (EIdent | ERest)[]; body: Expr; async?: boolean }; // prettier-ignore
-export type ELet = { tag: "ELet"; pattern: Pattern; value: Expr; body: Expr };
-export type ELit<L extends Literal = Literal> = { tag: "ELit"; value: L };
-export type EOp = { tag: "EOp"; op: Binop; left: Expr; right: Expr };
-export type ERec = { tag: "ERec"; properties: readonly EProp[] };
-export type ETuple = { tag: "ETuple"; elements: readonly Expr[] };
-export type EIdent = { tag: "EIdent"; name: string };
-export type EMem = { tag: "EMem"; object: Expr; property: ELit<LNum> | ELit<LStr> | EIdent }; // prettier-ignore
-export type ERest = { tag: "ERest"; identifier: EIdent };
+export type EApp = Node<"EApp", { fn: Expr; args: readonly Expr[] }>;
+export type EAwait = Node<"EAwait", { expr: Expr }>;
+export type EFix = Node<"EFix", { expr: Expr }>;
+export type EIf = Node<"EIf", { cond: Expr; th: Expr; el: Expr }>;
+export type ELam = Node<"ELam", { args: readonly (EIdent | ERest)[]; body: Expr; async?: boolean }>; // prettier-ignore
+export type ELet = Node<"ELet", { pattern: Pattern; value: Expr; body: Expr }>;
+export type ELit<L extends Literal = Literal> = Node<"ELit", { value: L }>;
+export type EOp = Node<"EOp", { op: Binop; left: Expr; right: Expr }>;
+export type ERec = Node<"ERec", { properties: readonly EProp[] }>;
+export type ETuple = Node<"ETuple", { elements: readonly Expr[] }>;
+export type EIdent = Node<"EIdent", { name: string }>;
+export type EMem = Node<"EMem", { object: Expr; property: ELit<LNum> | ELit<LStr> | EIdent }>; // prettier-ignore
+export type ERest = Node<"ERest", { identifier: EIdent }>;
 
 export type Binop = "Add" | "Sub" | "Mul" | "Eql";
-export type EProp = { tag: "EProp"; name: string; value: Expr };
+export type EProp = Node<"EProp", { name: string; value: Expr }>;
 
 export type Expr =
   | EApp
@@ -48,11 +50,11 @@ export type Expr =
  * Literal types
  */
 
-export type LNum = { tag: "LNum"; value: number };
-export type LBool = { tag: "LBool"; value: boolean };
-export type LStr = { tag: "LStr"; value: string };
-export type LNull = { tag: "LNull" };
-export type LUndefined = { tag: "LUndefined" };
+export type LNum = Node<"LNum", { value: number }>;
+export type LBool = Node<"LBool", { value: boolean }>;
+export type LStr = Node<"LStr", { value: string }>;
+export type LNull = Node<"LNull">;
+export type LUndefined = Node<"LUndefined">;
 
 export type Literal = LNum | LBool | LStr | LNull | LUndefined;
 
@@ -60,14 +62,14 @@ export type Literal = LNum | LBool | LStr | LNull | LUndefined;
  * Pattern types
  */
 
-export type PVar = { tag: "PVar"; name: string }; // treat this the same was a `name: string` in Let
-export type PWild = { tag: "PWild" }; // corresponds to `_`
-export type PRec = { tag: "PRec"; properties: readonly PProp[] };
-export type PTuple = { tag: "PTuple"; patterns: readonly Pattern[] };
-export type PLit = { tag: "PLit"; value: Literal };
-export type PPrim = { tag: "PPrim"; name?: string; primName: PrimName };
+export type PVar = Node<"PVar", { name: string }>; // treat this the same was a `name: string` in Let
+export type PWild = Node<"PWild">; // corresponds to `_`
+export type PRec = Node<"PRec", { properties: readonly PProp[] }>;
+export type PTuple = Node<"PTuple", { patterns: readonly Pattern[] }>;
+export type PLit = Node<"PLit", { value: Literal }>;
+export type PPrim = Node<"PPrim", { name?: string; primName: PrimName }>;
 
-export type PProp = { tag: "PProp"; name: string; pattern: Pattern };
+export type PProp = Node<"PProp", { name: string; pattern: Pattern }>;
 
 export type Pattern = PVar | PWild | PRec | PTuple | PLit | PPrim;
 

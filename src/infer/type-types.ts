@@ -6,24 +6,29 @@ function assertUnreachable(x: never): never {
   throw new Error("Didn't expect to get here");
 }
 
-type TCommon = { frozen?: boolean; id: number };
+type Node<T extends string, P extends {}> = { __type: T } & P;
+
+type TypeNode<T extends string, P extends {}> = Node<
+  T,
+  P & { frozen?: boolean; id: number }
+>;
 
 // What's the difference between `null` as a primtive type vs `null` as a type literal?
 export type PrimName = "boolean" | "number" | "string" | "null" | "undefined";
 
-export type TVar = TCommon & { tag: "TVar"; name: string };
-export type TGen = TCommon & { tag: "TGen"; name: string; params: readonly Type[] }; // prettier-ignore
-export type TFun = TCommon & { tag: "TFun"; args: readonly Type[]; ret: Type; variadic?: boolean }; // prettier-ignore
-export type TUnion = TCommon & { tag: "TUnion"; types: readonly Type[] };
-export type TRec = TCommon & { tag: "TRec"; properties: readonly TProp[] };
+export type TVar = TypeNode<"TVar", { name: string }>;
+export type TGen = TypeNode<"TGen", { name: string; params: readonly Type[] }>;
+export type TFun = TypeNode<"TFun", { args: readonly Type[]; ret: Type; variadic?: boolean }>; // prettier-ignore
+export type TUnion = TypeNode<"TUnion", { types: readonly Type[] }>;
+export type TRec = TypeNode<"TRec", { properties: readonly TProp[] }>;
 // TODO: need a better way model the following:
 // - a.b (equivalent to a['b'])
 // - a[b] (right now we don't have a way to describe this)
 // - a['b'] / a[1]
-export type TMem = TCommon & { tag: "TMem"; object: Type; property: string | number };
-export type TTuple = TCommon & { tag: "TTuple"; types: readonly Type[] };
-export type TLit = TCommon & { tag: "TLit"; value: Literal };
-export type TPrim = TCommon & { tag: "TPrim"; name: PrimName };
+export type TMem = TypeNode<"TMem", { object: Type; property: string | number }>; // prettier-ignore
+export type TTuple = TypeNode<"TTuple", { types: readonly Type[] }>;
+export type TLit = TypeNode<"TLit", { value: Literal }>;
+export type TPrim = TypeNode<"TPrim", { name: PrimName }>;
 // Each TLit must belong to at least one TPrimitive type
 // e.g. TLit(3) belongs to TPrim(number) (and also TPrim(bigint))
 // It would be nice if we could model the difference between ints and floats.
@@ -36,13 +41,23 @@ export type TPrim = TCommon & { tag: "TPrim"; name: PrimName };
 // such as indexing into an array.
 
 // TODO: add `optional: boolean` - equivalent to `T | undefined`
-export type TProp = { tag: "TProp"; name: string; type: Type };
+export type TProp = Node<"TProp", { name: string; type: Type }>;
 
-export type Type = TVar | TGen | TFun | TUnion | TTuple | TRec | TMem | TPrim | TLit;
-export type Scheme = { tag: "Forall"; qualifiers: readonly TVar[]; type: Type };
+export type Type =
+  | TVar
+  | TGen
+  | TFun
+  | TUnion
+  | TTuple
+  | TRec
+  | TMem
+  | TPrim
+  | TLit;
+
+export type Scheme = Node<"Forall", { qualifiers: readonly TVar[]; type: Type}>; // prettier-ignore
 
 export function print(t: Type | Scheme): string {
-  switch (t.tag) {
+  switch (t.__type) {
     case "TVar": {
       return t.name;
     }
@@ -51,7 +66,7 @@ export function print(t: Type | Scheme): string {
       return t.params.length > 0 ? `${t.name}<${params}>` : t.name;
     }
     case "TFun": {
-      const {variadic} = t;
+      const { variadic } = t;
       const argCount = t.args.length;
       const args = t.args.map((arg, index) => {
         const isLast = index === argCount - 1;
@@ -77,12 +92,17 @@ export function print(t: Type | Scheme): string {
       return t.name;
     }
     case "TLit": {
-      switch (t.value.tag) {
-        case "LStr": return `"${t.value.value}"`;
-        case "LNum": return t.value.value.toString();
-        case "LBool": return t.value.value.toString();
-        case "LNull": return "null";
-        case "LUndefined": return "undefined";
+      switch (t.value.__type) {
+        case "LStr":
+          return `"${t.value.value}"`;
+        case "LNum":
+          return t.value.value.toString();
+        case "LBool":
+          return t.value.value.toString();
+        case "LNull":
+          return "null";
+        case "LUndefined":
+          return "undefined";
       }
     }
     case "TMem": {
@@ -101,7 +121,7 @@ export function print(t: Type | Scheme): string {
 // NOTE: this function mutates its param
 export function freeze(t: Type): void {
   t.frozen = true;
-  switch (t.tag) {
+  switch (t.__type) {
     case "TFun": {
       t.args.map(freeze);
       freeze(t.ret);
@@ -146,26 +166,26 @@ export const scheme = (qualifiers: readonly TVar[], type: Type): Scheme => {
     throw new Error("scheme: type can't be undefined");
   }
   return {
-    tag: "Forall",
+    __type: "Forall",
     qualifiers,
     type,
   };
 };
 
-export const isTGen = (t: Type): t is TGen => t.tag === "TGen";
-export const isTVar = (t: Type): t is TVar => t.tag === "TVar";
-export const isTFun = (t: Type): t is TFun => t.tag === "TFun";
-export const isTUnion = (t: Type): t is TUnion => t.tag === "TUnion";
-export const isTRec = (t: Type): t is TRec => t.tag === "TRec";
-export const isTTuple = (t: Type): t is TTuple => t.tag === "TTuple";
-export const isTPrim = (t: Type): t is TPrim => t.tag === "TPrim";
-export const isTLit = (t: Type): t is TLit => t.tag === "TLit";
-export const isTMem = (t: Type): t is TMem => t.tag === "TMem";
-export const isScheme = (t: any): t is Scheme => t.tag === "Forall";
+export const isTGen = (t: Type): t is TGen => t.__type === "TGen";
+export const isTVar = (t: Type): t is TVar => t.__type === "TVar";
+export const isTFun = (t: Type): t is TFun => t.__type === "TFun";
+export const isTUnion = (t: Type): t is TUnion => t.__type === "TUnion";
+export const isTRec = (t: Type): t is TRec => t.__type === "TRec";
+export const isTTuple = (t: Type): t is TTuple => t.__type === "TTuple";
+export const isTPrim = (t: Type): t is TPrim => t.__type === "TPrim";
+export const isTLit = (t: Type): t is TLit => t.__type === "TLit";
+export const isTMem = (t: Type): t is TMem => t.__type === "TMem";
+export const isScheme = (t: any): t is Scheme => t.__type === "Forall";
 
 export type Constraint<T extends Type = Type> = {
-  types: readonly [T, T],
-  subtype: boolean, // indicates whether or not to allow types[0] to be a subtype of types[1]
+  types: readonly [T, T];
+  subtype: boolean; // indicates whether or not to allow types[0] to be a subtype of types[1]
 };
 
 export type Unifier = readonly [Subst, readonly Constraint[]];

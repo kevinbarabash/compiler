@@ -294,12 +294,12 @@ const solver = (u: t.Unifier, ctx: Context): t.Subst => {
 };
 
 const bind = (tv: t.TVar, type: t.Type, ctx: Context): t.Subst => {
-  if (type.tag === "TMem") {
+  if (type.__type === "TMem") {
     const { object, property } = type;
-    if (object.tag === "TGen") {
+    if (object.__type === "TGen") {
       // Checks if there's an alias for the generic type.
       const alias = lookupEnv(object.name, ctx);
-      if (alias.tag === "TRec") {
+      if (alias.__type === "TRec") {
         if (typeof property !== "string") {
           throw new Error("property must be a string");
         }
@@ -311,12 +311,12 @@ const bind = (tv: t.TVar, type: t.Type, ctx: Context): t.Subst => {
             `${t.print(alias)} doesn't contain ${property} property`
           );
         }
-      } else if (alias.tag === "TTuple") {
+      } else if (alias.__type === "TTuple") {
         throw new Error("TODO: implement alias type lookups for tuples");
       }
     }
   }
-  if (type.tag === "TVar" && type.id === tv.id) {
+  if (type.__type === "TVar" && type.id === tv.id) {
     return emptySubst;
   } else if (occursCheck(tv, type)) {
     throw new InfiniteType(tv, type);
@@ -333,12 +333,12 @@ const compareLiterals = (lit1: Literal, lit2: Literal): boolean => {
   if ("value" in lit1 && "value" in lit2) {
     return lit1.value === lit2.value;
   }
-  return lit1.tag === lit2.tag;
+  return lit1.__type === lit2.__type;
 };
 
 const isSubType = (sub: t.Type, sup: t.Type): boolean => {
   if (t.isTPrim(sup) && sup.name === "number") {
-    if (t.isTLit(sub) && sub.value.tag === "LNum") {
+    if (t.isTLit(sub) && sub.value.__type === "LNum") {
       return true;
     }
     if (t.isTUnion(sub) && sub.types.every((type) => isSubType(type, sup))) {
@@ -378,18 +378,18 @@ export const computeUnion = (t1: t.Type, t2: t.Type, ctx: Context): t.Type => {
   // Subsumes literals into primitives
   for (const primType of primTypes) {
     if (primType.name === "number") {
-      litTypes = litTypes.filter((type) => type.value.tag !== "LNum");
+      litTypes = litTypes.filter((type) => type.value.__type !== "LNum");
     } else if (primType.name === "boolean") {
-      litTypes = litTypes.filter((type) => type.value.tag !== "LBool");
+      litTypes = litTypes.filter((type) => type.value.__type !== "LBool");
     } else if (primType.name === "string") {
-      litTypes = litTypes.filter((type) => type.value.tag !== "LStr");
+      litTypes = litTypes.filter((type) => type.value.__type !== "LStr");
     }
   }
 
   // Replaces `true | false` with `boolean`
-  const boolTypes = litTypes.filter((type) => type.value.tag === "LBool");
+  const boolTypes = litTypes.filter((type) => type.value.__type === "LBool");
   if (boolTypes.length === 2) {
-    litTypes = litTypes.filter((type) => type.value.tag !== "LBool");
+    litTypes = litTypes.filter((type) => type.value.__type !== "LBool");
     // It's safe to push without checking if primTypes already contains
     // `boolean` because if it did then `boolTypes` would've been empty.
     primTypes.push(tb.tprim("boolean", ctx));
@@ -443,14 +443,14 @@ const nubPrimTypes = (primTypes: readonly t.TPrim[]): t.TPrim[] => {
 const nubLitTypes = (litTypes: readonly t.TLit[]): t.TLit[] => {
   const values: (number | string | boolean | null | undefined)[] = [];
   return litTypes.filter((lt) => {
-    if (lt.value.tag === "LNull") {
+    if (lt.value.__type === "LNull") {
       if (!values.includes(null)) {
         values.push(null);
         return true;
       }
       return false;
     }
-    if (lt.value.tag === "LUndefined") {
+    if (lt.value.__type === "LUndefined") {
       if (!values.includes(undefined)) {
         values.push(undefined);
         return true;

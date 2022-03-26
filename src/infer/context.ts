@@ -44,7 +44,7 @@ export const fresh = (ctx: Context): TVar => {
   const id = newId(ctx);
   // ctx.state.count++;
   return {
-    tag: "TVar",
+    __type: "TVar",
     id: id,
     name: letterFromIndex(id),
   };

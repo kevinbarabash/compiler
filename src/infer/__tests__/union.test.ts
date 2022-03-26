@@ -152,7 +152,7 @@ describe("Union types and type widening", () => {
   describe("computeUnion", () => {
     test("5 | number => number", () => {
       const eng = new Engine();
-      const lit = eng.tlit({ tag: "LNum", value: 5 });
+      const lit = eng.tlit({ __type: "LNum", value: 5 });
       const num = eng.tprim("number");
       const result = computeUnion(lit, num, eng.ctx);
 
@@ -161,8 +161,8 @@ describe("Union types and type widening", () => {
 
     test("5 | 10 => 5 | 10", () => {
       const eng = new Engine();
-      const lit5 = eng.tlit({ tag: "LNum", value: 5 });
-      const lit10 = eng.tlit({ tag: "LNum", value: 10 });
+      const lit5 = eng.tlit({ __type: "LNum", value: 5 });
+      const lit10 = eng.tlit({ __type: "LNum", value: 10 });
       const result = computeUnion(lit5, lit10, eng.ctx);
 
       expect(print(result)).toEqual("5 | 10");
@@ -170,8 +170,8 @@ describe("Union types and type widening", () => {
 
     test("5 | 5 => 5", () => {
       const eng = new Engine();
-      const lit5a = eng.tlit({ tag: "LNum", value: 5 });
-      const lit5b = eng.tlit({ tag: "LNum", value: 5 });
+      const lit5a = eng.tlit({ __type: "LNum", value: 5 });
+      const lit5b = eng.tlit({ __type: "LNum", value: 5 });
       const result = computeUnion(lit5a, lit5b, eng.ctx);
 
       expect(print(result)).toEqual("5");
@@ -179,7 +179,7 @@ describe("Union types and type widening", () => {
 
     test("true | boolean => boolean", () => {
       const eng = new Engine();
-      const litTrue = eng.tlit({ tag: "LBool", value: true });
+      const litTrue = eng.tlit({ __type: "LBool", value: true });
       const bool = eng.tprim("boolean");
       const result = computeUnion(litTrue, bool, eng.ctx);
 
@@ -188,8 +188,8 @@ describe("Union types and type widening", () => {
 
     test("true | false => boolean", () => {
       const eng = new Engine();
-      const litTrue = eng.tlit({ tag: "LBool", value: true });
-      const litFalse = eng.tlit({ tag: "LBool", value: false });
+      const litTrue = eng.tlit({ __type: "LBool", value: true });
+      const litFalse = eng.tlit({ __type: "LBool", value: false });
       const result = computeUnion(litTrue, litFalse, eng.ctx);
 
       expect(print(result)).toEqual("boolean");
@@ -197,8 +197,8 @@ describe("Union types and type widening", () => {
 
     test("true | true => true", () => {
       const eng = new Engine();
-      const litTrue = eng.tlit({ tag: "LBool", value: true });
-      const litFalse = eng.tlit({ tag: "LBool", value: true });
+      const litTrue = eng.tlit({ __type: "LBool", value: true });
+      const litFalse = eng.tlit({ __type: "LBool", value: true });
       const result = computeUnion(litTrue, litFalse, eng.ctx);
 
       expect(print(result)).toEqual("true");
@@ -206,7 +206,7 @@ describe("Union types and type widening", () => {
 
     test('"hello" | string => string', () => {
       const eng = new Engine();
-      const hello = eng.tlit({ tag: "LStr", value: "hello" });
+      const hello = eng.tlit({ __type: "LStr", value: "hello" });
       const str = eng.tprim("string");
       const result = computeUnion(hello, str, eng.ctx);
 
@@ -215,8 +215,8 @@ describe("Union types and type widening", () => {
 
     test('"hello" | "world" => string', () => {
       const eng = new Engine();
-      const hello = eng.tlit({ tag: "LStr", value: "hello" });
-      const world = eng.tlit({ tag: "LStr", value: "world" });
+      const hello = eng.tlit({ __type: "LStr", value: "hello" });
+      const world = eng.tlit({ __type: "LStr", value: "world" });
       const result = computeUnion(hello, world, eng.ctx);
 
       expect(print(result)).toEqual('"hello" | "world"');
@@ -260,10 +260,10 @@ describe("Union types and type widening", () => {
 
     test("(5 | 10) | 15 => 5 | 10 | 15", () => {
       const eng = new Engine();
-      const lit5 = eng.tlit({ tag: "LNum", value: 5 });
-      const lit10 = eng.tlit({ tag: "LNum", value: 10 });
+      const lit5 = eng.tlit({ __type: "LNum", value: 5 });
+      const lit10 = eng.tlit({ __type: "LNum", value: 10 });
       const union = computeUnion(lit5, lit10, eng.ctx);
-      const lit15 = eng.tlit({ tag: "LNum", value: 15 });
+      const lit15 = eng.tlit({ __type: "LNum", value: 15 });
       const result = computeUnion(union, lit15, eng.ctx);
 
       expect(print(result)).toEqual("5 | 10 | 15");
@@ -271,8 +271,8 @@ describe("Union types and type widening", () => {
 
     test("(5 | 10) | number => number", () => {
       const eng = new Engine();
-      const lit5 = eng.tlit({ tag: "LNum", value: 5 });
-      const lit10 = eng.tlit({ tag: "LNum", value: 10 });
+      const lit5 = eng.tlit({ __type: "LNum", value: 5 });
+      const lit10 = eng.tlit({ __type: "LNum", value: 10 });
       const union = computeUnion(lit5, lit10, eng.ctx);
       const result = computeUnion(union, eng.tprim("number"), eng.ctx);
 
