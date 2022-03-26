@@ -44,22 +44,24 @@ export const prop = (name: string, value: t.Expr): t.EProp => ({
   name,
   value,
 });
-export const mem = (object: string, property: string | number): t.EMem => ({
+export const mem = (
+  object: t.Expr,
+  property: t.ELit<t.LStr> | t.ELit<t.LNum> | t.EIdent
+): t.EMem => ({
   tag: "EMem",
-  // This is just a convenience for now.
-  object: ident(object),
-  property: typeof property === "string" ? ident(property) : num(property),
+  object,
+  property,
 });
 
-export const num = (value: number): t.ELit => ({
+export const num = (value: number): t.ELit<t.LNum> => ({
   tag: "ELit",
   value: { tag: "LNum", value },
 });
-export const bool = (value: boolean): t.ELit => ({
+export const bool = (value: boolean): t.ELit<t.LBool> => ({
   tag: "ELit",
   value: { tag: "LBool", value },
 });
-export const str = (value: string): t.ELit => ({
+export const str = (value: string): t.ELit<t.LStr> => ({
   tag: "ELit",
   value: { tag: "LStr", value },
 });

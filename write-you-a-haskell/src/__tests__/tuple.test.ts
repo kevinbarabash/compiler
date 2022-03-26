@@ -1,4 +1,3 @@
-import { Expr } from "../syntax-types";
 import * as sb from "../syntax-builders";
 import { print, scheme, Scheme } from "../type-types";
 import { Engine } from "../engine";
@@ -7,7 +6,7 @@ import { createArrayScheme } from "../builtins";
 describe("tuple", () => {
   test("can infer a tuple containing different types", () => {
     const eng = new Engine();
-    const expr: Expr = sb.tuple([sb.num(5), sb.bool(true), sb.str("hello")]);
+    const expr = sb.tuple([sb.num(5), sb.bool(true), sb.str("hello")]);
 
     const result = eng.inferExpr(expr);
 
@@ -16,7 +15,7 @@ describe("tuple", () => {
 
   test("can infer a function returning a lambda", () => {
     const eng = new Engine();
-    const expr: Expr = sb.lam(
+    const expr = sb.lam(
       [],
       sb.tuple([sb.num(5), sb.bool(true), sb.str("hello")])
     );
@@ -36,7 +35,7 @@ describe("tuple", () => {
     );
     eng.defScheme("snd", snd);
 
-    const expr: Expr = sb.app(sb.ident("snd"), [
+    const expr = sb.app(sb.ident("snd"), [
       sb.tuple([sb.num(5), sb.str("hello")]),
     ]);
     const result = eng.inferExpr(expr);
@@ -56,7 +55,7 @@ describe("tuple", () => {
       );
       eng.defScheme("snd", snd);
 
-      const expr: Expr = sb.app(sb.ident("snd"), [
+      const expr = sb.app(sb.ident("snd"), [
         sb.tuple([sb.num(5), sb.str("hello"), sb.bool(true)]),
       ]);
 
@@ -76,7 +75,7 @@ describe("tuple", () => {
       );
       eng.defScheme("snd", snd);
 
-      const expr: Expr = sb.app(sb.ident("snd"), [sb.tuple([sb.num(5)])]);
+      const expr = sb.app(sb.ident("snd"), [sb.tuple([sb.num(5)])]);
 
       // TODO: fix message to use [a, b] instead of [e, f];
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
@@ -96,7 +95,7 @@ describe("tuple", () => {
 
       eng.defScheme("foo", foo);
 
-      const expr: Expr = sb.app(sb.ident("foo"), [
+      const expr = sb.app(sb.ident("foo"), [
         sb.tuple([sb.num(5), sb.bool(true)]),
       ]);
 
@@ -170,7 +169,11 @@ describe("tuple", () => {
       const eng = new Engine();
 
       const result = eng.inferExpr(
-        sb._let("foo", sb.tuple([sb.num(5), sb.num(10)]), sb.mem("foo", 1))
+        sb._let(
+          "foo",
+          sb.tuple([sb.num(5), sb.num(10)]),
+          sb.mem(sb.ident("foo"), sb.num(1))
+        )
       );
 
       expect(print(result)).toEqual("10");
@@ -179,11 +182,9 @@ describe("tuple", () => {
     it("should work on a tuple literal", () => {
       const eng = new Engine();
 
-      const result = eng.inferExpr({
-        tag: "EMem",
-        object: sb.tuple([sb.num(5), sb.num(10)]),
-        property: sb.num(1),
-      });
+      const result = eng.inferExpr(
+        sb.mem(sb.tuple([sb.num(5), sb.num(10)]), sb.num(1))
+      );
 
       expect(print(result)).toEqual("10");
     });
@@ -193,7 +194,7 @@ describe("tuple", () => {
       eng.defScheme("Array", createArrayScheme(eng.ctx));
 
       eng.defType("foo", eng.tcon("Array", [eng.tprim("number")]));
-      const result = eng.inferExpr(sb.mem("foo", 1));
+      const result = eng.inferExpr(sb.mem(sb.ident("foo"), sb.num(1)));
 
       // TODO: once we start add type refinements, if a person checks
       // the length of an array is greater or equal to a certain value
@@ -207,11 +208,15 @@ describe("tuple", () => {
 
       expect(() =>
         eng.inferExpr(
-          sb._let("foo", sb.tuple([sb.num(5), sb.num(10)]), {
-            tag: "EMem",
-            object: sb.ident("foo"),
-            property: sb.bool(true),
-          })
+          sb._let(
+            "foo",
+            sb.tuple([sb.num(5), sb.num(10)]),
+            sb.mem(
+              sb.ident("foo"),
+              // @ts-expect-error: `true` is not a valid indexer
+              sb.bool(true)
+            )
+          )
         )
       ).toThrowErrorMatchingInlineSnapshot(
         `"property must be a number when accessing an index on a tuple"`
@@ -222,11 +227,13 @@ describe("tuple", () => {
       const eng = new Engine();
 
       expect(() =>
-        eng.inferExpr({
-          tag: "EMem",
-          object: sb.tuple([sb.num(5), sb.num(10)]),
-          property: sb.bool(true),
-        })
+        eng.inferExpr(
+          sb.mem(
+            sb.tuple([sb.num(5), sb.num(10)]),
+            // @ts-expect-error: `true` is not a valid indexer
+            sb.bool(true)
+          )
+        )
       ).toThrowErrorMatchingInlineSnapshot(
         `"property must be a number when accessing an index on a tuple"`
       );
@@ -237,7 +244,11 @@ describe("tuple", () => {
 
       expect(() =>
         eng.inferExpr(
-          sb._let("foo", sb.tuple([sb.num(5), sb.num(10)]), sb.mem("foo", 2))
+          sb._let(
+            "foo",
+            sb.tuple([sb.num(5), sb.num(10)]),
+            sb.mem(sb.ident("foo"), sb.num(2))
+          )
         )
       ).toThrowErrorMatchingInlineSnapshot(
         `"index is greater than the size of the tuple"`
@@ -248,11 +259,7 @@ describe("tuple", () => {
       const eng = new Engine();
 
       expect(() =>
-        eng.inferExpr({
-          tag: "EMem",
-          object: sb.tuple([sb.num(5), sb.num(10)]),
-          property: sb.num(2),
-        })
+        eng.inferExpr(sb.mem(sb.tuple([sb.num(5), sb.num(10)]), sb.num(2)))
       ).toThrowErrorMatchingInlineSnapshot(
         `"index is greater than the size of the tuple"`
       );
@@ -268,15 +275,7 @@ describe("tuple", () => {
             sb.tuple([sb.num(5), sb.num(10)]),
             sb.tuple([sb.str("hello"), sb.str("world")]),
           ]),
-          {
-            tag: "EMem",
-            object: {
-              tag: "EMem",
-              object: sb.ident("nested"),
-              property: sb.num(1),
-            },
-            property: sb.num(1),
-          }
+          sb.mem(sb.mem(sb.ident("nested"), sb.num(1)), sb.num(1))
         )
       );
 
@@ -286,18 +285,18 @@ describe("tuple", () => {
     it("should work on nested tuples literal", () => {
       const eng = new Engine();
 
-      const result = eng.inferExpr({
-        tag: "EMem",
-        object: {
-          tag: "EMem",
-          object: sb.tuple([
-            sb.tuple([sb.num(5), sb.num(10)]),
-            sb.tuple([sb.str("hello"), sb.str("world")]),
-          ]),
-          property: sb.num(1),
-        },
-        property: sb.num(1),
-      });
+      const result = eng.inferExpr(
+        sb.mem(
+          sb.mem(
+            sb.tuple([
+              sb.tuple([sb.num(5), sb.num(10)]),
+              sb.tuple([sb.str("hello"), sb.str("world")]),
+            ]),
+            sb.num(1)
+          ),
+          sb.num(1)
+        )
+      );
 
       expect(print(result)).toEqual('"world"');
     });

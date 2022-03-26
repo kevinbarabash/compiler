@@ -1,4 +1,3 @@
-import { Expr } from "../syntax-types";
 import { print } from "../type-types";
 import * as sb from "../syntax-builders";
 import * as tb from "../type-builders";
@@ -30,7 +29,7 @@ describe("Array", () => {
     eng.defScheme("Array", createArrayScheme(eng.ctx));
     eng.defType("strArray", eng.tcon("Array", [eng.tprim("string")]));
 
-    const result = eng.inferExpr(sb.mem("strArray", "map"));
+    const result = eng.inferExpr(sb.mem(sb.ident("strArray"), sb.ident("map")));
 
     // TODO:
     // - `a` should copy its name from the original type/scheme
@@ -45,7 +44,7 @@ describe("Array", () => {
     eng.defScheme("Array", createArrayScheme(eng.ctx));
     eng.defType("strArray", eng.tcon("Array", [eng.tprim("string")]));
 
-    const expr: Expr = sb.app(sb.mem("strArray", "map"), [
+    const expr = sb.app(sb.mem(sb.ident("strArray"), sb.ident("map")), [
       sb.lam(["elem"], sb.num(5)),
     ]);
     const result = eng.inferExpr(expr);
@@ -58,7 +57,7 @@ describe("Array", () => {
     eng.defScheme("Array", createArrayScheme(eng.ctx));
     eng.defType("strArray", eng.tcon("Array", [eng.tprim("string")]));
 
-    const expr: Expr = sb.app(sb.mem("strArray", "map"), [
+    const expr = sb.app(sb.mem(sb.ident("strArray"), sb.ident("map")), [
       sb.lam(["elem", "index", "array"], sb.ident("index")),
     ]);
     const result = eng.inferExpr(expr);
@@ -71,7 +70,7 @@ describe("Array", () => {
     eng.defScheme("Array", createArrayScheme(eng.ctx));
     eng.defType("strArray", eng.tcon("Array", [eng.tprim("string")]));
 
-    const expr: Expr = sb.app(sb.mem("strArray", "map"), [
+    const expr = sb.app(sb.mem(sb.ident("strArray"), sb.ident("map")), [
       sb.lam(["elem", "index", "array"], sb.ident("array")),
     ]);
     const result = eng.inferExpr(expr);
@@ -84,8 +83,11 @@ describe("Array", () => {
     eng.defScheme("Array", createArrayScheme(eng.ctx));
     eng.defType("strArray", eng.tcon("Array", [eng.tprim("string")]));
 
-    const expr: Expr = sb.app(sb.mem("strArray", "map"), [
-      sb.lam(["elem", "index", "array"], sb.mem("array", "length")),
+    const expr = sb.app(sb.mem(sb.ident("strArray"), sb.ident("map")), [
+      sb.lam(
+        ["elem", "index", "array"],
+        sb.mem(sb.ident("array"), sb.ident("length"))
+      ),
     ]);
     const result = eng.inferExpr(expr);
 

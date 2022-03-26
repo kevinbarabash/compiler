@@ -1,4 +1,3 @@
-import { Expr } from "../syntax-types";
 import * as sb from "../syntax-builders";
 import { print, scheme, Scheme } from "../type-types";
 import { Engine } from "../engine";
@@ -6,7 +5,7 @@ import { Engine } from "../engine";
 describe("record", () => {
   test("can infer a tuple containing different types", () => {
     const eng = new Engine();
-    const expr: Expr = sb.rec([
+    const expr = sb.rec([
       sb.prop("foo", sb.str("hello")),
       sb.prop("bar", sb.num(5)),
     ]);
@@ -18,7 +17,7 @@ describe("record", () => {
 
   test("can infer a function returning a lambda", () => {
     const eng = new Engine();
-    const expr: Expr = sb.lam(
+    const expr = sb.lam(
       [],
       sb.rec([sb.prop("foo", sb.str("hello")), sb.prop("bar", sb.num(5))])
     );
@@ -42,7 +41,7 @@ describe("record", () => {
 
     eng.defScheme("getFoo", getFoo);
 
-    const expr: Expr = sb.app(sb.ident("getFoo"), [
+    const expr = sb.app(sb.ident("getFoo"), [
       sb.rec([sb.prop("foo", sb.num(5)), sb.prop("bar", sb.str("hello"))]),
     ]);
     const result = eng.inferExpr(expr);
@@ -58,7 +57,7 @@ describe("record", () => {
       sb._let(
         "obj",
         sb.rec([sb.prop("foo", sb.str("hello")), sb.prop("bar", sb.num(5))]),
-        sb.mem("obj", "bar")
+        sb.mem(sb.ident("obj"), sb.ident("bar"))
       )
     );
 
@@ -68,14 +67,12 @@ describe("record", () => {
   test("simple member access on a literal", () => {
     const eng = new Engine();
 
-    const expr = eng.inferExpr({
-      tag: "EMem",
-      object: sb.rec([
-        sb.prop("foo", sb.str("hello")),
-        sb.prop("bar", sb.num(5)),
-      ]),
-      property: sb.ident("bar"),
-    });
+    const expr = eng.inferExpr(
+      sb.mem(
+        sb.rec([sb.prop("foo", sb.str("hello")), sb.prop("bar", sb.num(5))]),
+        sb.ident("bar")
+      )
+    );
 
     expect(print(expr)).toEqual("5");
   });
@@ -93,15 +90,7 @@ describe("record", () => {
             sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))])
           ),
         ]),
-        {
-          tag: "EMem",
-          object: {
-            tag: "EMem",
-            object: sb.ident("obj"),
-            property: sb.ident("bar"),
-          },
-          property: sb.ident("y"),
-        }
+        sb.mem(sb.mem(sb.ident("obj"), sb.ident("bar")), sb.ident("y"))
       )
     );
 
@@ -111,21 +100,21 @@ describe("record", () => {
   test("nested member access on a literal", () => {
     const eng = new Engine();
 
-    const expr = eng.inferExpr({
-      tag: "EMem",
-      object: {
-        tag: "EMem",
-        object: sb.rec([
-          sb.prop("foo", sb.str("hello")),
-          sb.prop(
-            "bar",
-            sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))])
-          ),
-        ]),
-        property: sb.ident("bar"),
-      },
-      property: sb.ident("y"),
-    });
+    const expr = eng.inferExpr(
+      sb.mem(
+        sb.mem(
+          sb.rec([
+            sb.prop("foo", sb.str("hello")),
+            sb.prop(
+              "bar",
+              sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))])
+            ),
+          ]),
+          sb.ident("bar")
+        ),
+        sb.ident("y")
+      )
+    );
 
     expect(print(expr)).toEqual("10");
   });
@@ -144,7 +133,7 @@ describe("record", () => {
       );
 
       eng.defScheme("getFoo", getFoo);
-      const expr: Expr = sb.app(sb.ident("getFoo"), [
+      const expr = sb.app(sb.ident("getFoo"), [
         sb.rec([
           sb.prop("foo", sb.num(5)),
           sb.prop("bar", sb.str("hello")),
@@ -170,7 +159,7 @@ describe("record", () => {
       );
 
       eng.defScheme("getFoo", getFoo);
-      const expr: Expr = sb.app(sb.ident("getFoo"), [
+      const expr = sb.app(sb.ident("getFoo"), [
         sb.rec([sb.prop("foo", sb.num(5))]),
       ]);
 
@@ -196,7 +185,7 @@ describe("record", () => {
 
       eng.defScheme("getFoo", getFoo);
 
-      const expr: Expr = sb.app(sb.ident("getFoo"), [
+      const expr = sb.app(sb.ident("getFoo"), [
         sb.rec([sb.prop("foo", sb.num(5)), sb.prop("bar", sb.bool(true))]),
       ]);
 

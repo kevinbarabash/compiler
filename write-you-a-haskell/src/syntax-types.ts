@@ -11,12 +11,16 @@ export type EFix = { tag: "EFix"; expr: Expr };
 export type EIf = { tag: "EIf"; cond: Expr; th: Expr; el: Expr };
 export type ELam = { tag: "ELam"; args: readonly string[]; body: Expr; async?: boolean }; // prettier-ignore
 export type ELet = { tag: "ELet"; pattern: Pattern; value: Expr; body: Expr };
-export type ELit = { tag: "ELit"; value: Literal };
+export type ELit<L extends Literal = Literal> = { tag: "ELit"; value: L };
 export type EOp = { tag: "EOp"; op: Binop; left: Expr; right: Expr };
 export type ERec = { tag: "ERec"; properties: readonly EProp[] };
 export type ETuple = { tag: "ETuple"; elements: readonly Expr[] };
 export type EIdent = { tag: "EIdent"; name: string };
-export type EMem = { tag: "EMem"; object: Expr; property: Expr };
+export type EMem = {
+  tag: "EMem";
+  object: Expr;
+  property: ELit<LNum> | ELit<LStr> | EIdent;
+};
 
 export type Expr =
   | EApp
@@ -34,12 +38,13 @@ export type Expr =
 
 export type EProp = { tag: "EProp"; name: string; value: Expr };
 
-export type Literal =
-  | { tag: "LNum"; value: number }
-  | { tag: "LBool"; value: boolean }
-  | { tag: "LStr"; value: string }
-  | { tag: "LNull" }
-  | { tag: "LUndefined" };
+export type LNum = { tag: "LNum"; value: number };
+export type LBool = { tag: "LBool"; value: boolean };
+export type LStr = { tag: "LStr"; value: string };
+export type LNull = { tag: "LNull" };
+export type LUndefined = { tag: "LUndefined" };
+
+export type Literal = LNum | LBool | LStr | LNull | LUndefined;
 
 export type Binop = "Add" | "Sub" | "Mul" | "Eql";
 

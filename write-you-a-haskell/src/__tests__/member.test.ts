@@ -1,4 +1,3 @@
-import { Expr } from "../syntax-types";
 import * as sb from "../syntax-builders";
 import { scheme, print } from "../type-types";
 import { createArrayScheme } from "../builtins";
@@ -9,12 +8,7 @@ describe("Member access", () => {
     test("access on literal string fails", () => {
       const eng = new Engine();
 
-      const expr: Expr = {
-        tag: "EMem",
-        // This is just a convenience for now.
-        object: sb.str("foo"),
-        property: sb.ident("bar"),
-      };
+      const expr = sb.mem(sb.str("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
         `"object must be a variable when accessing a member"`
@@ -25,12 +19,7 @@ describe("Member access", () => {
       const eng = new Engine();
       eng.defType("foo", eng.trec([eng.tprop("hello", eng.tNum())]));
 
-      const expr: Expr = {
-        tag: "EMem",
-        // This is just a convenience for now.
-        object: sb.ident("foo"),
-        property: sb.str("hello"),
-      };
+      const expr = sb.mem(sb.ident("foo"), sb.str("hello"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
         `"property must be a variable when accessing a member on a record"`
@@ -41,7 +30,7 @@ describe("Member access", () => {
       const eng = new Engine();
       eng.defType("foo", eng.trec([]));
 
-      const expr: Expr = sb.mem("foo", "bar");
+      const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
         `"{} doesn't contain property bar"`
@@ -52,7 +41,7 @@ describe("Member access", () => {
       const eng = new Engine();
       eng.defType("foo", eng.tcon("Foo", []));
 
-      const expr: Expr = sb.mem("foo", "bar");
+      const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
         `"No type named Foo in environment"`
@@ -65,7 +54,7 @@ describe("Member access", () => {
       eng.defScheme("Foo", scheme([tVar], eng.tNum()));
       eng.defType("foo", eng.tcon("Foo", []));
 
-      const expr: Expr = sb.mem("foo", "bar");
+      const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
         `"number of type params in foo doesn't match those in Foo"`
@@ -77,7 +66,7 @@ describe("Member access", () => {
       eng.defScheme("Foo", scheme([], eng.tNum()));
       eng.defType("foo", eng.tcon("Foo", []));
 
-      const expr: Expr = sb.mem("foo", "bar");
+      const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
         `"Can't use member access on TPrim"`
@@ -89,7 +78,7 @@ describe("Member access", () => {
       eng.defScheme("Foo", scheme([], eng.trec([])));
       eng.defType("foo", eng.tcon("Foo", []));
 
-      const expr: Expr = sb.mem("foo", "bar");
+      const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
         `"bar property doesn't exist on {}"`
@@ -100,7 +89,7 @@ describe("Member access", () => {
       const eng = new Engine();
       eng.defType("foo", eng.tNum());
 
-      const expr: Expr = sb.mem("foo", "bar");
+      const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
         `"Can't use member access on TPrim"`
@@ -110,11 +99,10 @@ describe("Member access", () => {
     test("{foo: 'hello'}['bar'] throws", () => {
       const eng = new Engine();
 
-      const expr: Expr = {
-        tag: "EMem",
-        object: sb.rec([sb.prop("foo", sb.str("hello"))]),
-        property: sb.ident("bar"),
-      };
+      const expr = sb.mem(
+        sb.rec([sb.prop("foo", sb.str("hello"))]),
+        sb.ident("bar")
+      );
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
         `"Record literal doesn't contain property 'bar'"`
@@ -127,7 +115,7 @@ describe("Member access", () => {
       const eng = new Engine();
       eng.defScheme("Array", createArrayScheme(eng.ctx));
 
-      const expr: Expr = sb.mem("Array", "length");
+      const expr = sb.mem(sb.ident("Array"), sb.ident("length"));
       const result = eng.inferExpr(expr);
 
       expect(print(result)).toMatchInlineSnapshot(`"number"`);
@@ -136,11 +124,10 @@ describe("Member access", () => {
     test("{foo: 'hello'}['foo'] -> 'hello'", () => {
       const eng = new Engine();
 
-      const expr: Expr = {
-        tag: "EMem",
-        object: sb.rec([sb.prop("foo", sb.str("hello"))]),
-        property: sb.ident("foo"),
-      };
+      const expr = sb.mem(
+        sb.rec([sb.prop("foo", sb.str("hello"))]),
+        sb.ident("foo")
+      );
 
       const result = eng.inferExpr(expr);
 
@@ -159,15 +146,7 @@ describe("Member access", () => {
 
           sb.rec([sb.prop("foo", sb.str("hello")), sb.prop("bar", sb.num(5))]),
         ]),
-        {
-          tag: "EMem",
-          object: {
-            tag: "EMem",
-            object: sb.ident("nested"),
-            property: sb.num(1),
-          },
-          property: sb.ident("foo"),
-        }
+        sb.mem(sb.mem(sb.ident("nested"), sb.num(1)), sb.ident("foo"))
       )
     );
 
@@ -184,15 +163,7 @@ describe("Member access", () => {
           sb.prop("foo", sb.tuple([sb.num(5), sb.num(10)])),
           sb.prop("bar", sb.tuple([sb.str("hello"), sb.str("world")])),
         ]),
-        {
-          tag: "EMem",
-          object: {
-            tag: "EMem",
-            object: sb.ident("nested"),
-            property: sb.ident("foo"),
-          },
-          property: sb.num(1),
-        }
+        sb.mem(sb.mem(sb.ident("nested"), sb.ident("foo")), sb.num(1))
       )
     );
 

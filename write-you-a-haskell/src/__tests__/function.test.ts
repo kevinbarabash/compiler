@@ -304,9 +304,9 @@ describe("function subtyping", () => {
     eng.defScheme("array", intArray);
 
     const call = sb.app(sb.ident("map"), [
-        sb.ident("array"),
-        sb.lam(["x"], sb.eql(sb.ident("x"), sb.num(0))),
-      ]);
+      sb.ident("array"),
+      sb.lam(["x"], sb.eql(sb.ident("x"), sb.num(0))),
+    ]);
 
     const result = eng.inferExpr(call);
 
@@ -324,7 +324,7 @@ describe("function subtyping", () => {
     );
 
     // TODO: allow `(elem) => 5` to be passed as the callback
-    const expr = sb.app(sb.mem("strArray", "map"), [
+    const expr = sb.app(sb.mem(sb.ident("strArray"), sb.ident("map")), [
       sb.lam(["elem"], sb.num(5)),
     ]);
     const result = eng.inferExpr(expr);
