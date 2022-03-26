@@ -6,7 +6,10 @@ import { Engine } from "../engine";
 
 type Binding = [string, Expr];
 
-const _const: Binding = ["const", sb.lam(["x", "y"], sb.ident("x"))];
+const _const: Binding = [
+  "const",
+  sb.lam([sb.ident("x"), sb.ident("y")], sb.ident("x")),
+];
 
 describe("Functions", () => {
   test("let rec fib = (n) => ...", () => {
@@ -19,9 +22,9 @@ describe("Functions", () => {
       "fib",
       sb.fix(
         sb.lam(
-          ["fib"],
+          [sb.ident("fib")],
           sb.lam(
-            ["n"],
+            [sb.ident("n")],
             sb._if(
               sb.eql(sb.ident("n"), sb.num(0)),
               // then
@@ -64,10 +67,13 @@ describe("Functions", () => {
     const y: Binding = [
       "y",
       sb.lam(
-        ["y"],
+        [sb.ident("y")],
         sb._let(
           "f",
-          sb.lam(["x"], sb._if(sb.ident("x"), sb.bool(true), sb.bool(false))),
+          sb.lam(
+            [sb.ident("x")],
+            sb._if(sb.ident("x"), sb.bool(true), sb.bool(false))
+          ),
           sb.app(sb.ident("const"), [
             sb.app(sb.ident("f"), [sb.ident("y")]),
             sb.ident("y"),
@@ -76,12 +82,12 @@ describe("Functions", () => {
       ),
     ];
     // let id x = x;
-    const id: Binding = ["id", sb.lam(["x"], sb.ident("x"))];
+    const id: Binding = ["id", sb.lam([sb.ident("x")], sb.ident("x"))];
     // let foo x = let y = id x in y + 1;
     const foo: Binding = [
       "foo",
       sb.lam(
-        ["x"],
+        [sb.ident("x")],
         sb._let(
           "y",
           sb.app(sb.ident("id"), [sb.ident("x")]),
@@ -116,11 +122,11 @@ describe("Functions", () => {
     const compose: Binding = [
       "compose",
       sb.lam(
-        ["f"],
+        [sb.ident("f")],
         sb.lam(
-          ["g"],
+          [sb.ident("g")],
           sb.lam(
-            ["x"],
+            [sb.ident("x")],
             sb.app(sb.ident("g"), [sb.app(sb.ident("f"), [sb.ident("x")])])
           )
         )
@@ -139,9 +145,9 @@ describe("Functions", () => {
     const on: Binding = [
       "on",
       sb.lam(
-        ["g", "f"],
+        [sb.ident("g"), sb.ident("f")],
         sb.lam(
-          ["x", "y"],
+          [sb.ident("x"), sb.ident("y")],
           sb.app(sb.ident("g"), [
             sb.app(sb.ident("f"), [sb.ident("x")]),
             sb.app(sb.ident("f"), [sb.ident("y")]),
@@ -163,7 +169,7 @@ describe("Functions", () => {
     const ap: Binding = [
       "ap",
       sb.lam(
-        ["f", "x"],
+        [sb.ident("f"), sb.ident("x")],
         sb.app(sb.ident("f"), [sb.app(sb.ident("f"), [sb.ident("x")])])
       ),
     ];
@@ -180,9 +186,9 @@ describe("Functions", () => {
       // let rec until p f x =
       sb.fix(
         sb.lam(
-          ["until"],
+          [sb.ident("until")],
           sb.lam(
-            ["p", "f", "x"],
+            [sb.ident("p"), sb.ident("f"), sb.ident("x")],
             sb._if(
               //   if (p x)
               sb.app(sb.ident("p"), [sb.ident("x")]),
@@ -220,7 +226,10 @@ describe("partial applicaiton", () => {
     const eng = new Engine();
     const _add: Binding = [
       "add",
-      sb.lam(["a", "b"], sb.add(sb.ident("a"), sb.ident("b"))),
+      sb.lam(
+        [sb.ident("a"), sb.ident("b")],
+        sb.add(sb.ident("a"), sb.ident("b"))
+      ),
     ];
     const add5: Binding = ["add5", sb.app(sb.ident("add"), [sb.num(5)])];
 
@@ -234,7 +243,10 @@ describe("partial applicaiton", () => {
     const eng = new Engine();
     const _add: Binding = [
       "add",
-      sb.lam(["a", "b"], sb.add(sb.ident("a"), sb.ident("b"))),
+      sb.lam(
+        [sb.ident("a"), sb.ident("b")],
+        sb.add(sb.ident("a"), sb.ident("b"))
+      ),
     ];
     const sum: Binding = [
       "sum",
@@ -251,9 +263,13 @@ describe("partial applicaiton", () => {
     const eng = new Engine();
     const add5: Binding = [
       "add5",
-      sb.app(sb.lam(["a", "b"], sb.add(sb.ident("a"), sb.ident("b"))), [
-        sb.num(5),
-      ]),
+      sb.app(
+        sb.lam(
+          [sb.ident("a"), sb.ident("b")],
+          sb.add(sb.ident("a"), sb.ident("b"))
+        ),
+        [sb.num(5)]
+      ),
     ];
 
     const result = eng.inferExpr(add5[1]);
@@ -267,7 +283,10 @@ describe("function subtyping", () => {
     const eng = new Engine();
     const _add: Binding = [
       "add",
-      sb.lam(["a", "b"], sb.add(sb.ident("a"), sb.ident("b"))),
+      sb.lam(
+        [sb.ident("a"), sb.ident("b")],
+        sb.add(sb.ident("a"), sb.ident("b"))
+      ),
     ];
     const sum: Binding = [
       "sum",
@@ -305,7 +324,7 @@ describe("function subtyping", () => {
 
     const call = sb.app(sb.ident("map"), [
       sb.ident("array"),
-      sb.lam(["x"], sb.eql(sb.ident("x"), sb.num(0))),
+      sb.lam([sb.ident("x")], sb.eql(sb.ident("x"), sb.num(0))),
     ]);
 
     const result = eng.inferExpr(call);
@@ -325,7 +344,7 @@ describe("function subtyping", () => {
 
     // TODO: allow `(elem) => 5` to be passed as the callback
     const expr = sb.app(sb.mem(sb.ident("strArray"), sb.ident("map")), [
-      sb.lam(["elem"], sb.num(5)),
+      sb.lam([sb.ident("elem")], sb.num(5)),
     ]);
     const result = eng.inferExpr(expr);
 
@@ -356,17 +375,159 @@ describe("function subtyping", () => {
 
     const _add: Binding = [
       "add",
-      sb.lam(["a", "b"], sb.add(sb.ident("a"), sb.ident("b"))),
+      sb.lam(
+        [sb.ident("a"), sb.ident("b")],
+        sb.add(sb.ident("a"), sb.ident("b"))
+      ),
     ];
     eng.inferDecl(_add[0], _add[1]);
 
     const call = sb.app(sb.ident("map"), [
       sb.ident("array"),
-      sb.lam(["x"], sb.app(sb.ident("add"), [sb.ident("x")])),
+      sb.lam([sb.ident("x")], sb.app(sb.ident("add"), [sb.ident("x")])),
     ]);
 
     const result = eng.inferExpr(call);
 
     expect(print(result)).toEqual("Array<(number) => number>");
+  });
+
+  describe("varargs", () => {
+    test("basic inference", () => {
+      const eng = new Engine();
+      const foo = sb.lam([sb.rest("rest")], sb.num(5));
+
+      const result = eng.inferExpr(foo);
+
+      expect(print(result)).toEqual("<a>(...Array<a>) => 5");
+    });
+
+    test("multiple rest params is not allowed", () => {
+      const eng = new Engine();
+      const foo = sb.lam([sb.rest("rest"), sb.rest("rest")], sb.num(5));
+
+      expect(() => eng.inferExpr(foo)).toThrowErrorMatchingInlineSnapshot(
+        `"Rest param must come last."`
+      );
+    });
+
+    test("rest param must come last", () => {
+      const eng = new Engine();
+      const foo = sb.lam([sb.rest("rest"), sb.ident("x")], sb.num(5));
+
+      expect(() => eng.inferExpr(foo)).toThrowErrorMatchingInlineSnapshot(
+        `"Rest param must come last."`
+      );
+    });
+
+    test("varargs with numbers only", () => {
+      const eng = new Engine();
+      const foo = sb._let(
+        "foo",
+        sb.lam([sb.rest("rest")], sb.ident("rest")),
+        sb.app(sb.ident("foo"), [sb.num(5), sb.num(10)])
+      );
+
+      const result = eng.inferExpr(foo);
+
+      expect(print(result)).toEqual("Array<10 | 5>");
+    });
+
+    test("varargs with a mix of types", () => {
+      const eng = new Engine();
+      const foo = sb._let(
+        "foo",
+        sb.lam([sb.rest("rest")], sb.ident("rest")),
+        sb.app(sb.ident("foo"), [sb.num(5), sb.bool(true)])
+      );
+
+      const result = eng.inferExpr(foo);
+
+      expect(print(result)).toEqual("Array<true | 5>");
+    });
+
+    test("varargs with no args", () => {
+      const eng = new Engine();
+      const foo = sb._let(
+        "foo",
+        sb.lam([sb.rest("rest")], sb.ident("rest")),
+        sb.app(sb.ident("foo"), [])
+      );
+
+      const result = eng.inferExpr(foo);
+
+      expect(print(result)).toEqual("<a>Array<a>");
+    });
+
+    test("varargs with regular args", () => {
+      const eng = new Engine();
+      const foo = sb._let(
+        "foo",
+        sb.lam([sb.ident("x"), sb.rest("rest")], sb.ident("rest")),
+        sb.app(sb.ident("foo"), [sb.str("hello"), sb.num(5), sb.num(10)])
+      );
+
+      const result = eng.inferExpr(foo);
+
+      expect(print(result)).toEqual("Array<10 | 5>");
+    });
+
+    test("varargs with regular args (but no varargs passed)", () => {
+      const eng = new Engine();
+      const foo = sb._let(
+        "foo",
+        sb.lam([sb.ident("x"), sb.rest("rest")], sb.ident("rest")),
+        sb.app(sb.ident("foo"), [sb.str("hello")])
+      );
+
+      const result = eng.inferExpr(foo);
+
+      expect(print(result)).toEqual("<a>Array<a>");
+    });
+
+    test("regular args with varargs", () => {
+      const eng = new Engine();
+      const foo = sb._let(
+        "foo",
+        sb.lam([sb.ident("x"), sb.rest("rest")], sb.ident("x")),
+        sb.app(sb.ident("foo"), [sb.str("hello"), sb.num(5), sb.num(10)])
+      );
+
+      const result = eng.inferExpr(foo);
+
+      expect(print(result)).toEqual('"hello"');
+    });
+
+    test("partially application of varargs", () => {
+      const eng = new Engine();
+      const foo = sb._let(
+        "foo",
+        sb.lam(
+          [sb.ident("x"), sb.ident("y"), sb.rest("rest")],
+          sb.ident("rest")
+        ),
+        sb.app(sb.ident("foo"), [sb.str("hello")])
+      );
+
+      const result = eng.inferExpr(foo);
+
+      expect(print(result)).toEqual("<a>(Array<a>) => Array<a>");
+    });
+
+    test("variadic callbacks", () => {
+      const eng = new Engine();
+      eng.inferDecl(
+        "foo",
+        sb.lam([sb.ident("x"), sb.rest("rest")], sb.ident("x"))
+      );
+      eng.inferDecl(_const[0], _const[1]);
+      const bar = sb.app(sb.ident("const"), [sb.ident("foo")]);
+
+      const result = eng.inferExpr(bar);
+
+      expect(print(result)).toMatchInlineSnapshot(
+        `"<a, b, c>(a) => (b, ...Array<c>) => b"`
+      );
+    });
   });
 });

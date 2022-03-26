@@ -16,7 +16,7 @@ export type EApp = { tag: "EApp"; fn: Expr; args: readonly Expr[] };
 export type EAwait = { tag: "EAwait"; expr: Expr };
 export type EFix = { tag: "EFix"; expr: Expr };
 export type EIf = { tag: "EIf"; cond: Expr; th: Expr; el: Expr };
-export type ELam = { tag: "ELam"; args: readonly string[]; body: Expr; async?: boolean }; // prettier-ignore
+export type ELam = { tag: "ELam"; args: readonly (EIdent | ERest)[]; body: Expr; async?: boolean }; // prettier-ignore
 export type ELet = { tag: "ELet"; pattern: Pattern; value: Expr; body: Expr };
 export type ELit<L extends Literal = Literal> = { tag: "ELit"; value: L };
 export type EOp = { tag: "EOp"; op: Binop; left: Expr; right: Expr };
@@ -24,6 +24,7 @@ export type ERec = { tag: "ERec"; properties: readonly EProp[] };
 export type ETuple = { tag: "ETuple"; elements: readonly Expr[] };
 export type EIdent = { tag: "EIdent"; name: string };
 export type EMem = { tag: "EMem"; object: Expr; property: ELit<LNum> | ELit<LStr> | EIdent }; // prettier-ignore
+export type ERest = { tag: "ERest"; identifier: EIdent };
 
 export type Binop = "Add" | "Sub" | "Mul" | "Eql";
 export type EProp = { tag: "EProp"; name: string; value: Expr };
@@ -40,7 +41,8 @@ export type Expr =
   | ERec
   | ETuple
   | EIdent
-  | EMem;
+  | EMem
+  | ERest;
 
 /**
  * Literal types

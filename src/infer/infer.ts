@@ -209,6 +209,7 @@ const infer = (expr: st.Expr, ctx: Context): InferResult => {
     case "ERec":   return inferRec  (expr, ctx);
     case "ETuple": return inferTuple(expr, ctx);
     case "EMem":   return inferMem  (expr, ctx);
+    case "ERest":  return inferRest (expr, ctx);
     default: assertUnreachable(expr);
   }
 };
@@ -280,14 +281,37 @@ const inferIf = (expr: st.EIf, ctx: Context): InferResult => {
 
 const inferLam = (expr: st.ELam, ctx: Context): InferResult => {
   const { args, body } = expr;
+  let variadic = false;
+  const argCount = args.length;
+  const tvs = args.map((arg, index) => {
+    if (arg.tag === "EIdent") {
+      return fresh(ctx);
+    } else {
+      if (index !== argCount - 1) {
+        throw new Error("Rest param must come last.");
+      }
+      variadic = true;
+      return tb.tgen("Array", [fresh(ctx)], ctx);
+    }
+  });
   // newCtx introduces a new scope
-  const tvs = args.map(() => fresh(ctx));
   const newCtx: Context = {
     ...ctx,
     env: ctx.env.withMutations((env) => {
       for (const [arg, tv] of zip(args, tvs)) {
         // t.scheme([], tv) is a type variable without any qualifiers
-        env.set(arg, tt.scheme([], tv));
+        switch (arg.tag) {
+          case "EIdent": {
+            env.set(arg.name, tt.scheme([], tv));
+            break;
+          }
+          case "ERest": {
+            env.set(arg.identifier.name, tt.scheme([], tv));
+            break;
+          }
+          default:
+            assertUnreachable(arg);
+        }
       }
     }),
     async: expr.async,
@@ -302,7 +326,7 @@ const inferLam = (expr: st.ELam, ctx: Context): InferResult => {
       ? type
       : freshTCon(ctx, "Promise", [type]);
 
-  return [tb.tfun(tvs, ret, ctx), cs];
+  return [tb.tfun(tvs, ret, ctx, variadic), cs];
 };
 
 const inferLet = (expr: st.ELet, ctx: Context): InferResult => {
@@ -433,6 +457,8 @@ const inferTuple = (expr: st.ETuple, ctx: Context): InferResult<tt.TTuple> => {
 
 const inferIdent = (expr: st.EIdent, ctx: Context): InferResult => {
   const type = lookupEnv(expr.name, ctx);
+  expr.name; // ?
+  type.tag; // ?
   return [type, []];
 };
 
@@ -492,9 +518,8 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
 
   // TODO: have separate namespaces for types and values so that we can
   // support TypeScript's ability to use the same identifier for both.
-  const [type, cs] = object.tag === "EIdent" 
-    ? inferIdent(object, ctx)
-    : inferMem(object, ctx);
+  const [type, cs] =
+    object.tag === "EIdent" ? inferIdent(object, ctx) : inferMem(object, ctx);
 
   if (type.tag === "TVar") {
     const tobj = fresh(ctx);
@@ -600,6 +625,10 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
   const resultType = apply(subs2, prop.type);
 
   return [resultType, cs];
+};
+
+const inferRest = (expr: st.ERest, ctx: Context): InferResult => {
+  throw new Error("TODO: impelment inferRest()");
 };
 
 const inferMany = (

@@ -24,12 +24,14 @@ export const tgen = (
 export const tfun = (
   args: readonly t.Type[],
   ret: t.Type,
-  ctx: Context
+  ctx: Context,
+  variadic: boolean = false,
 ): t.TFun => ({
   tag: "TFun",
   id: newId(ctx),
   args,
   ret,
+  variadic,
 });
 
 export const tunion = (types: readonly t.Type[], ctx: Context): t.TUnion => ({

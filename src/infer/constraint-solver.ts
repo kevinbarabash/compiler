@@ -77,6 +77,7 @@ export const unifies = (c: t.Constraint, ctx: Context): t.Subst => {
     types: [t1, t2],
     subtype,
   } = c;
+
   if (t.isTVar(t1)) return bind(t1, t2, ctx);
   if (t.isTVar(t2)) return bind(t2, t1, ctx);
   if (isTFun(c)) return unifyFuncs(c, ctx);
@@ -112,6 +113,15 @@ export const unifies = (c: t.Constraint, ctx: Context): t.Subst => {
     return emptySubst;
   }
 
+  if (t.isTTuple(t1) && t.isTGen(t2) && t2.name === "Array") {
+    if (t2.params.length === 1 && t.isTVar(t2.params[0])) {
+      const constraints: t.Constraint[] = t1.types.map((type) => {
+        return { types: [type, t2.params[0]], subtype: true };
+      });
+      return unifyMany(constraints, ctx);
+    }
+  }
+
   // As long as the types haven't been frozen then this is okay
   // NOTE: We may need to add .src info in the future if we notice
   // any places where unexpected type widening is occurring.
@@ -128,6 +138,26 @@ export const unifies = (c: t.Constraint, ctx: Context): t.Subst => {
 
 const unifyFuncs = (c: t.Constraint<t.TFun>, ctx: Context): t.Subst => {
   const [t1, t2] = c.types;
+
+  // varargs
+  // Are there any situations where t1 is variadiac? callbacks maybe?
+  if (t2.variadic) {
+    const t1_regular_args = t1.args.slice(0, t2.args.length - 1);
+    const t1_rest_args = t1.args.slice(t2.args.length - 1);
+    const t1_varargs: t.TFun = {
+      ...t1,
+      args: [...t1_regular_args, tb.ttuple(t1_rest_args, ctx)], // TODO: handle a mix of regular args and varargs
+    };
+    const t2_no_varargs: t.TFun = {
+      ...t2,
+      variadic: false, // Defends against processing varargs more than once.
+    };
+    // TODO: make sure that this handles subtyping of varargs functions.
+    return unifyFuncs(
+      { types: [t1_varargs, t2_no_varargs], subtype: c.subtype },
+      ctx
+    );
+  }
 
   // partial application
   if (t1.args.length < t2.args.length) {

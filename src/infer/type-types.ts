@@ -13,7 +13,7 @@ export type PrimName = "boolean" | "number" | "string" | "null" | "undefined";
 
 export type TVar = TCommon & { tag: "TVar"; name: string };
 export type TGen = TCommon & { tag: "TGen"; name: string; params: readonly Type[] }; // prettier-ignore
-export type TFun = TCommon & { tag: "TFun"; args: readonly Type[]; ret: Type }; // prettier-ignore
+export type TFun = TCommon & { tag: "TFun"; args: readonly Type[]; ret: Type; variadic?: boolean }; // prettier-ignore
 export type TUnion = TCommon & { tag: "TUnion"; types: readonly Type[] };
 export type TRec = TCommon & { tag: "TRec"; properties: readonly TProp[] };
 // TODO: need a better way model the following:
@@ -51,7 +51,16 @@ export function print(t: Type | Scheme): string {
       return t.params.length > 0 ? `${t.name}<${params}>` : t.name;
     }
     case "TFun": {
-      return `(${t.args.map(print).join(", ")}) => ${print(t.ret)}`;
+      const {variadic} = t;
+      const argCount = t.args.length;
+      const args = t.args.map((arg, index) => {
+        const isLast = index === argCount - 1;
+        if (isLast && variadic) {
+          return `...${print(arg)}`;
+        }
+        return print(arg);
+      });
+      return `(${args.join(", ")}) => ${print(t.ret)}`;
     }
     case "TUnion": {
       return t.types.map(print).join(" | ");
