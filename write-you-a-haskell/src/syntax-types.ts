@@ -1,9 +1,16 @@
 import { PrimName } from "./type-types";
 
+export type Program = { tag: "Program"; decls: readonly Decl[]; expr: Expr };
+export type Decl = [string, Expr];
+
 // TODO: provide a way to declare types as part of the syntax AST
 // We'll need this eventually to support defining bindings to external libraries.
 // It will also help simplify writing tests where we need to define the type of
 // of something that we can't easily infer from an expression.
+
+/**
+ * Expression types
+ */
 
 export type EApp = { tag: "EApp"; fn: Expr; args: readonly Expr[] };
 export type EAwait = { tag: "EAwait"; expr: Expr };
@@ -16,11 +23,10 @@ export type EOp = { tag: "EOp"; op: Binop; left: Expr; right: Expr };
 export type ERec = { tag: "ERec"; properties: readonly EProp[] };
 export type ETuple = { tag: "ETuple"; elements: readonly Expr[] };
 export type EIdent = { tag: "EIdent"; name: string };
-export type EMem = {
-  tag: "EMem";
-  object: Expr;
-  property: ELit<LNum> | ELit<LStr> | EIdent;
-};
+export type EMem = { tag: "EMem"; object: Expr; property: ELit<LNum> | ELit<LStr> | EIdent }; // prettier-ignore
+
+export type Binop = "Add" | "Sub" | "Mul" | "Eql";
+export type EProp = { tag: "EProp"; name: string; value: Expr };
 
 export type Expr =
   | EApp
@@ -36,7 +42,9 @@ export type Expr =
   | EIdent
   | EMem;
 
-export type EProp = { tag: "EProp"; name: string; value: Expr };
+/**
+ * Literal types
+ */
 
 export type LNum = { tag: "LNum"; value: number };
 export type LBool = { tag: "LBool"; value: boolean };
@@ -46,11 +54,9 @@ export type LUndefined = { tag: "LUndefined" };
 
 export type Literal = LNum | LBool | LStr | LNull | LUndefined;
 
-export type Binop = "Add" | "Sub" | "Mul" | "Eql";
-
-export type Program = { tag: "Program"; decls: readonly Decl[]; expr: Expr };
-
-export type Decl = [string, Expr];
+/**
+ * Pattern types
+ */
 
 export type PVar = { tag: "PVar"; name: string }; // treat this the same was a `name: string` in Let
 export type PWild = { tag: "PWild" }; // corresponds to `_`
@@ -58,6 +64,8 @@ export type PRec = { tag: "PRec"; properties: readonly PProp[] };
 export type PTuple = { tag: "PTuple"; patterns: readonly Pattern[] };
 export type PLit = { tag: "PLit"; value: Literal };
 export type PPrim = { tag: "PPrim"; name?: string; primName: PrimName };
+
+export type PProp = { tag: "PProp"; name: string; pattern: Pattern };
 
 export type Pattern = PVar | PWild | PRec | PTuple | PLit | PPrim;
 
@@ -85,4 +93,3 @@ export type Pattern = PVar | PWild | PRec | PTuple | PLit | PPrim;
 
 // `pattern` is option in PProp so that we can extract a property whose type
 // is an object, or a sub-property within that property's object.
-export type PProp = { tag: "PProp"; name: string; pattern: Pattern };
