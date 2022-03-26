@@ -22,7 +22,7 @@ describe("Union types and type widening", () => {
 
     const call: Expr = {
       tag: "App",
-      fn: sb._var("retUnion"),
+      fn: sb.ident("retUnion"),
       args: [sb.num(5), sb.bool(true)],
     };
 
@@ -35,7 +35,7 @@ describe("Union types and type widening", () => {
 
     const call2: Expr = {
       tag: "App",
-      fn: sb._var("retUnion"),
+      fn: sb.ident("retUnion"),
       args: [sb.bool(false), sb.num(10)],
     };
 
@@ -52,9 +52,9 @@ describe("Union types and type widening", () => {
     const expr: Expr = sb.lam(
       ["x", "y"],
       sb._if(
-        sb._var("x"),
-        sb.app(sb._var("y"), [sb.num(5)]),
-        sb.app(sb._var("y"), [sb.bool(true)])
+        sb.ident("x"),
+        sb.app(sb.ident("y"), [sb.num(5)]),
+        sb.app(sb.ident("y"), [sb.bool(true)])
       )
     );
 
@@ -81,7 +81,7 @@ describe("Union types and type widening", () => {
 
     const expr: Expr = sb.lam(
       ["x"],
-      sb._if(sb._var("x"), sb._var("foo"), sb._var("bar"))
+      sb._if(sb.ident("x"), sb.ident("foo"), sb.ident("bar"))
     );
 
     const result = eng.inferExpr(expr);
@@ -105,9 +105,9 @@ describe("Union types and type widening", () => {
     const expr: Expr = sb.lam(
       ["x", "y"],
       sb._if(
-        sb._var("x"),
-        sb.app(sb._var("y"), [sb._var("union")]), // number | boolean
-        sb.app(sb._var("y"), [sb.str("hello")]) // "hello"
+        sb.ident("x"),
+        sb.app(sb.ident("y"), [sb.ident("union")]), // number | boolean
+        sb.app(sb.ident("y"), [sb.str("hello")]) // "hello"
       )
     );
 
@@ -124,11 +124,11 @@ describe("Union types and type widening", () => {
       ["x"],
       sb._let(
         "a",
-        sb.app(sb._var("x"), [sb.num(5)]),
+        sb.app(sb.ident("x"), [sb.num(5)]),
         sb._let(
           "b",
-          sb.app(sb._var("x"), [sb.bool(true)]),
-          sb._let("c", sb.app(sb._var("x"), [sb.str("hello")]), sb._var("c"))
+          sb.app(sb.ident("x"), [sb.bool(true)]),
+          sb._let("c", sb.app(sb.ident("x"), [sb.str("hello")]), sb.ident("c"))
         )
       )
     );
@@ -144,9 +144,9 @@ describe("Union types and type widening", () => {
     const eng = new Engine();
     const _add: Binding = [
       "add",
-      sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
+      sb.lam(["a", "b"], sb.add(sb.ident("a"), sb.ident("b"))),
     ];
-    const expr: Expr = sb.app(sb._var("add"), [sb.num(5), sb.bool(true)]);
+    const expr: Expr = sb.app(sb.ident("add"), [sb.num(5), sb.bool(true)]);
 
     eng.inferDecl(_add[0], _add[1]);
 

@@ -10,7 +10,7 @@ describe("destructuring", () => {
       tag: "Let",
       pattern: sb.prec([sb.pprop("x")]),
       value: sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.bool(true))]),
-      body: sb._var("x"),
+      body: sb.ident("x"),
     };
 
     const result = eng.inferExpr(expr);
@@ -30,8 +30,8 @@ describe("destructuring", () => {
     const expr: Expr = {
       tag: "Let",
       pattern: sb.prec([sb.pprop("x")]),
-      value: sb._var("myRec"),
-      body: sb._var("x"),
+      value: sb.ident("myRec"),
+      body: sb.ident("x"),
     };
 
     const result = eng.inferExpr(expr);
@@ -45,7 +45,7 @@ describe("destructuring", () => {
       tag: "Let",
       pattern: sb.prec([sb.pprop("x"), sb.pprop("y")]),
       value: sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))]),
-      body: sb.add(sb._var("x"), sb._var("y")),
+      body: sb.add(sb.ident("x"), sb.ident("y")),
     };
 
     const result = eng.inferExpr(expr);
@@ -59,7 +59,7 @@ describe("destructuring", () => {
       tag: "Let",
       pattern: sb.prec([sb.pprop("x", sb.pvar("a"))]),
       value: sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))]),
-      body: sb._var("a"),
+      body: sb.ident("a"),
     };
 
     const result = eng.inferExpr(expr);
@@ -76,7 +76,7 @@ describe("destructuring", () => {
         sb.pprop("y", sb.pwild()),
       ]),
       value: sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))]),
-      body: sb._var("a"),
+      body: sb.ident("a"),
     };
 
     const result = eng.inferExpr(expr);
@@ -95,7 +95,7 @@ describe("destructuring", () => {
           sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))])
         ),
       ]),
-      body: sb._var("a"),
+      body: sb.ident("a"),
     };
 
     const result = eng.inferExpr(expr);
@@ -112,7 +112,7 @@ describe("destructuring", () => {
         sb.pprop("y", sb.plit(sb.num(10).value)),
       ]),
       value: sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))]),
-      body: sb._var("x"),
+      body: sb.ident("x"),
     };
 
     const result = eng.inferExpr(expr);
@@ -129,7 +129,7 @@ describe("destructuring", () => {
         sb.pprop("y", sb.plit(sb.bool(true).value)),
       ]),
       value: sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))]),
-      body: sb._var("x"),
+      body: sb.ident("x"),
     };
 
     // TODO: this should be "Couldn't unify true with 10"
@@ -144,7 +144,7 @@ describe("destructuring", () => {
       tag: "Let",
       pattern: sb.prec([sb.pprop("x"), sb.pprop("z")]),
       value: sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))]),
-      body: sb._var("x"),
+      body: sb.ident("x"),
     };
 
     expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
@@ -161,8 +161,8 @@ describe("destructuring", () => {
     const expr: Expr = {
       tag: "Let",
       pattern: sb.ptuple([sb.pvar("x"), sb.pvar("y")]),
-      value: sb._var("myTuple"),
-      body: sb._var("x"),
+      value: sb.ident("myTuple"),
+      body: sb.ident("x"),
     };
     const result = eng.inferExpr(expr);
 
@@ -178,8 +178,8 @@ describe("destructuring", () => {
     const expr: Expr = {
       tag: "Let",
       pattern: sb.ptuple([sb.pvar("x")]),
-      value: sb._var("myTuple"),
-      body: sb._var("x"),
+      value: sb.ident("myTuple"),
+      body: sb.ident("x"),
     };
 
     expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
@@ -199,8 +199,8 @@ describe("destructuring", () => {
     const expr: Expr = {
       tag: "Let",
       pattern: sb.ptuple([sb.pvar("x"), sb.pvar("y")]),
-      value: sb._var("myRec"),
-      body: sb._var("x"),
+      value: sb.ident("myRec"),
+      body: sb.ident("x"),
     };
 
     expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
@@ -216,8 +216,8 @@ describe("destructuring", () => {
     const expr: Expr = {
       tag: "Let",
       pattern: sb.prec([sb.pprop("x"), sb.pprop("y")]),
-      value: sb._var("myTuple"),
-      body: sb._var("x"),
+      value: sb.ident("myTuple"),
+      body: sb.ident("x"),
     };
 
     expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
@@ -230,8 +230,8 @@ describe("destructuring", () => {
     const expr: Expr = sb.lam(["x"], {
       tag: "Let",
       pattern: sb.prec([sb.pprop("x", sb.pvar("a"))]),
-      value: sb.rec([sb.prop("x", sb._var("x"))]),
-      body: sb._var("a"),
+      value: sb.rec([sb.prop("x", sb.ident("x"))]),
+      body: sb.ident("a"),
     });
 
     const result = eng.inferExpr(expr);
@@ -244,8 +244,8 @@ describe("destructuring", () => {
     const expr: Expr = sb.lam(["x"], {
       tag: "Let",
       pattern: sb.ptuple([sb.pvar("a")]),
-      value: sb.tuple([sb._var("x")]),
-      body: sb._var("a"),
+      value: sb.tuple([sb.ident("x")]),
+      body: sb.ident("a"),
     });
 
     const result = eng.inferExpr(expr);

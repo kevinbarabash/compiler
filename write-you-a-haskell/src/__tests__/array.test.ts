@@ -20,7 +20,7 @@ describe("Array", () => {
     eng.defScheme("Array", createArrayScheme(eng.ctx));
     eng.defType("strArray", eng.tcon("Array", [eng.tprim("string")]));
 
-    const result = eng.inferExpr(sb._var("strArray"));
+    const result = eng.inferExpr(sb.ident("strArray"));
 
     expect(print(result)).toMatchInlineSnapshot(`"Array<string>"`);
   });
@@ -59,7 +59,7 @@ describe("Array", () => {
     eng.defType("strArray", eng.tcon("Array", [eng.tprim("string")]));
 
     const expr: Expr = sb.app(sb.mem("strArray", "map"), [
-      sb.lam(["elem", "index", "array"], sb._var("index")),
+      sb.lam(["elem", "index", "array"], sb.ident("index")),
     ]);
     const result = eng.inferExpr(expr);
 
@@ -72,7 +72,7 @@ describe("Array", () => {
     eng.defType("strArray", eng.tcon("Array", [eng.tprim("string")]));
 
     const expr: Expr = sb.app(sb.mem("strArray", "map"), [
-      sb.lam(["elem", "index", "array"], sb._var("array")),
+      sb.lam(["elem", "index", "array"], sb.ident("array")),
     ]);
     const result = eng.inferExpr(expr);
 

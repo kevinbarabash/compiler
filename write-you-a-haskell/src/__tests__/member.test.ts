@@ -13,7 +13,7 @@ describe("Member access", () => {
         tag: "Mem",
         // This is just a convenience for now.
         object: sb.str("foo"),
-        property: sb._var("bar"),
+        property: sb.ident("bar"),
       };
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
@@ -28,7 +28,7 @@ describe("Member access", () => {
       const expr: Expr = {
         tag: "Mem",
         // This is just a convenience for now.
-        object: sb._var("foo"),
+        object: sb.ident("foo"),
         property: sb.str("hello"),
       };
 
@@ -113,7 +113,7 @@ describe("Member access", () => {
       const expr: Expr = {
         tag: "Mem",
         object: sb.rec([sb.prop("foo", sb.str("hello"))]),
-        property: sb._var("bar"),
+        property: sb.ident("bar"),
       };
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
@@ -139,7 +139,7 @@ describe("Member access", () => {
       const expr: Expr = {
         tag: "Mem",
         object: sb.rec([sb.prop("foo", sb.str("hello"))]),
-        property: sb._var("foo"),
+        property: sb.ident("foo"),
       };
 
       const result = eng.inferExpr(expr);
@@ -163,10 +163,10 @@ describe("Member access", () => {
           tag: "Mem",
           object: {
             tag: "Mem",
-            object: sb._var("nested"),
+            object: sb.ident("nested"),
             property: sb.num(1),
           },
-          property: sb._var("foo"),
+          property: sb.ident("foo"),
         }
       )
     );
@@ -188,8 +188,8 @@ describe("Member access", () => {
           tag: "Mem",
           object: {
             tag: "Mem",
-            object: sb._var("nested"),
-            property: sb._var("foo"),
+            object: sb.ident("nested"),
+            property: sb.ident("foo"),
           },
           property: sb.num(1),
         }

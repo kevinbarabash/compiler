@@ -198,7 +198,7 @@ const infer = (expr: st.Expr, ctx: Context): InferResult => {
   // prettier-ignore
   switch (expr.tag) {
     case "Lit":   return inferLit  (expr, ctx);
-    case "Var":   return inferVar  (expr, ctx);
+    case "Ident": return inferIdent(expr, ctx);
     case "Lam":   return inferLam  (expr, ctx);
     case "App":   return inferApp  (expr, ctx);
     case "Let":   return inferLet  (expr, ctx);
@@ -431,13 +431,13 @@ const inferTuple = (expr: st.ETuple, ctx: Context): InferResult<tt.TTuple> => {
   return [tb.ttuple(ts, ctx), cs];
 };
 
-const inferVar = (expr: st.EVar, ctx: Context): InferResult => {
+const inferIdent = (expr: st.EIdent, ctx: Context): InferResult => {
   const type = lookupEnv(expr.name, ctx);
   return [type, []];
 };
 
 const unwrapProperty = (property: st.Expr): number | string => {
-  if (property.tag === "Var") {
+  if (property.tag === "Ident") {
     return property.name;
   } else if (property.tag === "Lit" && property.value.tag === "LNum") {
     return property.value.value;
@@ -452,7 +452,7 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
 
   // Handles member access on object literals
   if (object.tag === "Rec") {
-    if (property.tag !== "Var") {
+    if (property.tag !== "Ident") {
       throw new Error("property must be a variable when accessing a member");
     }
 
@@ -486,14 +486,14 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
 
     const elemType = type.types[property.value.value];
     return [elemType, [...cs, { types: [tMem1, tMem2], subtype: false }]];
-  } else if (object.tag !== "Var" && object.tag !== "Mem") {
+  } else if (object.tag !== "Ident" && object.tag !== "Mem") {
     throw new Error("object must be a variable when accessing a member");
   }
 
   // TODO: have separate namespaces for types and values so that we can
   // support TypeScript's ability to use the same identifier for both.
-  const [type, cs] = object.tag === "Var" 
-    ? inferVar(object, ctx)
+  const [type, cs] = object.tag === "Ident" 
+    ? inferIdent(object, ctx)
     : inferMem(object, ctx);
 
   if (type.tag === "TVar") {
@@ -503,7 +503,7 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
     // This is sufficient since inferTMem() will unify `tobj` with `type`.
     return [tMem2, [{ types: [tMem1, tMem2], subtype: false }]];
   } else if (type.tag === "TRec") {
-    if (property.tag !== "Var") {
+    if (property.tag !== "Ident") {
       throw new Error(
         "property must be a variable when accessing a member on a record"
       );
@@ -577,7 +577,7 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
     throw new Error(`Can't use member access on ${aliasedType.tag}`);
   }
 
-  if (property.tag !== "Var") {
+  if (property.tag !== "Ident") {
     throw new Error(
       "property must be a variable when accessing a member on a record"
     );

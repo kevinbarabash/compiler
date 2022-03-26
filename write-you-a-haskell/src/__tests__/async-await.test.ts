@@ -21,7 +21,7 @@ describe("Async/Await", () => {
     );
     eng.defScheme("retVal", retVal);
 
-    const expr: Expr = sb.lam([], sb._var("retVal"), true);
+    const expr: Expr = sb.lam([], sb.ident("retVal"), true);
     const result = eng.inferExpr(expr);
 
     expect(print(result)).toEqual("() => Promise<number>");
@@ -37,7 +37,7 @@ describe("Async/Await", () => {
 
     // Passing an awaited Promise<number> to add() verifies that we're
     // unwrapping promises.
-    const expr: Expr = sb.lam([], sb.add(sb._await(sb._var("retVal")), sb.num(5)), true);
+    const expr: Expr = sb.lam([], sb.add(sb._await(sb.ident("retVal")), sb.num(5)), true);
     const result = eng.inferExpr(expr);
 
     expect(print(result)).toEqual("() => Promise<number>");
@@ -56,7 +56,7 @@ describe("Async/Await", () => {
 
   test("inferring an async function that returns a polymorphic promise", () => {
     const eng = new Engine();
-    const expr: Expr = sb.lam(["x"], sb.app(sb._var("x"), []), true);
+    const expr: Expr = sb.lam(["x"], sb.app(sb.ident("x"), []), true);
 
     const result = eng.inferExpr(expr);
 
@@ -78,8 +78,8 @@ describe("Async/Await", () => {
       [],
       sb._let(
         "add",
-        sb.lam(["a", "b"], sb.add(sb._await(sb._var("a")), sb._var("b"))),
-        sb.app(sb._var("add"), [sb.num(5), sb.num(10)])
+        sb.lam(["a", "b"], sb.add(sb._await(sb.ident("a")), sb.ident("b"))),
+        sb.app(sb.ident("add"), [sb.num(5), sb.num(10)])
       ),
       true // Even though the outer lambda is async, the inner one isn't
     );
@@ -95,8 +95,8 @@ describe("Async/Await", () => {
       [],
       sb._let(
         "add",
-        sb.lam(["a", "b"], sb.add(sb._await(sb._var("a")), sb._var("b")), true),
-        sb.app(sb._var("add"), [sb.num(5), sb.num(10)])
+        sb.lam(["a", "b"], sb.add(sb._await(sb.ident("a")), sb.ident("b")), true),
+        sb.app(sb.ident("add"), [sb.num(5), sb.num(10)])
       ),
       false
     );

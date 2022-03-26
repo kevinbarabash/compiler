@@ -36,7 +36,7 @@ describe("tuple", () => {
     );
     eng.defScheme("snd", snd);
 
-    const expr: Expr = sb.app(sb._var("snd"), [
+    const expr: Expr = sb.app(sb.ident("snd"), [
       sb.tuple([sb.num(5), sb.str("hello")]),
     ]);
     const result = eng.inferExpr(expr);
@@ -56,7 +56,7 @@ describe("tuple", () => {
       );
       eng.defScheme("snd", snd);
 
-      const expr: Expr = sb.app(sb._var("snd"), [
+      const expr: Expr = sb.app(sb.ident("snd"), [
         sb.tuple([sb.num(5), sb.str("hello"), sb.bool(true)]),
       ]);
 
@@ -76,7 +76,7 @@ describe("tuple", () => {
       );
       eng.defScheme("snd", snd);
 
-      const expr: Expr = sb.app(sb._var("snd"), [sb.tuple([sb.num(5)])]);
+      const expr: Expr = sb.app(sb.ident("snd"), [sb.tuple([sb.num(5)])]);
 
       // TODO: fix message to use [a, b] instead of [e, f];
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
@@ -96,7 +96,7 @@ describe("tuple", () => {
 
       eng.defScheme("foo", foo);
 
-      const expr: Expr = sb.app(sb._var("foo"), [
+      const expr: Expr = sb.app(sb.ident("foo"), [
         sb.tuple([sb.num(5), sb.bool(true)]),
       ]);
 
@@ -119,7 +119,7 @@ describe("tuple", () => {
 
       expect(() =>
         eng.inferExpr(
-          sb.app(sb._var("foo"), [sb.tuple([sb.num(5), sb.num(5)])])
+          sb.app(sb.ident("foo"), [sb.tuple([sb.num(5), sb.num(5)])])
         )
       ).not.toThrow();
     });
@@ -136,7 +136,7 @@ describe("tuple", () => {
 
       expect(() =>
         eng.inferExpr(
-          sb.app(sb._var("foo"), [sb.tuple([sb.num(1), sb.num(2), sb.num(3)])])
+          sb.app(sb.ident("foo"), [sb.tuple([sb.num(1), sb.num(2), sb.num(3)])])
         )
       ).not.toThrow();
     });
@@ -158,7 +158,7 @@ describe("tuple", () => {
       eng.defType("numArray", eng.tcon("Array", [eng.tprim("number")]));
 
       expect(() =>
-        eng.inferExpr(sb.app(sb._var("foo"), [sb._var("numArray")]))
+        eng.inferExpr(sb.app(sb.ident("foo"), [sb.ident("numArray")]))
       ).toThrowErrorMatchingInlineSnapshot(
         `"Array<number> is not a subtype of [5, 10]"`
       );
@@ -209,7 +209,7 @@ describe("tuple", () => {
         eng.inferExpr(
           sb._let("foo", sb.tuple([sb.num(5), sb.num(10)]), {
             tag: "Mem",
-            object: sb._var("foo"),
+            object: sb.ident("foo"),
             property: sb.bool(true),
           })
         )
@@ -272,7 +272,7 @@ describe("tuple", () => {
             tag: "Mem",
             object: {
               tag: "Mem",
-              object: sb._var("nested"),
+              object: sb.ident("nested"),
               property: sb.num(1),
             },
             property: sb.num(1),

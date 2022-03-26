@@ -42,7 +42,7 @@ describe("record", () => {
 
     eng.defScheme("getFoo", getFoo);
 
-    const expr: Expr = sb.app(sb._var("getFoo"), [
+    const expr: Expr = sb.app(sb.ident("getFoo"), [
       sb.rec([sb.prop("foo", sb.num(5)), sb.prop("bar", sb.str("hello"))]),
     ]);
     const result = eng.inferExpr(expr);
@@ -74,7 +74,7 @@ describe("record", () => {
         sb.prop("foo", sb.str("hello")),
         sb.prop("bar", sb.num(5)),
       ]),
-      property: sb._var("bar"),
+      property: sb.ident("bar"),
     });
 
     expect(print(expr)).toEqual("5");
@@ -97,10 +97,10 @@ describe("record", () => {
           tag: "Mem",
           object: {
             tag: "Mem",
-            object: sb._var("obj"),
-            property: sb._var("bar"),
+            object: sb.ident("obj"),
+            property: sb.ident("bar"),
           },
-          property: sb._var("y"),
+          property: sb.ident("y"),
         }
       )
     );
@@ -122,9 +122,9 @@ describe("record", () => {
             sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))])
           ),
         ]),
-        property: sb._var("bar"),
+        property: sb.ident("bar"),
       },
-      property: sb._var("y"),
+      property: sb.ident("y"),
     });
 
     expect(print(expr)).toEqual("10");
@@ -144,7 +144,7 @@ describe("record", () => {
       );
 
       eng.defScheme("getFoo", getFoo);
-      const expr: Expr = sb.app(sb._var("getFoo"), [
+      const expr: Expr = sb.app(sb.ident("getFoo"), [
         sb.rec([
           sb.prop("foo", sb.num(5)),
           sb.prop("bar", sb.str("hello")),
@@ -170,7 +170,7 @@ describe("record", () => {
       );
 
       eng.defScheme("getFoo", getFoo);
-      const expr: Expr = sb.app(sb._var("getFoo"), [
+      const expr: Expr = sb.app(sb.ident("getFoo"), [
         sb.rec([sb.prop("foo", sb.num(5))]),
       ]);
 
@@ -196,7 +196,7 @@ describe("record", () => {
 
       eng.defScheme("getFoo", getFoo);
 
-      const expr: Expr = sb.app(sb._var("getFoo"), [
+      const expr: Expr = sb.app(sb.ident("getFoo"), [
         sb.rec([sb.prop("foo", sb.num(5)), sb.prop("bar", sb.bool(true))]),
       ]);
 

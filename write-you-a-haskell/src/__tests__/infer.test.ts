@@ -5,8 +5,8 @@ import { Engine } from "../engine";
 
 type Binding = [string, Expr];
 
-const I: Binding = ["I", sb.lam(["x"], sb._var("x"))];
-const K: Binding = ["K", sb.lam(["x"], sb.lam(["y"], sb._var("x")))];
+const I: Binding = ["I", sb.lam(["x"], sb.ident("x"))];
+const K: Binding = ["K", sb.lam(["x"], sb.lam(["y"], sb.ident("x")))];
 // let S = (f) => (g) => (x) => f(x)(g(x))
 const S: Binding = [
   "S",
@@ -16,8 +16,8 @@ const S: Binding = [
       ["g"],
       sb.lam(
         ["x"],
-        sb.app(sb.app(sb._var("f"), [sb._var("x")]), [
-          sb.app(sb._var("g"), [sb._var("x")]),
+        sb.app(sb.app(sb.ident("f"), [sb.ident("x")]), [
+          sb.app(sb.ident("g"), [sb.ident("x")]),
         ])
       )
     )
@@ -53,7 +53,7 @@ describe("inferExpr", () => {
       const eng = new Engine();
       const skk: Binding = [
         "skk",
-        sb.app(sb.app(sb._var("S"), [sb._var("K")]), [sb._var("K")]),
+        sb.app(sb.app(sb.ident("S"), [sb.ident("K")]), [sb.ident("K")]),
       ];
 
       eng.inferDecl(S[0], S[1]);
@@ -67,7 +67,7 @@ describe("inferExpr", () => {
       const eng = new Engine();
       const Mu: Binding = [
         "Mu",
-        sb.lam(["f"], sb.app(sb._var("f"), [sb.fix(sb._var("f"))])),
+        sb.lam(["f"], sb.app(sb.ident("f"), [sb.fix(sb.ident("f"))])),
       ];
 
       const result = eng.inferExpr(Mu[1]);
@@ -81,7 +81,7 @@ describe("inferExpr", () => {
       const eng = new Engine();
       const nsucc: Binding = [
         "nsucc",
-        sb.lam(["x"], sb.add(sb._var("x"), sb.num(1))),
+        sb.lam(["x"], sb.add(sb.ident("x"), sb.num(1))),
       ];
 
       const result = eng.inferExpr(nsucc[1]);
@@ -93,7 +93,7 @@ describe("inferExpr", () => {
       const eng = new Engine();
       const nsucc: Binding = [
         "nsucc",
-        sb.lam(["x"], sb.add(sb._var("x"), sb.num(1))),
+        sb.lam(["x"], sb.add(sb.ident("x"), sb.num(1))),
       ];
 
       const result = eng.inferExpr(nsucc[1]);
@@ -120,7 +120,7 @@ describe("inferExpr", () => {
       const eng = new Engine();
       const self: Binding = [
         "self",
-        sb.app(sb.lam(["x"], sb._var("x")), [sb.lam(["x"], sb._var("x"))]),
+        sb.app(sb.lam(["x"], sb.ident("x")), [sb.lam(["x"], sb.ident("x"))]),
       ];
 
       const result = eng.inferExpr(self[1]);
@@ -132,7 +132,7 @@ describe("inferExpr", () => {
       const eng = new Engine();
       const innerlet: Binding = [
         "innerlet",
-        sb.lam(["x"], sb._let("y", sb.lam(["z"], sb._var("z")), sb._var("y"))),
+        sb.lam(["x"], sb._let("y", sb.lam(["z"], sb.ident("z")), sb.ident("y"))),
       ];
 
       const result = eng.inferExpr(innerlet[1]);
@@ -151,8 +151,8 @@ describe("inferExpr", () => {
         "f",
         sb._let(
           "add",
-          sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
-          sb._var("add")
+          sb.lam(["a", "b"], sb.add(sb.ident("a"), sb.ident("b"))),
+          sb.ident("add")
         ),
       ];
 
@@ -175,14 +175,14 @@ describe("inferExpr", () => {
       eng.defScheme("promisify", promisifyScheme);
       const intCall: Binding = [
         "call",
-        sb.app(sb._var("promisify"), [sb.num(5)]),
+        sb.app(sb.ident("promisify"), [sb.num(5)]),
       ];
       const intResult = eng.inferExpr(intCall[1]);
       expect(print(intResult)).toEqual("Promise<5>");
 
       const boolCall: Binding = [
         "call",
-        sb.app(sb._var("promisify"), [sb.bool(true)]),
+        sb.app(sb.ident("promisify"), [sb.bool(true)]),
       ];
       const boolResult = eng.inferExpr(boolCall[1]);
       expect(print(boolResult)).toEqual("Promise<true>");
@@ -202,8 +202,8 @@ describe("inferExpr", () => {
       const addFoos = sb.lam(
         ["x", "y"],
         sb.add(
-          sb.app(sb._var("extract"), [sb._var("x")]),
-          sb.app(sb._var("extract"), [sb._var("y")])
+          sb.app(sb.ident("extract"), [sb.ident("x")]),
+          sb.app(sb.ident("extract"), [sb.ident("y")])
         )
       );
 
@@ -229,7 +229,7 @@ describe("inferExpr", () => {
         params: [{ tag: "TCon", id: 4, name: "number", params: [] }],
       });
 
-      const extractedX = sb.app(sb._var("extract"), [sb._var("x")]);
+      const extractedX = sb.app(sb.ident("extract"), [sb.ident("x")]);
 
       const result = eng.inferExpr(extractedX);
       expect(print(result)).toEqual("number");
@@ -241,7 +241,7 @@ describe("inferExpr", () => {
       const eng = new Engine();
       const unbound: Binding = [
         "unbound",
-        sb.app(sb._var("foo"), [sb._var("x")]),
+        sb.app(sb.ident("foo"), [sb.ident("x")]),
       ];
 
       expect(() =>
@@ -253,9 +253,9 @@ describe("inferExpr", () => {
       const eng = new Engine();
       const _add: Binding = [
         "add",
-        sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
+        sb.lam(["a", "b"], sb.add(sb.ident("a"), sb.ident("b"))),
       ];
-      const expr: Expr = sb.app(sb._var("add"), [sb.num(5), sb.bool(true)]);
+      const expr: Expr = sb.app(sb.ident("add"), [sb.num(5), sb.bool(true)]);
 
       eng.inferDecl(_add[0], _add[1]);
 
@@ -270,7 +270,7 @@ describe("inferExpr", () => {
       const eng = new Engine();
       const omega: Binding = [
         "omega",
-        sb.lam(["x"], sb.app(sb._var("x"), [sb._var("x")])),
+        sb.lam(["x"], sb.app(sb.ident("x"), [sb.ident("x")])),
       ];
 
       expect(() => eng.inferExpr(omega[1])).toThrowErrorMatchingInlineSnapshot(

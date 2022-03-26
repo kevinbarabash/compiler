@@ -6,7 +6,7 @@ import { Engine } from "../engine";
 
 type Binding = [string, Expr];
 
-const _const: Binding = ["const", sb.lam(["x", "y"], sb._var("x"))];
+const _const: Binding = ["const", sb.lam(["x", "y"], sb.ident("x"))];
 
 describe("Functions", () => {
   test("let rec fib = (n) => ...", () => {
@@ -23,18 +23,18 @@ describe("Functions", () => {
           sb.lam(
             ["n"],
             sb._if(
-              sb.eql(sb._var("n"), sb.num(0)),
+              sb.eql(sb.ident("n"), sb.num(0)),
               // then
               sb.num(0),
               // else
               sb._if(
-                sb.eql(sb._var("n"), sb.num(1)),
+                sb.eql(sb.ident("n"), sb.num(1)),
                 // then
                 sb.num(1),
                 // else
                 sb.add(
-                  sb.app(sb._var("fib"), [sb.sub(sb._var("n"), sb.num(1))]),
-                  sb.app(sb._var("fib"), [sb.sub(sb._var("n"), sb.num(2))])
+                  sb.app(sb.ident("fib"), [sb.sub(sb.ident("n"), sb.num(1))]),
+                  sb.app(sb.ident("fib"), [sb.sub(sb.ident("n"), sb.num(2))])
                 )
               )
             )
@@ -67,16 +67,16 @@ describe("Functions", () => {
         ["y"],
         sb._let(
           "f",
-          sb.lam(["x"], sb._if(sb._var("x"), sb.bool(true), sb.bool(false))),
-          sb.app(sb._var("const"), [
-            sb.app(sb._var("f"), [sb._var("y")]),
-            sb._var("y"),
+          sb.lam(["x"], sb._if(sb.ident("x"), sb.bool(true), sb.bool(false))),
+          sb.app(sb.ident("const"), [
+            sb.app(sb.ident("f"), [sb.ident("y")]),
+            sb.ident("y"),
           ])
         )
       ),
     ];
     // let id x = x;
-    const id: Binding = ["id", sb.lam(["x"], sb._var("x"))];
+    const id: Binding = ["id", sb.lam(["x"], sb.ident("x"))];
     // let foo x = let y = id x in y + 1;
     const foo: Binding = [
       "foo",
@@ -84,8 +84,8 @@ describe("Functions", () => {
         ["x"],
         sb._let(
           "y",
-          sb.app(sb._var("id"), [sb._var("x")]),
-          sb.add(sb._var("y"), sb.num(1))
+          sb.app(sb.ident("id"), [sb.ident("x")]),
+          sb.add(sb.ident("y"), sb.num(1))
         )
       ),
     ];
@@ -121,7 +121,7 @@ describe("Functions", () => {
           ["g"],
           sb.lam(
             ["x"],
-            sb.app(sb._var("g"), [sb.app(sb._var("f"), [sb._var("x")])])
+            sb.app(sb.ident("g"), [sb.app(sb.ident("f"), [sb.ident("x")])])
           )
         )
       ),
@@ -142,9 +142,9 @@ describe("Functions", () => {
         ["g", "f"],
         sb.lam(
           ["x", "y"],
-          sb.app(sb._var("g"), [
-            sb.app(sb._var("f"), [sb._var("x")]),
-            sb.app(sb._var("f"), [sb._var("y")]),
+          sb.app(sb.ident("g"), [
+            sb.app(sb.ident("f"), [sb.ident("x")]),
+            sb.app(sb.ident("f"), [sb.ident("y")]),
           ])
         )
       ),
@@ -164,7 +164,7 @@ describe("Functions", () => {
       "ap",
       sb.lam(
         ["f", "x"],
-        sb.app(sb._var("f"), [sb.app(sb._var("f"), [sb._var("x")])])
+        sb.app(sb.ident("f"), [sb.app(sb.ident("f"), [sb.ident("x")])])
       ),
     ];
 
@@ -185,14 +185,14 @@ describe("Functions", () => {
             ["p", "f", "x"],
             sb._if(
               //   if (p x)
-              sb.app(sb._var("p"), [sb._var("x")]),
+              sb.app(sb.ident("p"), [sb.ident("x")]),
               //   then x
-              sb._var("x"),
+              sb.ident("x"),
               //   else (until p f (f x));
-              sb.app(sb._var("until"), [
-                sb._var("p"),
-                sb._var("f"),
-                sb.app(sb._var("f"), [sb._var("x")]),
+              sb.app(sb.ident("until"), [
+                sb.ident("p"),
+                sb.ident("f"),
+                sb.app(sb.ident("f"), [sb.ident("x")]),
               ])
             )
           )
@@ -220,9 +220,9 @@ describe("partial applicaiton", () => {
     const eng = new Engine();
     const _add: Binding = [
       "add",
-      sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
+      sb.lam(["a", "b"], sb.add(sb.ident("a"), sb.ident("b"))),
     ];
-    const add5: Binding = ["add5", sb.app(sb._var("add"), [sb.num(5)])];
+    const add5: Binding = ["add5", sb.app(sb.ident("add"), [sb.num(5)])];
 
     eng.inferDecl(_add[0], _add[1]);
     const result = eng.inferDecl(add5[0], add5[1]);
@@ -234,11 +234,11 @@ describe("partial applicaiton", () => {
     const eng = new Engine();
     const _add: Binding = [
       "add",
-      sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
+      sb.lam(["a", "b"], sb.add(sb.ident("a"), sb.ident("b"))),
     ];
     const sum: Binding = [
       "sum",
-      sb.app(sb.app(sb._var("add"), [sb.num(5)]), [sb.num(10)]),
+      sb.app(sb.app(sb.ident("add"), [sb.num(5)]), [sb.num(10)]),
     ];
 
     eng.inferDecl(_add[0], _add[1]);
@@ -251,7 +251,7 @@ describe("partial applicaiton", () => {
     const eng = new Engine();
     const add5: Binding = [
       "add5",
-      sb.app(sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))), [
+      sb.app(sb.lam(["a", "b"], sb.add(sb.ident("a"), sb.ident("b"))), [
         sb.num(5),
       ]),
     ];
@@ -267,11 +267,11 @@ describe("function subtyping", () => {
     const eng = new Engine();
     const _add: Binding = [
       "add",
-      sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
+      sb.lam(["a", "b"], sb.add(sb.ident("a"), sb.ident("b"))),
     ];
     const sum: Binding = [
       "sum",
-      sb.app(sb._var("add"), [sb.num(5), sb.num(10), sb.num(99)]),
+      sb.app(sb.ident("add"), [sb.num(5), sb.num(10), sb.num(99)]),
     ];
 
     eng.inferDecl(_add[0], _add[1]);
@@ -305,8 +305,8 @@ describe("function subtyping", () => {
 
     const call: Expr = {
       tag: "App",
-      fn: sb._var("map"),
-      args: [sb._var("array"), sb.lam(["x"], sb.eql(sb._var("x"), sb.num(0)))],
+      fn: sb.ident("map"),
+      args: [sb.ident("array"), sb.lam(["x"], sb.eql(sb.ident("x"), sb.num(0)))],
     };
 
     const result = eng.inferExpr(call);
@@ -357,16 +357,16 @@ describe("function subtyping", () => {
 
     const _add: Binding = [
       "add",
-      sb.lam(["a", "b"], sb.add(sb._var("a"), sb._var("b"))),
+      sb.lam(["a", "b"], sb.add(sb.ident("a"), sb.ident("b"))),
     ];
     eng.inferDecl(_add[0], _add[1]);
 
     const call: Expr = {
       tag: "App",
-      fn: sb._var("map"),
+      fn: sb.ident("map"),
       args: [
-        sb._var("array"),
-        sb.lam(["x"], sb.app(sb._var("add"), [sb._var("x")])),
+        sb.ident("array"),
+        sb.lam(["x"], sb.app(sb.ident("add"), [sb.ident("x")])),
       ],
     };
 

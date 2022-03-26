@@ -16,7 +16,7 @@ export type ELit = { tag: "Lit"; value: Literal };
 export type EOp = { tag: "Op"; op: Binop; left: Expr; right: Expr };
 export type ERec = { tag: "Rec"; properties: readonly EProp[] }; // rename to EObj
 export type ETuple = { tag: "Tuple"; elements: readonly Expr[] };
-export type EVar = { tag: "Var"; name: string }; // rename to EIdent?
+export type EIdent = { tag: "Ident"; name: string }; // rename to EIdent?
 export type EMem = { tag: "Mem"; object: Expr; property: Expr };
 
 export type Expr =
@@ -30,7 +30,7 @@ export type Expr =
   | EOp
   | ERec
   | ETuple
-  | EVar
+  | EIdent
   | EMem;
 
 export type EProp = { tag: "EProp"; name: string; value: Expr };
