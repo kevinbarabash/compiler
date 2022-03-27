@@ -102,7 +102,7 @@ describe("tagged templates", () => {
   test("gql tagged template", () => {
     const eng = new Engine();
 
-    // sql: (Array<string>, ...Array<string>) => string
+    // gql: (Array<string>, ...Array<string>) => string
     eng.defType(
       "gql",
       eng.tfun(
@@ -128,8 +128,18 @@ describe("tagged templates", () => {
       sb.taggedTemplate(sb.ident("gql"), [sb.str(query)], [])
     );
 
-    expect(print(result)).toMatchInlineSnapshot(
-      `"{droid: {name: string, appearsIn: Array<\\"NEWHOPE\\" | \\"EMPIRE\\" | \\"JEDI\\">}}"`
-    );
+    expect(print(result, true)).toMatchInlineSnapshot(`
+"GqlOperation<
+  {
+    droid: {
+      name: string,
+      appearsIn: Array<\\"NEWHOPE\\" | \\"EMPIRE\\" | \\"JEDI\\">
+    }
+  },
+  {
+    id: string
+  }
+>"
+`);
   });
 });

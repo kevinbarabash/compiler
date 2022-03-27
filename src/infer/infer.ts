@@ -7,7 +7,7 @@ import * as st from "./syntax-types";
 import { zip, apply, ftv, assertUnreachable } from "./util";
 import { runSolve } from "./constraint-solver";
 import * as tb from "./type-builders";
-import { getResultType } from "./graphql";
+import { getOperationType } from "./graphql";
 
 const emptyEnv: Env = Map();
 
@@ -650,7 +650,7 @@ const inferTagTemp = (expr: st.ETagTemp, ctx: Context): InferResult => {
     // - check that there expressions is empty (variables are passed separately)
     // - check that there is only a single string
     // In the future we could replace expressions with $ variables automatically
-    const result = getResultType(strings[0].value.value, ctx);
+    const result = getOperationType(strings[0].value.value, ctx);
 
     return [result, [...cs_tag, ...cs_strs, ...cs_exprs]];
   }

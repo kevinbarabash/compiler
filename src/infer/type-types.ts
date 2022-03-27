@@ -56,13 +56,22 @@ export type Type =
 
 export type Scheme = Node<"Forall", { qualifiers: readonly TVar[]; type: Type}>; // prettier-ignore
 
-export function print(t: Type | Scheme): string {
+// TODO: separate the recursive function from the exported function
+export function print(t: Type | Scheme, multiline = false, indent = 0): string {
   switch (t.__type) {
     case "TVar": {
       return t.name;
     }
     case "TGen": {
-      const params = t.params.map(print).join(", ");
+      if (multiline && t.params.length > 1) {
+        const params = t.params
+          .map((p) => " ".repeat(indent + 2) + print(p, multiline, indent + 2))
+          .join(",\n");
+        return t.params.length > 0 ? `${t.name}<\n${params}\n>` : t.name;
+      }
+      const params = t.params
+        .map((p) => print(p, multiline, indent + 2))
+        .join(", ");
       return t.params.length > 0 ? `${t.name}<${params}>` : t.name;
     }
     case "TFun": {
@@ -71,22 +80,34 @@ export function print(t: Type | Scheme): string {
       const args = t.args.map((arg, index) => {
         const isLast = index === argCount - 1;
         if (isLast && variadic) {
-          return `...${print(arg)}`;
+          return `...${print(arg, multiline, indent)}`;
         }
-        return print(arg);
+        return print(arg, multiline, indent);
       });
-      return `(${args.join(", ")}) => ${print(t.ret)}`;
+      return `(${args.join(", ")}) => ${print(t.ret, multiline, indent)}`;
     }
     case "TUnion": {
-      return t.types.map(print).join(" | ");
+      return t.types.map((p) => print(p, multiline)).join(" | ");
     }
     case "TRec": {
+      if (multiline) {
+        return `{\n${t.properties
+          .map(
+            (prop) =>
+              `${" ".repeat(indent + 2)}${prop.name}: ${print(
+                prop.type,
+                multiline,
+                indent + 2
+              )}`
+          )
+          .join(",\n")}\n${" ".repeat(indent)}}`;
+      }
       return `{${t.properties
-        .map((prop) => `${prop.name}: ${print(prop.type)}`)
+        .map((prop) => `${prop.name}: ${print(prop.type, multiline, indent)}`)
         .join(", ")}}`;
     }
     case "TTuple": {
-      return `[${t.types.map(print).join(", ")}]`;
+      return `[${t.types.map((p) => print(p, multiline, indent)).join(", ")}]`;
     }
     case "TPrim": {
       return t.name;
@@ -106,11 +127,13 @@ export function print(t: Type | Scheme): string {
       }
     }
     case "TMem": {
-      return `${print(t.object)}['${t.property}']`;
+      return `${print(t.object, multiline, indent)}['${t.property}']`;
     }
     case "Forall": {
-      const quals = t.qualifiers.map((qual) => print(qual)).join(", ");
-      const type = print(t.type);
+      const quals = t.qualifiers
+        .map((qual) => print(qual, multiline, indent))
+        .join(", ");
+      const type = print(t.type, multiline, indent);
       return t.qualifiers.length > 0 ? `<${quals}>${type}` : type;
     }
     default:

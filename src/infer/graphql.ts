@@ -4,6 +4,7 @@ import {
   ASTNode,
   buildSchema,
   GraphQLEnumType,
+  TypeNode,
   GraphQLList,
   GraphQLNonNull,
   GraphQLObjectType,
@@ -25,18 +26,18 @@ export const parseSchema = () => {
   return buildSchema(src);
 };
 
-export const getResultType = (query: string, ctx: Context): tt.Type => {
+export const getOperationType = (query: string, ctx: Context): tt.Type => {
   const schema = parseSchema();
   const typeInfo = new TypeInfo(schema);
   // Tracks the fields we've visted so far.  Is emptied whenever we
   // encounter a field that's a GraphQLObjectType.
   const fields: Map<string, tt.Type> = new Map();
 
-  const convertType = (type: GraphQLOutputType): tt.Type => {
+  const convertOutputType = (type: GraphQLOutputType): tt.Type => {
     if (type instanceof GraphQLNonNull) {
-      return convertType(type.ofType);
+      return convertOutputType(type.ofType);
     } else if (type instanceof GraphQLList) {
-      return tb.tgen("Array", [convertType(type.ofType)], ctx);
+      return tb.tgen("Array", [convertOutputType(type.ofType)], ctx);
     } else if (type instanceof GraphQLEnumType) {
       // TODO: handle non-string enums
       const values: string[] = type.getValues().map((value) => value.value);
@@ -51,11 +52,28 @@ export const getResultType = (query: string, ctx: Context): tt.Type => {
         return tb.tprop(name, type);
       });
       fields.clear();
-      return tb.trec(props, ctx)
+      return tb.trec(props, ctx);
     } else {
       throw new Error("We don't handle this type of GraphQL type yet");
     }
   };
+
+  const convertTypeNode = (type: TypeNode, ctx: Context): tt.Type => {
+    switch (type.kind) {
+      case Kind.NAMED_TYPE: {
+        if (type.name.value === "ID") {
+          return tb.tprim("string", ctx);
+        }
+        throw new Error(`TODO: handle NAMED_TYPE with value ${type.name.value}`);
+      }
+      case Kind.LIST_TYPE: {
+        return tb.tgen("Array", [convertTypeNode(type.type, ctx)], ctx);
+      }
+      case Kind.NON_NULL_TYPE: {
+        return convertTypeNode(type.type, ctx);
+      }
+    }
+  }
 
   let result: tt.Type | null = null;
 
@@ -67,16 +85,32 @@ export const getResultType = (query: string, ctx: Context): tt.Type => {
       if (node.kind === Kind.FIELD) {
         const fieldDef = typeInfo.getFieldDef();
         if (fieldDef) {
-          const type = convertType(fieldDef.type);
+          const type = convertOutputType(fieldDef.type);
           fields.set(fieldDef.name, type);
         }
       } else if (node.kind === Kind.OPERATION_DEFINITION) {
         // Creates top-level TRec
-        const props = [...fields.entries()].map(([name, type]) => {
+        const dataProps = [...fields.entries()].map(([name, type]) => {
           return tb.tprop(name, type);
         });
         fields.clear();
-        result = tb.trec(props, ctx);
+        const dataType = tb.trec(dataProps, ctx);
+
+        const variableProps = node.variableDefinitions
+          ? node.variableDefinitions.map(varDef => {
+            return tb.tprop(
+              varDef.variable.name.value,
+              convertTypeNode(varDef.type, ctx), 
+            );
+          })
+          : [];
+
+        const variablesType = tb.trec(variableProps, ctx);
+
+        result = tb.tgen("GqlOperation", [dataType, variablesType], ctx);
+      } else if (node.kind === Kind.DOCUMENT) {
+        node.kind; // ?
+        node.definitions[0].kind; // ?
       }
       typeInfo.leave(node);
     },
