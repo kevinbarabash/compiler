@@ -43,7 +43,11 @@ describe("tagged templates", () => {
         [
           eng.tgen("Array", [eng.tprim("string")]),
           eng.tgen("Array", [
-            eng.tunion([eng.tprim("string"), eng.tprim("number"), eng.tprim("boolean")]),
+            eng.tunion([
+              eng.tprim("string"),
+              eng.tprim("number"),
+              eng.tprim("boolean"),
+            ]),
           ]),
         ],
         eng.tprim("string"),
@@ -93,5 +97,39 @@ describe("tagged templates", () => {
         )
       )
     ).toThrowErrorMatchingInlineSnapshot(`"1234 is not a subtype of string"`);
+  });
+
+  test("gql tagged template", () => {
+    const eng = new Engine();
+
+    // sql: (Array<string>, ...Array<string>) => string
+    eng.defType(
+      "gql",
+      eng.tfun(
+        [
+          eng.tgen("Array", [eng.tprim("string")]),
+          eng.tgen("Array", [eng.tprim("string")]),
+        ],
+        eng.tprim("string"),
+        true
+      )
+    );
+
+    const query = `
+      query DroidById($id: ID!) {
+        droid(id: $id) {
+          name
+          appearsIn
+        }
+      }
+    `;
+
+    const result = eng.inferExpr(
+      sb.taggedTemplate(sb.ident("gql"), [sb.str(query)], [])
+    );
+
+    expect(print(result)).toMatchInlineSnapshot(
+      `"{droid: {name: string, appearsIn: Array<\\"NEWHOPE\\" | \\"EMPIRE\\" | \\"JEDI\\">}}"`
+    );
   });
 });

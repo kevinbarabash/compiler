@@ -7,6 +7,7 @@ import * as st from "./syntax-types";
 import { zip, apply, ftv, assertUnreachable } from "./util";
 import { runSolve } from "./constraint-solver";
 import * as tb from "./type-builders";
+import { getResultType } from "./graphql";
 
 const emptyEnv: Env = Map();
 
@@ -635,14 +636,24 @@ const inferRest = (expr: st.ERest, ctx: Context): InferResult => {
 const inferTagTemp = (expr: st.ETagTemp, ctx: Context): InferResult => {
   // from: sql`SELECT * FROM ${table} WHERE id = ${id}`;
   // to: sql(["SELECT * FROM ", " WHERE ID ", ""], table, id);
-  const {tag, strings, expressions} = expr;
+  const { tag, strings, expressions } = expr;
+
   const [t_tag, cs_tag] = infer(tag, ctx);
   const [t_strs, cs_strs] = inferMany(strings, ctx);
   const [t_exprs, cs_exprs] = inferMany(expressions, ctx);
 
   const tv = fresh(ctx);
-
   const stringArray = tb.tgen("Array", [tb.tprim("string", ctx)], ctx);
+
+  if (tag.name === "gql") {
+    // TODO:
+    // - check that there expressions is empty (variables are passed separately)
+    // - check that there is only a single string
+    // In the future we could replace expressions with $ variables automatically
+    const result = getResultType(strings[0].value.value, ctx);
+
+    return [result, [...cs_tag, ...cs_strs, ...cs_exprs]];
+  }
 
   return [
     tv,
@@ -650,7 +661,10 @@ const inferTagTemp = (expr: st.ETagTemp, ctx: Context): InferResult => {
       ...cs_tag,
       ...cs_strs,
       ...cs_exprs,
-      { types: [tb.tfun([stringArray, ...t_exprs], tv, ctx), t_tag], subtype: true },
+      {
+        types: [tb.tfun([stringArray, ...t_exprs], tv, ctx), t_tag],
+        subtype: true,
+      },
     ],
   ];
 };
