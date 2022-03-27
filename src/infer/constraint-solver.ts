@@ -359,6 +359,12 @@ const isSubType = (sub: t.Type, sup: t.Type): boolean => {
     return compareLiterals(sub.value, sup.value);
   }
 
+  if (t.isTUnion(sup)) {
+    return sup.types.some((elemType) => isSubType(sub, elemType));
+  }
+
+  // TODO: handle the case where both sub and sup are unions
+
   // TODO: handle type aliases like Array<T> and Promise<T>
   // NOTE: Promise<string> | Promise<number> can be used in place of a
   // Promise<string | number> because both Promise<string> and Promise<number>

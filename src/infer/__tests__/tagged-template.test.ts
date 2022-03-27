@@ -33,6 +33,38 @@ describe("tagged templates", () => {
     expect(print(result)).toEqual("string");
   });
 
+  test("non-string interpolations", () => {
+    const eng = new Engine();
+
+    // sql: (Array<string>, ...Array<string | number | boolean>) => string
+    eng.defType(
+      "sql",
+      eng.tfun(
+        [
+          eng.tgen("Array", [eng.tprim("string")]),
+          eng.tgen("Array", [
+            eng.tunion([eng.tprim("string"), eng.tprim("number"), eng.tprim("boolean")]),
+          ]),
+        ],
+        eng.tprim("string"),
+        true
+      )
+    );
+    eng.inferDecl("table", sb.str("users"));
+    eng.inferDecl("id", sb.num(1234));
+
+    // sql`SELECT * FROM ${table} WHERE id = ${id}`;
+    const result = eng.inferExpr(
+      sb.taggedTemplate(
+        sb.ident("sql"),
+        [sb.str("SELECT * FROM "), sb.str(" WHERE ID = "), sb.str("")],
+        [sb.ident("table"), sb.ident("id")]
+      )
+    );
+
+    expect(print(result)).toEqual("string");
+  });
+
   test("errors if the expression types don't match", () => {
     const eng = new Engine();
 
