@@ -346,9 +346,24 @@ const isSubType = (sub: t.Type, sup: t.Type): boolean => {
     }
   }
 
+  if (t.isTPrim(sup) && sup.name === "string") {
+    if (t.isTLit(sub) && sub.value.__type === "LStr") {
+      return true;
+    }
+    if (t.isTUnion(sub) && sub.types.every((type) => isSubType(type, sup))) {
+      return true;
+    }
+  }
+
   if (t.isTLit(sub) && t.isTLit(sup)) {
     return compareLiterals(sub.value, sup.value);
   }
+
+  if (t.isTUnion(sup)) {
+    return sup.types.some((elemType) => isSubType(sub, elemType));
+  }
+
+  // TODO: handle the case where both sub and sup are unions
 
   // TODO: handle type aliases like Array<T> and Promise<T>
   // NOTE: Promise<string> | Promise<number> can be used in place of a
