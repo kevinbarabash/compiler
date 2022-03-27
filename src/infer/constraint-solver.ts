@@ -346,6 +346,15 @@ const isSubType = (sub: t.Type, sup: t.Type): boolean => {
     }
   }
 
+  if (t.isTPrim(sup) && sup.name === "string") {
+    if (t.isTLit(sub) && sub.value.__type === "LStr") {
+      return true;
+    }
+    if (t.isTUnion(sub) && sub.types.every((type) => isSubType(type, sup))) {
+      return true;
+    }
+  }
+
   if (t.isTLit(sub) && t.isTLit(sup)) {
     return compareLiterals(sub.value, sup.value);
   }

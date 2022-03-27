@@ -56,6 +56,16 @@ export const rest = (name: string): t.ERest => ({
   __type: "ERest",
   identifier: ident(name),
 });
+export const taggedTemplate = (
+  tag: t.EIdent,
+  strings: readonly t.ELit<t.LStr>[],
+  expressions: readonly t.Expr[]
+): t.ETagTemp => ({
+  __type: "ETagTemp",
+  tag,
+  strings,
+  expressions,
+});
 
 export const num = (value: number): t.ELit<t.LNum> => ({
   __type: "ELit",

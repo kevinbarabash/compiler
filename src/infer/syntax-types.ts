@@ -21,14 +21,17 @@ export type EIf = Node<"EIf", { cond: Expr; th: Expr; el: Expr }>;
 export type ELam = Node<"ELam", { args: readonly (EIdent | ERest)[]; body: Expr; async?: boolean }>; // prettier-ignore
 export type ELet = Node<"ELet", { pattern: Pattern; value: Expr; body: Expr }>;
 export type ELit<L extends Literal = Literal> = Node<"ELit", { value: L }>;
-export type EOp = Node<"EOp", { op: Binop; left: Expr; right: Expr }>;
+export type EOp = Node<"EOp", { op: EBinop; left: Expr; right: Expr }>;
 export type ERec = Node<"ERec", { properties: readonly EProp[] }>;
 export type ETuple = Node<"ETuple", { elements: readonly Expr[] }>;
 export type EIdent = Node<"EIdent", { name: string }>;
 export type EMem = Node<"EMem", { object: Expr; property: ELit<LNum> | ELit<LStr> | EIdent }>; // prettier-ignore
 export type ERest = Node<"ERest", { identifier: EIdent }>;
+// TODO: figure out how to include `.raw` property on each of the elements in `strings`
+// See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
+export type ETagTemp = Node<"ETagTemp", { tag: EIdent; expressions: readonly Expr[]; strings: readonly ELit<LStr>[] }>; // prettier-ignore
 
-export type Binop = "Add" | "Sub" | "Mul" | "Eql";
+export type EBinop = "Add" | "Sub" | "Mul" | "Eql";
 export type EProp = Node<"EProp", { name: string; value: Expr }>;
 
 export type Expr =
@@ -44,7 +47,8 @@ export type Expr =
   | ETuple
   | EIdent
   | EMem
-  | ERest;
+  | ERest
+  | ETagTemp;
 
 /**
  * Literal types

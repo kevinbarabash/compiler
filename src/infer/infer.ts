@@ -197,19 +197,20 @@ type InferResult<T extends tt.Type = tt.Type> = readonly [
 const infer = (expr: st.Expr, ctx: Context): InferResult => {
   // prettier-ignore
   switch (expr.__type) {
-    case "ELit":   return inferLit  (expr, ctx);
-    case "EIdent": return inferIdent(expr, ctx);
-    case "ELam":   return inferLam  (expr, ctx);
-    case "EApp":   return inferApp  (expr, ctx);
-    case "ELet":   return inferLet  (expr, ctx);
-    case "EFix":   return inferFix  (expr, ctx);
-    case "EOp":    return inferOp   (expr, ctx);
-    case "EIf":    return inferIf   (expr, ctx);
-    case "EAwait": return inferAwait(expr, ctx);
-    case "ERec":   return inferRec  (expr, ctx);
-    case "ETuple": return inferTuple(expr, ctx);
-    case "EMem":   return inferMem  (expr, ctx);
-    case "ERest":  return inferRest (expr, ctx);
+    case "ELit":     return inferLit    (expr, ctx);
+    case "EIdent":   return inferIdent  (expr, ctx);
+    case "ELam":     return inferLam    (expr, ctx);
+    case "EApp":     return inferApp    (expr, ctx);
+    case "ELet":     return inferLet    (expr, ctx);
+    case "EFix":     return inferFix    (expr, ctx);
+    case "EOp":      return inferOp     (expr, ctx);
+    case "EIf":      return inferIf     (expr, ctx);
+    case "EAwait":   return inferAwait  (expr, ctx);
+    case "ERec":     return inferRec    (expr, ctx);
+    case "ETuple":   return inferTuple  (expr, ctx);
+    case "EMem":     return inferMem    (expr, ctx);
+    case "ERest":    return inferRest   (expr, ctx);
+    case "ETagTemp": return inferTagTemp(expr, ctx);
     default: assertUnreachable(expr);
   }
 };
@@ -517,7 +518,9 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
   // TODO: have separate namespaces for types and values so that we can
   // support TypeScript's ability to use the same identifier for both.
   const [type, cs] =
-    object.__type === "EIdent" ? inferIdent(object, ctx) : inferMem(object, ctx);
+    object.__type === "EIdent"
+      ? inferIdent(object, ctx)
+      : inferMem(object, ctx);
 
   if (tt.isTVar(type)) {
     const tobj = fresh(ctx);
@@ -629,6 +632,29 @@ const inferRest = (expr: st.ERest, ctx: Context): InferResult => {
   throw new Error("TODO: impelment inferRest()");
 };
 
+const inferTagTemp = (expr: st.ETagTemp, ctx: Context): InferResult => {
+  // from: sql`SELECT * FROM ${table} WHERE id = ${id}`;
+  // to: sql(["SELECT * FROM ", " WHERE ID ", ""], table, id);
+  const {tag, strings, expressions} = expr;
+  const [t_tag, cs_tag] = infer(tag, ctx);
+  const [t_strs, cs_strs] = inferMany(strings, ctx);
+  const [t_exprs, cs_exprs] = inferMany(expressions, ctx);
+
+  const tv = fresh(ctx);
+
+  const stringArray = tb.tgen("Array", [tb.tprim("string", ctx)], ctx);
+
+  return [
+    tv,
+    [
+      ...cs_tag,
+      ...cs_strs,
+      ...cs_exprs,
+      { types: [tb.tfun([stringArray, ...t_exprs], tv, ctx), t_tag], subtype: true },
+    ],
+  ];
+};
+
 const inferMany = (
   exprs: readonly st.Expr[],
   ctx: Context
@@ -655,7 +681,7 @@ const tNum: tt.TPrim = {
 // - The params are frozen and should only unify if the args are sub-types.
 // - The return type is not frozen to allow for easy widening if need be.
 
-const ops = (op: st.Binop, ctx: Context): tt.Type => {
+const ops = (op: st.EBinop, ctx: Context): tt.Type => {
   switch (op) {
     case "Add":
       return tb.tfun([tNum, tNum], tb.tprim("number", ctx), ctx);
