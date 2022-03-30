@@ -575,6 +575,41 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
 
     const elemType = type.types[property.value.value];
     return [elemType, cs];
+  } else if (tt.isTPrim(type)) {
+    const aliasedScheme = ctx.env.get(type.name);
+    if (!aliasedScheme) {
+      throw new Error(`No type named ${type.name} in environment`);
+    }
+
+    const aliasedType = aliasedScheme.type;
+
+    if (!tt.isTRec(aliasedType)) {
+      throw new Error(`Can't use member access on ${aliasedType.__type}`);
+    }
+  
+    if (property.__type !== "EIdent") {
+      throw new Error(
+        "property must be a variable when accessing a member on a record"
+      );
+    }
+  
+    const prop = aliasedType.properties.find(
+      (prop) => prop.name === property.name
+    );
+  
+    if (!prop) {
+      throw new Error(
+        `${property.name} property doesn't exist on ${type.name}`
+      );
+    }
+  
+    // Replaces all free variables with fresh ones
+    const subs2: tt.Subst = Map(
+      [...ftv(prop.type)].map((v) => [v.id, fresh(ctx)])
+    );
+    const resultType = apply(subs2, prop.type);
+  
+    return [resultType, cs];
   } else if (!tt.isTGen(type)) {
     throw new Error(`Can't use member access on ${type.__type}`);
   }

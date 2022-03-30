@@ -25,10 +25,11 @@ export const readTypes = (): Engine => {
   for (const stmt of ast.program.body) {
     if (t.isTSInterfaceDeclaration(stmt)) {
       // TODO: handle interface merging
-      if (stmt.id.name === "String") {
+      const {name} = stmt.id;
+      if (["String", "Number", "Boolean"].includes(name)) {
         try {
           const type = convert(stmt, eng.ctx);
-          eng.defType("string", type);
+          eng.defType(name.toLocaleLowerCase(), type);
         } catch (e) {
           // Ignores empty interfaces
           // console.log(e);

@@ -87,13 +87,13 @@ describe("Member access", () => {
     });
 
     test("access on TPrim stored in TVar throws", () => {
-      const eng = new Engine();
+      const eng = readTypes();
       eng.defType("foo", eng.tNum());
 
       const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Can't use member access on TPrim"`
+        `"bar property doesn't exist on number"`
       );
     });
 
