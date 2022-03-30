@@ -2,16 +2,17 @@ import * as sb from "../syntax-builders";
 import { scheme, print } from "../type-types";
 import { createArrayScheme } from "../builtins";
 import { Engine } from "../engine";
+import { readTypes } from "../../read-types/read-types";
 
 describe("Member access", () => {
   describe("errors", () => {
     test("access on literal string fails", () => {
-      const eng = new Engine();
+      const eng = readTypes();
 
       const expr = sb.mem(sb.str("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"object must be a variable when accessing a member"`
+        `"String literal doesn't contain property 'bar'"`
       );
     });
 
