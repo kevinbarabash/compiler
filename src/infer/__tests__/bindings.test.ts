@@ -1,10 +1,12 @@
-import * as sb from "../../infer/syntax-builders";
-import * as tt from "../../infer/type-types";
-import { readTypes } from "../read-types";
+import * as sb from "../syntax-builders";
+import * as tt from "../type-types";
+import { addBindings } from "../bindings";
+import { Engine } from "../engine";
 
-describe("readTypes", () => {
+describe("addBindings", () => {
   test("'hello'.length", () => {
-    const eng = readTypes();
+    const eng = new Engine();
+    addBindings(eng);
 
     const result = eng.inferExpr(sb.mem(sb.str("hello"), sb.ident("length")));
 
@@ -12,7 +14,8 @@ describe("readTypes", () => {
   });
 
   test("'hello, world'.split(',')", () => {
-    const eng = readTypes();
+    const eng = new Engine();
+    addBindings(eng);
 
     const result = eng.inferExpr(
       sb.app(sb.mem(sb.str("hello, world"), sb.ident("split")), [
@@ -25,7 +28,8 @@ describe("readTypes", () => {
   });
 
   test("string.length", () => {
-    const eng = readTypes();
+    const eng = new Engine();
+    addBindings(eng);
 
     eng.defType("msg", eng.tprim("string"));
 
@@ -35,7 +39,8 @@ describe("readTypes", () => {
   });
 
   test("string.split(',')", () => {
-    const eng = readTypes();
+    const eng = new Engine();
+    addBindings(eng);
 
     eng.defType("msg", eng.tprim("string"));
 

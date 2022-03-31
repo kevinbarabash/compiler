@@ -2,12 +2,14 @@ import * as sb from "../syntax-builders";
 import { scheme, print } from "../type-types";
 import { createArrayScheme } from "../builtins";
 import { Engine } from "../engine";
-import { readTypes } from "../../read-types/read-types";
+import { addBindings } from "../bindings";
 
 describe("Member access", () => {
   describe("errors", () => {
     test("access on literal string fails", () => {
-      const eng = readTypes();
+      const eng = new Engine();
+    addBindings(eng);
+
 
       const expr = sb.mem(sb.str("foo"), sb.ident("bar"));
 
@@ -87,7 +89,8 @@ describe("Member access", () => {
     });
 
     test("access on TPrim stored in TVar throws", () => {
-      const eng = readTypes();
+      const eng = new Engine();
+      addBindings(eng);
       eng.defType("foo", eng.tNum());
 
       const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));

@@ -3,14 +3,12 @@ import path from "path";
 import { parse } from "@babel/parser";
 import * as t from "@babel/types";
 
-import { Engine } from "../infer/engine";
-import { Context } from "../infer/context";
-import * as tt from "../infer/type-types";
-import * as tb from "../infer/type-builders";
+import { Engine } from "./engine";
+import { Context } from "./context";
+import * as tt from "./type-types";
+import * as tb from "./type-builders";
 
-export const readTypes = (): Engine => {
-  const eng = new Engine();
-
+export const addBindings = (eng: Engine): void => {
   const src = fs.readFileSync(
     path.join(__dirname, "../../node_modules/typescript/lib/lib.es5.d.ts"),
     "utf-8"
@@ -40,8 +38,6 @@ export const readTypes = (): Engine => {
       // declare var Promise: PromiseContructor
     }
   }
-
-  return eng;
 };
 
 // TODO: update to return a Scheme so that we can handle generic types
@@ -57,6 +53,13 @@ const convert = (node: t.Node, ctx: Context): tt.Type => {
   }
   if (t.isTSNullKeyword(node)) {
     return tb.tprim("null", ctx);
+  }
+  if (t.isTSAnyKeyword(node)) {
+    // TODO: convert this to `unknown`
+    return tb.tvar("a", ctx);
+  }
+  if (t.isTSBooleanKeyword(node)) {
+    return tb.tprim("boolean", ctx);
   }
   if (t.isTSUndefinedKeyword(node)) {
     return tb.tprim("undefined", ctx);
@@ -114,10 +117,6 @@ const convert = (node: t.Node, ctx: Context): tt.Type => {
       // );
     }
   }
-  if (t.isTSAnyKeyword(node)) {
-    // TODO: convert this to `unknown`
-    return tb.tvar("a", ctx);
-  }
   if (t.isTSInterfaceDeclaration(node)) {
     const props: tt.TProp[] = [];
     for (const child of node.body.body) {
@@ -158,7 +157,8 @@ const convert = (node: t.Node, ctx: Context): tt.Type => {
               );
               props.push(tb.tprop(child.key.name, methodType));
             } catch (e) {
-              console.log(e);
+              // TODO: handle TSQualifiedName up above
+              // console.log(e);
             }
           }
           break;
