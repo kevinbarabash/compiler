@@ -14,7 +14,7 @@ describe("Member access", () => {
       const expr = sb.mem(sb.str("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"String literal doesn't contain property 'bar'"`
+        `"string literal doesn't contain property 'bar'"`
       );
     });
 
@@ -25,7 +25,7 @@ describe("Member access", () => {
       const expr = sb.mem(sb.ident("foo"), sb.str("hello"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"property must be a variable when accessing a member on a record"`
+        `"property must be an identifier when accessing a member on a record"`
       );
     });
 
@@ -36,7 +36,7 @@ describe("Member access", () => {
       const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"{} doesn't contain property bar"`
+        `"Record literal doesn't contain property 'bar'"`
       );
     });
 
@@ -60,7 +60,7 @@ describe("Member access", () => {
       const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"number of type params in foo doesn't match those in Foo"`
+        `"Foo was given the wrong number of type params"`
       );
     });
 
