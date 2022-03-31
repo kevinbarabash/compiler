@@ -2,16 +2,19 @@ import * as sb from "../syntax-builders";
 import { scheme, print } from "../type-types";
 import { createArrayScheme } from "../builtins";
 import { Engine } from "../engine";
+import { addBindings } from "../bindings";
 
 describe("Member access", () => {
   describe("errors", () => {
     test("access on literal string fails", () => {
       const eng = new Engine();
+    addBindings(eng);
+
 
       const expr = sb.mem(sb.str("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"object must be a variable when accessing a member"`
+        `"String literal doesn't contain property 'bar'"`
       );
     });
 
@@ -87,12 +90,13 @@ describe("Member access", () => {
 
     test("access on TPrim stored in TVar throws", () => {
       const eng = new Engine();
+      addBindings(eng);
       eng.defType("foo", eng.tNum());
 
       const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Can't use member access on TPrim"`
+        `"bar property doesn't exist on number"`
       );
     });
 

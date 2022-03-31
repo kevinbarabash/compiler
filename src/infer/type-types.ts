@@ -58,6 +58,9 @@ export type Scheme = Node<"Forall", { qualifiers: readonly TVar[]; type: Type}>;
 
 // TODO: separate the recursive function from the exported function
 export function print(t: Type | Scheme, multiline = false, indent = 0): string {
+  if (t == undefined) {
+    return "";
+  }
   switch (t.__type) {
     case "TVar": {
       return t.name;

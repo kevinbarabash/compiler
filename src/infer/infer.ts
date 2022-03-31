@@ -512,6 +512,25 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
 
     const elemType = type.types[property.value.value];
     return [elemType, [...cs, { types: [tMem1, tMem2], subtype: false }]];
+  } else if (object.__type === "ELit" && object.value.__type === "LStr") {
+    const stringType = lookupEnv("string", ctx);
+    // TODO: extract this into a helper function so that we can dedupe this
+    if (tt.isTRec(stringType) && property.__type === "EIdent") {
+      const type = stringType;
+      const tobj = fresh(ctx);
+      const tMem1 = tb.tmem(tobj, unwrapProperty(property), ctx);
+      const tMem2 = tb.tmem(type, unwrapProperty(property), ctx);
+      const prop = type.properties.find((prop) => property.name === prop.name);
+      if (!prop) {
+        throw new Error(
+          `String literal doesn't contain property '${property.name}'`
+        );
+      }
+      // This is sufficient since infer() will unify `tobj` with `type`.
+      return [prop.type, [{ types: [tMem1, tMem2], subtype: false }]];
+    } else {
+      throw new Error("object must be a variable when accessing a member");
+    }
   } else if (object.__type !== "EIdent" && object.__type !== "EMem") {
     throw new Error("object must be a variable when accessing a member");
   }
@@ -556,6 +575,41 @@ const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
 
     const elemType = type.types[property.value.value];
     return [elemType, cs];
+  } else if (tt.isTPrim(type)) {
+    const aliasedScheme = ctx.env.get(type.name);
+    if (!aliasedScheme) {
+      throw new Error(`No type named ${type.name} in environment`);
+    }
+
+    const aliasedType = aliasedScheme.type;
+
+    if (!tt.isTRec(aliasedType)) {
+      throw new Error(`Can't use member access on ${aliasedType.__type}`);
+    }
+  
+    if (property.__type !== "EIdent") {
+      throw new Error(
+        "property must be a variable when accessing a member on a record"
+      );
+    }
+  
+    const prop = aliasedType.properties.find(
+      (prop) => prop.name === property.name
+    );
+  
+    if (!prop) {
+      throw new Error(
+        `${property.name} property doesn't exist on ${type.name}`
+      );
+    }
+  
+    // Replaces all free variables with fresh ones
+    const subs2: tt.Subst = Map(
+      [...ftv(prop.type)].map((v) => [v.id, fresh(ctx)])
+    );
+    const resultType = apply(subs2, prop.type);
+  
+    return [resultType, cs];
   } else if (!tt.isTGen(type)) {
     throw new Error(`Can't use member access on ${type.__type}`);
   }
