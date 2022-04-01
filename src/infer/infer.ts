@@ -1,13 +1,23 @@
 import { Map } from "immutable";
 
-import { Env, Context, State, newId } from "./context";
-import { UnboundVariable } from "./errors";
+import { Env, Context, State } from "./context";
+import { InferResult } from "./infer-types";
 import * as tt from "./type-types";
 import * as st from "./syntax-types";
-import { zip, apply, ftv, assertUnreachable } from "./util";
 import { runSolve } from "./constraint-solver";
 import * as tb from "./type-builders";
 import { getOperationType } from "./graphql";
+import { inferMem } from "./infer-mem";
+import {
+  zip,
+  apply,
+  ftv,
+  assertUnreachable,
+  fresh,
+  freshTCon,
+  letterFromIndex,
+  lookupEnv,
+} from "./util";
 
 const emptyEnv: Env = Map();
 
@@ -142,58 +152,9 @@ const normalize = (sc: tt.Scheme): tt.Scheme => {
   return tt.scheme(values, normType(body));
 };
 
-// Lookup type in the environment
-const lookupEnv = (name: string, ctx: Context): tt.Type => {
-  const value = ctx.env.get(name);
-  if (!value) {
-    // TODO: keep track of all unbound variables in a decl
-    // we can return `unknown` as the type so that unifcation
-    // can continue.
-    throw new UnboundVariable(name);
-  }
-  return instantiate(value, ctx);
-};
-
-const letterFromIndex = (index: number): string =>
-  String.fromCharCode(97 + index);
-
-// TODO: defer naming until print time
-export const fresh = (ctx: Context): tt.TVar => {
-  const id = newId(ctx);
-  return {
-    __type: "TVar",
-    id: id,
-    name: letterFromIndex(id),
-  };
-};
-
-export const freshTCon = (
-  ctx: Context,
-  name: string,
-  params: tt.Type[] = []
-): tt.TGen => {
-  return tb.tgen(name, params, ctx);
-};
-
-const instantiate = (sc: tt.Scheme, ctx: Context): tt.Type => {
-  const freshQualifiers = sc.qualifiers.map(() => fresh(ctx));
-  const subs = Map(
-    zip(
-      sc.qualifiers.map((qual) => qual.id),
-      freshQualifiers
-    )
-  );
-  return apply(subs, sc.type);
-};
-
 const generalize = (env: Env, type: tt.Type): tt.Scheme => {
   return tt.scheme(ftv(type).subtract(ftv(env)).toArray(), type);
 };
-
-type InferResult<T extends tt.Type = tt.Type> = readonly [
-  T,
-  readonly tt.Constraint[]
-];
 
 const infer = (expr: st.Expr, ctx: Context): InferResult => {
   // prettier-ignore
@@ -209,7 +170,7 @@ const infer = (expr: st.Expr, ctx: Context): InferResult => {
     case "EAwait":   return inferAwait  (expr, ctx);
     case "ERec":     return inferRec    (expr, ctx);
     case "ETuple":   return inferTuple  (expr, ctx);
-    case "EMem":     return inferMem    (expr, ctx);
+    case "EMem":     return inferMem    (infer, expr, ctx);
     case "ERest":    return inferRest   (expr, ctx);
     case "ETagTemp": return inferTagTemp(expr, ctx);
     default: assertUnreachable(expr);
@@ -460,227 +421,6 @@ const inferTuple = (expr: st.ETuple, ctx: Context): InferResult<tt.TTuple> => {
 const inferIdent = (expr: st.EIdent, ctx: Context): InferResult => {
   const type = lookupEnv(expr.name, ctx);
   return [type, []];
-};
-
-const unwrapProperty = (property: st.Expr): number | string => {
-  if (property.__type === "EIdent") {
-    return property.name;
-  } else if (property.__type === "ELit" && property.value.__type === "LNum") {
-    return property.value.value;
-  } else {
-    throw new Error("Not a valid property");
-  }
-};
-
-const inferMem = (expr: st.EMem, ctx: Context): InferResult => {
-  // TODO: handle nested property access, e.g. foo.bar.baz.
-  const { object, property } = expr;
-
-  // Handles member access on object literals
-  if (object.__type === "ERec") {
-    if (property.__type !== "EIdent") {
-      throw new Error("property must be a variable when accessing a member");
-    }
-
-    const tobj = fresh(ctx);
-    const [type, cs] = inferRec(object, ctx);
-    const tMem1 = tb.tmem(tobj, unwrapProperty(property), ctx);
-    const tMem2 = tb.tmem(type, unwrapProperty(property), ctx);
-    const prop = type.properties.find((prop) => property.name === prop.name);
-    if (!prop) {
-      throw new Error(
-        `Record literal doesn't contain property '${property.name}'`
-      );
-    }
-    // This is sufficient since infer() will unify `tobj` with `type`.
-    return [prop.type, [...cs, { types: [tMem1, tMem2], subtype: false }]];
-  } else if (object.__type === "ETuple") {
-    if (property.__type !== "ELit" || property.value.__type !== "LNum") {
-      throw new Error(
-        "property must be a number when accessing an index on a tuple"
-      );
-    }
-
-    const tobj = fresh(ctx);
-    const [type, cs] = inferTuple(object, ctx);
-    const tMem1 = tb.tmem(tobj, unwrapProperty(property), ctx);
-    const tMem2 = tb.tmem(type, unwrapProperty(property), ctx);
-
-    if (property.value.value >= type.types.length) {
-      throw new Error("index is greater than the size of the tuple");
-    }
-
-    const elemType = type.types[property.value.value];
-    return [elemType, [...cs, { types: [tMem1, tMem2], subtype: false }]];
-  } else if (object.__type === "ELit" && object.value.__type === "LStr") {
-    const stringType = lookupEnv("string", ctx);
-    // TODO: extract this into a helper function so that we can dedupe this
-    if (tt.isTRec(stringType) && property.__type === "EIdent") {
-      const type = stringType;
-      const tobj = fresh(ctx);
-      const tMem1 = tb.tmem(tobj, unwrapProperty(property), ctx);
-      const tMem2 = tb.tmem(type, unwrapProperty(property), ctx);
-      const prop = type.properties.find((prop) => property.name === prop.name);
-      if (!prop) {
-        throw new Error(
-          `String literal doesn't contain property '${property.name}'`
-        );
-      }
-      // This is sufficient since infer() will unify `tobj` with `type`.
-      return [prop.type, [{ types: [tMem1, tMem2], subtype: false }]];
-    } else {
-      throw new Error("object must be a variable when accessing a member");
-    }
-  } else if (object.__type !== "EIdent" && object.__type !== "EMem") {
-    throw new Error("object must be a variable when accessing a member");
-  }
-
-  // TODO: have separate namespaces for types and values so that we can
-  // support TypeScript's ability to use the same identifier for both.
-  const [type, cs] =
-    object.__type === "EIdent"
-      ? inferIdent(object, ctx)
-      : inferMem(object, ctx);
-
-  if (tt.isTVar(type)) {
-    const tobj = fresh(ctx);
-    const tMem1 = tb.tmem(tobj, unwrapProperty(property), ctx);
-    const tMem2 = tb.tmem(type, unwrapProperty(property), ctx);
-    // This is sufficient since inferTMem() will unify `tobj` with `type`.
-    return [tMem2, [{ types: [tMem1, tMem2], subtype: false }]];
-  } else if (tt.isTRec(type)) {
-    if (property.__type !== "EIdent") {
-      throw new Error(
-        "property must be a variable when accessing a member on a record"
-      );
-    }
-
-    const prop = type.properties.find((prop) => prop.name === property.name);
-    if (!prop) {
-      throw new Error(
-        `${tt.print(type)} doesn't contain property ${property.name}`
-      );
-    }
-    return [prop.type, cs];
-  } else if (tt.isTTuple(type)) {
-    if (property.__type !== "ELit" || property.value.__type !== "LNum") {
-      throw new Error(
-        "property must be a number when accessing an index on a tuple"
-      );
-    }
-
-    if (property.value.value >= type.types.length) {
-      throw new Error("index is greater than the size of the tuple");
-    }
-
-    const elemType = type.types[property.value.value];
-    return [elemType, cs];
-  } else if (tt.isTPrim(type)) {
-    const aliasedScheme = ctx.env.get(type.name);
-    if (!aliasedScheme) {
-      throw new Error(`No type named ${type.name} in environment`);
-    }
-
-    const aliasedType = aliasedScheme.type;
-
-    if (!tt.isTRec(aliasedType)) {
-      throw new Error(`Can't use member access on ${aliasedType.__type}`);
-    }
-  
-    if (property.__type !== "EIdent") {
-      throw new Error(
-        "property must be a variable when accessing a member on a record"
-      );
-    }
-  
-    const prop = aliasedType.properties.find(
-      (prop) => prop.name === property.name
-    );
-  
-    if (!prop) {
-      throw new Error(
-        `${property.name} property doesn't exist on ${type.name}`
-      );
-    }
-  
-    // Replaces all free variables with fresh ones
-    const subs2: tt.Subst = Map(
-      [...ftv(prop.type)].map((v) => [v.id, fresh(ctx)])
-    );
-    const resultType = apply(subs2, prop.type);
-  
-    return [resultType, cs];
-  } else if (!tt.isTGen(type)) {
-    throw new Error(`Can't use member access on ${type.__type}`);
-  }
-
-  if (object.__type === "EMem") {
-    throw new Error("Didn't expect member access here");
-  }
-
-  const aliasedScheme = ctx.env.get(type.name);
-  if (!aliasedScheme) {
-    throw new Error(`No type named ${type.name} in environment`);
-  }
-
-  if (aliasedScheme.qualifiers.length !== type.params.length) {
-    throw new Error(
-      `number of type params in ${object.name} doesn't match those in ${type.name}`
-    );
-  }
-
-  // Creates a bunch of substitutions from qualifier ids to type params
-  const subs1: tt.Subst = Map(
-    zip(aliasedScheme.qualifiers, type.params).map(([q, param]) => {
-      // We need a fresh copy of the params so we don't accidentally end
-      // sharing state between the type params.
-      const freshParam = { ...param, id: newId(ctx) };
-      return [q.id, freshParam];
-    })
-  );
-  // Applies the substitutions to get a type matches the type alias we looked up
-  const aliasedType = apply(subs1, aliasedScheme.type);
-
-  if (
-    type.name === "Array" &&
-    property.__type === "ELit" &&
-    property.value.__type === "LNum"
-  ) {
-    const resultType = tb.tunion(
-      [type.params[0], tb.tlit({ __type: "LUndefined" }, ctx)],
-      ctx
-    );
-    return [resultType, cs];
-  }
-
-  // TODO: handle aliased tuple types (not common so we can punt on it for now)
-  if (!tt.isTRec(aliasedType)) {
-    throw new Error(`Can't use member access on ${aliasedType.__type}`);
-  }
-
-  if (property.__type !== "EIdent") {
-    throw new Error(
-      "property must be a variable when accessing a member on a record"
-    );
-  }
-
-  const prop = aliasedType.properties.find(
-    (prop) => prop.name === property.name
-  );
-
-  if (!prop) {
-    throw new Error(
-      `${property.name} property doesn't exist on ${tt.print(aliasedType)}`
-    );
-  }
-
-  // Replaces all free variables with fresh ones
-  const subs2: tt.Subst = Map(
-    [...ftv(prop.type)].map((v) => [v.id, fresh(ctx)])
-  );
-  const resultType = apply(subs2, prop.type);
-
-  return [resultType, cs];
 };
 
 const inferRest = (expr: st.ERest, ctx: Context): InferResult => {

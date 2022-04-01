@@ -1,8 +1,10 @@
 import { Map, OrderedSet } from "immutable";
 
-import { Env } from "./context";
+import { Context, Env, newId } from "./context";
+import { UnboundVariable } from "./errors";
 import {
   Type,
+  TGen,
   TVar,
   Subst,
   Constraint,
@@ -21,6 +23,7 @@ import {
   isScheme,
   scheme,
 } from "./type-types";
+import * as tb from "./type-builders";
 
 export function apply(s: Subst, type: Type): Type;
 export function apply(s: Subst, scheme: Scheme): Scheme;
@@ -231,3 +234,47 @@ export function zipTypes(
 export function assertUnreachable(x: never): never {
   throw new Error("Didn't expect to get here");
 }
+
+export const letterFromIndex = (index: number): string =>
+  String.fromCharCode(97 + index);
+
+// TODO: defer naming until print time
+export const fresh = (ctx: Context): TVar => {
+  const id = newId(ctx);
+  return {
+    __type: "TVar",
+    id: id,
+    name: letterFromIndex(id),
+  };
+};
+
+export const freshTCon = (
+  ctx: Context,
+  name: string,
+  params: Type[] = []
+): TGen => {
+  return tb.tgen(name, params, ctx);
+};
+
+// Lookup type in the environment
+export const lookupEnv = (name: string, ctx: Context): Type => {
+  const value = ctx.env.get(name);
+  if (!value) {
+    // TODO: keep track of all unbound variables in a decl
+    // we can return `unknown` as the type so that unifcation
+    // can continue.
+    throw new UnboundVariable(name);
+  }
+  return instantiate(value, ctx);
+};
+
+const instantiate = (sc: Scheme, ctx: Context): Type => {
+  const freshQualifiers = sc.qualifiers.map(() => fresh(ctx));
+  const subs = Map(
+    zip(
+      sc.qualifiers.map((qual) => qual.id),
+      freshQualifiers
+    )
+  );
+  return apply(subs, sc.type);
+};

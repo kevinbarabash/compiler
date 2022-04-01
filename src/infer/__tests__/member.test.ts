@@ -8,13 +8,12 @@ describe("Member access", () => {
   describe("errors", () => {
     test("access on literal string fails", () => {
       const eng = new Engine();
-    addBindings(eng);
-
+      addBindings(eng);
 
       const expr = sb.mem(sb.str("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"String literal doesn't contain property 'bar'"`
+        `"bar property doesn't exist on string"`
       );
     });
 
@@ -25,7 +24,7 @@ describe("Member access", () => {
       const expr = sb.mem(sb.ident("foo"), sb.str("hello"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"property must be a variable when accessing a member on a record"`
+        `"property must be an identifier when accessing a member on a record"`
       );
     });
 
@@ -36,7 +35,7 @@ describe("Member access", () => {
       const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"{} doesn't contain property bar"`
+        `"Record literal doesn't contain property 'bar'"`
       );
     });
 
@@ -60,33 +59,37 @@ describe("Member access", () => {
       const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"number of type params in foo doesn't match those in Foo"`
+        `"Foo was given the wrong number of type params"`
       );
     });
 
     test("alias type is not a TRec", () => {
       const eng = new Engine();
+      addBindings(eng);
       eng.defScheme("Foo", scheme([], eng.tNum()));
       eng.defType("foo", eng.tgen("Foo", []));
 
       const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Can't use member access on TPrim"`
+        `"bar property doesn't exist on number"`
       );
     });
 
     test("property doesn't exist on aliased TRec type", () => {
       const eng = new Engine();
+      addBindings(eng);
       eng.defScheme("Foo", scheme([], eng.trec([])));
       eng.defType("foo", eng.tgen("Foo", []));
 
       const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"bar property doesn't exist on {}"`
+        `"Record literal doesn't contain property 'bar'"`
       );
     });
+
+    // TODO: add more type alias tests, e.g. aliased primitives, aliased tuple
 
     test("access on TPrim stored in TVar throws", () => {
       const eng = new Engine();
