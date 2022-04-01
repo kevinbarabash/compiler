@@ -66,27 +66,31 @@ describe("Member access", () => {
 
     test("alias type is not a TRec", () => {
       const eng = new Engine();
+      addBindings(eng);
       eng.defScheme("Foo", scheme([], eng.tNum()));
       eng.defType("foo", eng.tgen("Foo", []));
 
       const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"Can't use member access on TPrim"`
+        `"bar property doesn't exist on number"`
       );
     });
 
     test("property doesn't exist on aliased TRec type", () => {
       const eng = new Engine();
+      addBindings(eng);
       eng.defScheme("Foo", scheme([], eng.trec([])));
       eng.defType("foo", eng.tgen("Foo", []));
 
       const expr = sb.mem(sb.ident("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"bar property doesn't exist on {}"`
+        `"Record literal doesn't contain property 'bar'"`
       );
     });
+
+    // TODO: add more type alias tests, e.g. aliased primitives, aliased tuple
 
     test("access on TPrim stored in TVar throws", () => {
       const eng = new Engine();
