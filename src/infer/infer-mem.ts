@@ -82,17 +82,9 @@ const typeOfPropertyOnType = (
       try {
         return typeOfPropertyOnType(newType, property, ctx);
       } catch (e) {
-        if (tt.isTPrim(type)) {
-          throw new Error(
-            `${unwrapProperty(property)} property doesn't exist on ${primName}`
-          );
-        } else {
-          throw new Error(
-            `${primName} literal doesn't contain property '${unwrapProperty(
-              property
-            )}'`
-          );
-        }
+        throw new Error(
+          `${unwrapProperty(property)} property doesn't exist on ${primName}`
+        );
       }
     }
     case "TGen": {

@@ -8,13 +8,12 @@ describe("Member access", () => {
   describe("errors", () => {
     test("access on literal string fails", () => {
       const eng = new Engine();
-    addBindings(eng);
-
+      addBindings(eng);
 
       const expr = sb.mem(sb.str("foo"), sb.ident("bar"));
 
       expect(() => eng.inferExpr(expr)).toThrowErrorMatchingInlineSnapshot(
-        `"string literal doesn't contain property 'bar'"`
+        `"bar property doesn't exist on string"`
       );
     });
 
