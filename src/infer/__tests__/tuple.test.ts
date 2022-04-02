@@ -2,6 +2,7 @@ import * as sb from "../syntax-builders";
 import { print, scheme, Scheme } from "../type-types";
 import { Engine } from "../engine";
 import { createArrayScheme } from "../builtins";
+import { addBindings } from "../bindings";
 
 describe("tuple", () => {
   test("can infer a tuple containing different types", () => {
@@ -203,6 +204,74 @@ describe("tuple", () => {
       expect(print(result)).toEqual("number | undefined");
     });
 
+    it("should work if the member is an Array member", () => {
+      const eng = new Engine();
+      eng.defScheme("Array", createArrayScheme(eng.ctx));
+
+      const result = eng.inferExpr(
+        sb._let(
+          "foo",
+          sb.tuple([sb.num(5), sb.num(10)]),
+          sb.mem(sb.ident("foo"), sb.ident("length"))
+        )
+      );
+
+      expect(print(result)).toEqual("number");
+    });
+
+    it("should work if the member is an Array member (generic)", () => {
+      const eng = new Engine();
+      eng.defScheme("Array", createArrayScheme(eng.ctx));
+
+      const result = eng.inferExpr(
+        sb._let(
+          "foo",
+          sb.tuple([sb.num(5), sb.num(10)]),
+          sb.mem(sb.ident("foo"), sb.ident("map"))
+        )
+      );
+
+      expect(print(result)).toMatchInlineSnapshot(
+        `"<a>((5 | 10, number, Array<5 | 10>) => a) => Array<a>"`
+      );
+    });
+
+    it("should work if the member is an Array member (generic & primitive)", () => {
+      const eng = new Engine();
+      eng.defScheme("Array", createArrayScheme(eng.ctx));
+      eng.defType("a", eng.tprim("string"));
+      eng.defType("b", eng.tprim("string"));
+
+      const result = eng.inferExpr(
+        sb._let(
+          "foo",
+          sb.tuple([sb.ident("a"), sb.ident("b")]),
+          sb.mem(sb.ident("foo"), sb.ident("map"))
+        )
+      );
+
+      // TODO: this should be:
+      // <a>((string, number, Array<string>) => a) => Array<a>
+      expect(print(result)).toMatchInlineSnapshot(
+        `"<a>((string, number, Array<string>) => a) => Array<a>"`
+      );
+    });
+
+    it("should throw if the member isn't an Array member", () => {
+      const eng = new Engine();
+      eng.defScheme("Array", createArrayScheme(eng.ctx));
+
+      expect(() =>
+        eng.inferExpr(
+          sb._let(
+            "foo",
+            sb.tuple([sb.num(5), sb.num(10)]),
+            sb.mem(sb.ident("foo"), sb.ident("bar"))
+          )
+        )
+      ).toThrowErrorMatchingInlineSnapshot(`"Couldn't find bar on array"`);
+    });
+
     it("should throw if the indexer is not valid", () => {
       const eng = new Engine();
 
@@ -297,6 +366,20 @@ describe("tuple", () => {
           sb.num(1)
         )
       );
+
+      /*
+        how do we go from: [[5, 10], ["hello", "world"]][1][1]
+
+        to this: tmem(tmem([[5, 10], ["hello", "world"]], 1), 1)
+        ???
+
+        evaluating the inner tmem gives:
+        tmem([[5, 10], ["hello", "world"]], 1) -> ["hello", "world"]
+        resulting in the outer tmem looking like:
+        tmem(["hello", "world"], 1)
+        evaluating that gives:
+        ["world"]
+      */
 
       expect(print(result)).toEqual('"world"');
     });
