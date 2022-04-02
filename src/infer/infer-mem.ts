@@ -1,11 +1,15 @@
-import { Map } from "immutable";
-
-import { Context, newId } from "./context";
+import { Context } from "./context";
 import { InferResult } from "./infer-types";
 import * as tt from "./type-types";
 import * as st from "./syntax-types";
-import { zip, apply, fresh, assertUnreachable, lookupEnv } from "./util";
 import * as tb from "./type-builders";
+import {
+  fresh,
+  assertUnreachable,
+  lookupEnv,
+  simplifyUnion,
+  replaceQualifiers,
+} from "./util";
 
 export const inferMem = (
   infer: (expr: st.Expr, ctx: Context) => InferResult,
@@ -17,7 +21,7 @@ export const inferMem = (
   const [obj_type, obj_cs] = infer(object, ctx);
   const [prop_type, prop_cs] = typeOfPropertyOnType(obj_type, property, ctx);
 
-  return [prop_type, [...obj_cs, ...prop_cs]];
+  return [unwrapMem(prop_type), [...obj_cs, ...prop_cs]];
 };
 
 const typeOfPropertyOnType = (
@@ -52,26 +56,51 @@ const typeOfPropertyOnType = (
         );
       }
 
-      // This is sufficient since infer() will unify `tobj` with `type`.
-      return [prop.type, [{ types: [tMem1, tMem2], subtype: false }]];
+      return [tMem2, [{ types: [tMem1, tMem2], subtype: false }]];
     }
     case "TTuple": {
-      if (!isNumLit(property)) {
+      // TODO: Get the type of the property, e.g. is a String/StrLit vs.
+      // Number/NumLit.  This is necessary when using expressions as properties.
+      if (isIdent(property)) {
+        const aliasedScheme = ctx.env.get("Array");
+        // TODO: determine what the type parameter should be for Array<T>
+        // So that we can handle things like .map and .filter properly.
+        // It would be really nice if .map could maintain the length of
+        // the tuple.
+
+        if (!aliasedScheme) {
+          throw new Error("Couldn't find definition for 'Array'");
+        }
+
+        if (!tt.isTRec(aliasedScheme.type)) {
+          throw new Error("Array type definition should be a record");
+        }
+
+        // Removes redundant types from the union
+        const typeArg = simplifyUnion(tb.tunion(type.types, ctx), ctx);
+        const aliasedType = replaceQualifiers(aliasedScheme, [typeArg], ctx);
+
+        // TODO: instead of rethrowing, refactor to use Option<Result, Error>
+        try {
+          return typeOfPropertyOnType(aliasedType, property, ctx);
+        } catch (e) {
+          throw new Error(`Couldn't find ${property.name} on array`);
+        }
+      } else if (isNumLit(property)) {
+        const tobj = fresh(ctx);
+        const tMem1 = tb.tmem(tobj, unwrapProperty(property), ctx);
+        const tMem2 = tb.tmem(type, unwrapProperty(property), ctx);
+
+        if (property.value.value >= type.types.length) {
+          throw new Error("index is greater than the size of the tuple");
+        }
+
+        return [tMem2, [{ types: [tMem1, tMem2], subtype: false }]];
+      } else {
         throw new Error(
           "property must be a number when accessing an index on a tuple"
         );
       }
-
-      const tobj = fresh(ctx);
-      const tMem1 = tb.tmem(tobj, unwrapProperty(property), ctx);
-      const tMem2 = tb.tmem(type, unwrapProperty(property), ctx);
-
-      if (property.value.value >= type.types.length) {
-        throw new Error("index is greater than the size of the tuple");
-      }
-
-      const elemType = type.types[property.value.value];
-      return [elemType, [{ types: [tMem1, tMem2], subtype: false }]];
     }
     case "TPrim":
     case "TLit": {
@@ -79,6 +108,7 @@ const typeOfPropertyOnType = (
       const newType = lookupEnv(primName, ctx);
 
       // TODO: write some tests where like "hello"[0] to see what happens.
+      // TODO: instead of rethrowing, refactor to use Option<Result, Error>
       try {
         return typeOfPropertyOnType(newType, property, ctx);
       } catch (e) {
@@ -102,36 +132,25 @@ const typeOfPropertyOnType = (
       // If we're trying to access an element on an Array it's possible that
       // an element doesn't exist at the desired index.  To reflect this, we
       // extend the type to be `T | undefined`.
-      if (
-        type.name === "Array" &&
-        property.__type === "ELit" &&
-        property.value.__type === "LNum"
-      ) {
-        // TODO: flatten union types if the Array contains a union to begin with.
-        const resultType = tb.tunion(
-          [type.params[0], tb.tlit({ __type: "LUndefined" }, ctx)],
+      if (type.name === "Array" && isNumLit(property)) {
+        const resultType = simplifyUnion(
+          tb.tunion(
+            [type.params[0], tb.tlit({ __type: "LUndefined" }, ctx)],
+            ctx
+          ),
           ctx
         );
         return [resultType, []];
       }
 
-      // Creates a bunch of substitutions from qualifier ids to type params
-      const subs1: tt.Subst = Map(
-        zip(aliasedScheme.qualifiers, type.params).map(([q, param]) => {
-          // We need a fresh copy of the params so we don't accidentally end
-          // sharing state between the type params.
-          const freshParam = { ...param, id: newId(ctx) };
-          return [q.id, freshParam];
-        })
-      );
-      // Applies the substitutions to get a type matches the type alias we looked up
-      const aliasedType = apply(subs1, aliasedScheme.type);
+      const aliasedType = replaceQualifiers(aliasedScheme, type.params, ctx);
 
       return typeOfPropertyOnType(aliasedType, property, ctx);
     }
     case "TFun": {
       // This is to handle things like .toString() on functions.  Not sure if
       // this will help with callables or not.
+      // TODO: handle (() => {}).toString() by looking up the scheme for Function
       throw new Error("TODO: handle member access on function");
     }
     case "TMem": {
@@ -150,6 +169,26 @@ const typeOfPropertyOnType = (
     default:
       assertUnreachable(type);
   }
+};
+
+const unwrapMem = (type: tt.Type): tt.Type => {
+  if (tt.isTMem(type)) {
+    if (tt.isTRec(type.object)) {
+      const prop = type.object.properties.find((p) => p.name === type.property);
+      if (prop) {
+        return unwrapMem(prop.type);
+      }
+    } else if (tt.isTTuple(type.object)) {
+      const elemType = type.object.types.find(
+        (p, index) => index === type.property
+      );
+      if (elemType) {
+        return unwrapMem(elemType);
+      }
+    }
+  }
+
+  return type;
 };
 
 const unwrapProperty = (

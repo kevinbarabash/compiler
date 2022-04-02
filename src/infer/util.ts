@@ -23,6 +23,7 @@ import {
   isScheme,
   scheme,
 } from "./type-types";
+import * as tt from "./type-types";
 import * as tb from "./type-builders";
 
 export function apply(s: Subst, type: Type): Type;
@@ -277,4 +278,119 @@ const instantiate = (sc: Scheme, ctx: Context): Type => {
     )
   );
   return apply(subs, sc.type);
+};
+
+export const simplifyUnion = (union: tt.TUnion, ctx: Context): tt.Type => {
+  const { types } = union;
+  // Splits by type of type
+  const primTypes = nubPrimTypes(types.filter(tt.isTPrim));
+  let litTypes = nubLitTypes(types.filter(tt.isTLit));
+
+  // Subsumes literals into primitives
+  for (const primType of primTypes) {
+    if (primType.name === "number") {
+      litTypes = litTypes.filter((type) => type.value.__type !== "LNum");
+    } else if (primType.name === "boolean") {
+      litTypes = litTypes.filter((type) => type.value.__type !== "LBool");
+    } else if (primType.name === "string") {
+      litTypes = litTypes.filter((type) => type.value.__type !== "LStr");
+    }
+  }
+
+  // Replaces `true | false` with `boolean`
+  const boolTypes = litTypes.filter((type) => type.value.__type === "LBool");
+  if (boolTypes.length === 2) {
+    litTypes = litTypes.filter((type) => type.value.__type !== "LBool");
+    // It's safe to push without checking if primTypes already contains
+    // `boolean` because if it did then `boolTypes` would've been empty.
+    primTypes.push(tb.tprim("boolean", ctx));
+  }
+
+  // TODO:
+  // - subsume tuples where each element is the same into an Array of that element
+  //   e.g. ["hello", "world"] should be subsumed by Array<string>, more generally
+  //   if each element is a subtype of T then a tuple of those elements is a subtype
+  //   of Array<T>.
+  //   NOTE: TypeScript doesn't do this yet.
+  // - need to introduce type aliases to model Array<T>, Promise<T>, etc.
+  //   in particular we want to support the following:
+  //   type Array<T> = {
+  //     get length: number,
+  //     map: <U>((T, number, Array<T>) => U) => Array<U>,
+  //     ...
+  //   }
+  // - start by trying to build a type that represents the rhs, it should look
+  //   something like:
+  //   <T>{lenght: number, map: <U>((T, number, Array<T>) => U) => Array<U>}
+  //
+  // What do we want to do about element access on arrays?
+  // 1. return Maybe<T> (or T | undefined) and force people to check the result
+  // 2. have a version that throws if we exceed the bounds of the array
+  // 3. have an unsafe version that silently return undefined if we exceed the bounds
+  //
+  // Rescript does 2.
+  // TypeScript does 3.
+
+  const filteredTypes = [...primTypes, ...litTypes];
+
+  if (filteredTypes.length === 1) {
+    return filteredTypes[0];
+  }
+
+  return tb.tunion(filteredTypes, ctx);
+};
+
+const nubPrimTypes = (primTypes: readonly tt.TPrim[]): tt.TPrim[] => {
+  const names: tt.PrimName[] = [];
+  return primTypes.filter((pt) => {
+    if (!names.includes(pt.name)) {
+      names.push(pt.name);
+      return true;
+    }
+    return false;
+  });
+};
+
+const nubLitTypes = (litTypes: readonly tt.TLit[]): tt.TLit[] => {
+  const values: (number | string | boolean | null | undefined)[] = [];
+  return litTypes.filter((lt) => {
+    if (lt.value.__type === "LNull") {
+      if (!values.includes(null)) {
+        values.push(null);
+        return true;
+      }
+      return false;
+    }
+    if (lt.value.__type === "LUndefined") {
+      if (!values.includes(undefined)) {
+        values.push(undefined);
+        return true;
+      }
+      return false;
+    }
+    if (!values.includes(lt.value.value)) {
+      values.push(lt.value.value);
+      return true;
+    }
+    return false;
+  });
+};
+
+export const replaceQualifiers = (
+  scheme: tt.Scheme,
+  typeArgs: readonly tt.Type[],
+  ctx: Context,
+): tt.Type => {
+  // Creates a bunch of substitutions from qualifier ids to type params
+  const subs1: tt.Subst = Map(
+    zip(scheme.qualifiers, typeArgs).map(([q, param]) => {
+      // We need a fresh copy of the params so we don't accidentally end
+      // sharing state between the type params.
+      const freshParam = { ...param, id: newId(ctx) };
+      return [q.id, freshParam];
+    })
+  );
+
+  // Applies the substitutions to get a type matches the type alias we looked up
+  return apply(subs1, scheme.type);
 };

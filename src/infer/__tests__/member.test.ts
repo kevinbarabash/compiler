@@ -117,6 +117,11 @@ describe("Member access", () => {
     });
   });
 
+  // TODO: make these type-level operations, we're still operating
+  // on value-level things in these tests.  We need to introduce a
+  // sb.type.  We should also split ctx.env into ctx.valueEnv and
+  // ctx.typeEnv so it's easier to when we're dealing with one vs.
+  // the other
   describe("types", () => {
     test("Array['length'] -> number", () => {
       const eng = new Engine();
@@ -175,5 +180,28 @@ describe("Member access", () => {
     );
 
     expect(print(result)).toEqual("10");
+  });
+
+  it("should work on a record inside a record", () => {
+    const eng = new Engine();
+
+    const result = eng.inferExpr(
+      sb._let(
+        "nested",
+        sb.rec([
+          sb.prop(
+            "a",
+            sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))])
+          ),
+          sb.prop(
+            "b",
+            sb.rec([sb.prop("foo", sb.str("hello")), sb.prop("bar", sb.num(5))])
+          ),
+        ]),
+        sb.mem(sb.mem(sb.ident("nested"), sb.ident("b")), sb.ident("foo"))
+      )
+    );
+
+    expect(print(result)).toEqual('"hello"');
   });
 });
