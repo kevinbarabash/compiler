@@ -23,7 +23,7 @@ export const addBindings = (ctx: Context): void => {
     if (t.isTSInterfaceDeclaration(stmt)) {
       // TODO: handle interface merging
       const {name} = stmt.id;
-      if (["String", "Number", "Boolean"].includes(name)) {
+      if (["String", "Number", "Boolean", "Function"].includes(name)) {
         try {
           const type = convert(stmt, ctx);
           const scheme = tt.scheme([], type);

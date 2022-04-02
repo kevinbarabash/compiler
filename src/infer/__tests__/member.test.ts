@@ -1,6 +1,5 @@
 import * as sb from "../syntax-builders";
 import { scheme, print } from "../type-types";
-import { createArrayScheme } from "../builtins";
 import { Engine } from "../engine";
 
 describe("Member access", () => {
@@ -120,7 +119,6 @@ describe("Member access", () => {
   describe("types", () => {
     test("Array['length'] -> number", () => {
       const eng = new Engine();
-      eng.defScheme("Array", createArrayScheme(eng.ctx));
 
       const expr = sb.mem(sb.ident("Array"), sb.ident("length"));
       const result = eng.inferExpr(expr);
@@ -142,61 +140,136 @@ describe("Member access", () => {
     });
   });
 
-  it("should work on a record inside an tuple", () => {
-    const eng = new Engine();
+  describe("nesting", () => {
+    it("should work on a record inside an tuple", () => {
+      const eng = new Engine();
 
-    const result = eng.inferExpr(
-      sb._let(
-        "nested",
-        sb.tuple([
-          sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))]),
+      const result = eng.inferExpr(
+        sb._let(
+          "nested",
+          sb.tuple([
+            sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))]),
 
-          sb.rec([sb.prop("foo", sb.str("hello")), sb.prop("bar", sb.num(5))]),
-        ]),
-        sb.mem(sb.mem(sb.ident("nested"), sb.num(1)), sb.ident("foo"))
-      )
-    );
+            sb.rec([
+              sb.prop("foo", sb.str("hello")),
+              sb.prop("bar", sb.num(5)),
+            ]),
+          ]),
+          sb.mem(sb.mem(sb.ident("nested"), sb.num(1)), sb.ident("foo"))
+        )
+      );
 
-    expect(print(result)).toEqual('"hello"');
+      expect(print(result)).toEqual('"hello"');
+    });
+
+    it("should work on a tuple inside a record", () => {
+      const eng = new Engine();
+
+      const result = eng.inferExpr(
+        sb._let(
+          "nested",
+          sb.rec([
+            sb.prop("foo", sb.tuple([sb.num(5), sb.num(10)])),
+            sb.prop("bar", sb.tuple([sb.str("hello"), sb.str("world")])),
+          ]),
+          sb.mem(sb.mem(sb.ident("nested"), sb.ident("foo")), sb.num(1))
+        )
+      );
+
+      expect(print(result)).toEqual("10");
+    });
+
+    it("should work on a record inside a record", () => {
+      const eng = new Engine();
+
+      const result = eng.inferExpr(
+        sb._let(
+          "nested",
+          sb.rec([
+            sb.prop(
+              "a",
+              sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))])
+            ),
+            sb.prop(
+              "b",
+              sb.rec([
+                sb.prop("foo", sb.str("hello")),
+                sb.prop("bar", sb.num(5)),
+              ])
+            ),
+          ]),
+          sb.mem(sb.mem(sb.ident("nested"), sb.ident("b")), sb.ident("foo"))
+        )
+      );
+
+      expect(print(result)).toEqual('"hello"');
+    });
   });
 
-  it("should work on a tuple inside a record", () => {
-    const eng = new Engine();
+  describe("function properties", () => {
+    test("(() => 'hello, world').toString", () => {
+      const eng = new Engine();
 
-    const result = eng.inferExpr(
-      sb._let(
-        "nested",
-        sb.rec([
-          sb.prop("foo", sb.tuple([sb.num(5), sb.num(10)])),
-          sb.prop("bar", sb.tuple([sb.str("hello"), sb.str("world")])),
-        ]),
-        sb.mem(sb.mem(sb.ident("nested"), sb.ident("foo")), sb.num(1))
-      )
-    );
+      const result = eng.inferExpr(
+        sb.mem(sb.lam([], sb.str("hello, world")), sb.ident("toString"))
+      );
 
-    expect(print(result)).toEqual("10");
+      expect(print(result)).toMatchInlineSnapshot(`"() => string"`);
+    });
+
+    test("(() => {}).foo", () => {
+      const eng = new Engine();
+
+      expect(() =>
+        eng.inferExpr(
+          sb.mem(sb.lam([], sb.str("hello, world")), sb.ident("foo"))
+        )
+      ).toThrowErrorMatchingInlineSnapshot(
+        `"foo property doesn't exist on \\"function\\""`
+      );
+    });
   });
 
-  it("should work on a record inside a record", () => {
-    const eng = new Engine();
+  describe("union types", () => {
+    test("(string | number).length => number | undefined", () => {
+      const eng = new Engine();
+      eng.defType(
+        "foo",
+        eng.tunion([eng.tprim("string"), eng.tprim("number")])
+      );
 
-    const result = eng.inferExpr(
-      sb._let(
-        "nested",
-        sb.rec([
-          sb.prop(
-            "a",
-            sb.rec([sb.prop("x", sb.num(5)), sb.prop("y", sb.num(10))])
-          ),
-          sb.prop(
-            "b",
-            sb.rec([sb.prop("foo", sb.str("hello")), sb.prop("bar", sb.num(5))])
-          ),
-        ]),
-        sb.mem(sb.mem(sb.ident("nested"), sb.ident("b")), sb.ident("foo"))
-      )
-    );
+      const result = eng.inferExpr(sb.mem(sb.ident("foo"), sb.ident("length")));
 
-    expect(print(result)).toEqual('"hello"');
+      // Missing properties are included in the returned union as `undefined`
+      expect(print(result)).toEqual("number | undefined");
+    });
+
+    test("(string | number).toString => () => string | (number) => string", () => {
+      const eng = new Engine();
+      eng.defType(
+        "foo",
+        eng.tunion([eng.tprim("string"), eng.tprim("number")])
+      );
+
+      const result = eng.inferExpr(sb.mem(sb.ident("foo"), sb.ident("toString")));
+
+      // Different properties are returned as a union
+      expect(print(result)).toEqual("() => string | (number) => string");
+    });
+
+    test("(string | () => number).toString => () => string", () => {
+      const eng = new Engine();
+      eng.defType(
+        "foo",
+        eng.tunion([eng.tprim("string"), eng.tfun([], eng.tprim("number"))])
+      );
+
+      const result = eng.inferExpr(
+        sb.mem(sb.ident("foo"), sb.ident("toString"))
+      );
+
+      // Identical properties are merged
+      expect(print(result)).toEqual("() => string");
+    });
   });
 });

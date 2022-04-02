@@ -1,8 +1,6 @@
 import * as sb from "../syntax-builders";
 import { print, scheme, Scheme } from "../type-types";
 import { Engine } from "../engine";
-import { createArrayScheme } from "../builtins";
-import { addBindings } from "../bindings";
 
 describe("tuple", () => {
   test("can infer a tuple containing different types", () => {
@@ -192,7 +190,6 @@ describe("tuple", () => {
 
     it("should work on an array", () => {
       const eng = new Engine();
-      eng.defScheme("Array", createArrayScheme(eng.ctx));
 
       eng.defType("foo", eng.tgen("Array", [eng.tprim("number")]));
       const result = eng.inferExpr(sb.mem(sb.ident("foo"), sb.num(1)));
@@ -206,7 +203,6 @@ describe("tuple", () => {
 
     it("should work if the member is an Array member", () => {
       const eng = new Engine();
-      eng.defScheme("Array", createArrayScheme(eng.ctx));
 
       const result = eng.inferExpr(
         sb._let(
@@ -221,7 +217,6 @@ describe("tuple", () => {
 
     it("should work if the member is an Array member (generic)", () => {
       const eng = new Engine();
-      eng.defScheme("Array", createArrayScheme(eng.ctx));
 
       const result = eng.inferExpr(
         sb._let(
@@ -238,7 +233,6 @@ describe("tuple", () => {
 
     it("should work if the member is an Array member (generic & primitive)", () => {
       const eng = new Engine();
-      eng.defScheme("Array", createArrayScheme(eng.ctx));
       eng.defType("a", eng.tprim("string"));
       eng.defType("b", eng.tprim("string"));
 
@@ -259,7 +253,6 @@ describe("tuple", () => {
 
     it("should throw if the member isn't an Array member", () => {
       const eng = new Engine();
-      eng.defScheme("Array", createArrayScheme(eng.ctx));
 
       expect(() =>
         eng.inferExpr(

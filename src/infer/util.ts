@@ -7,8 +7,14 @@ import * as tb from "./type-builders";
 
 export function apply(s: tt.Subst, type: tt.Type): tt.Type;
 export function apply(s: tt.Subst, scheme: tt.Scheme): tt.Scheme;
-export function apply(s: tt.Subst, types: readonly tt.Type[]): readonly tt.Type[];
-export function apply(s: tt.Subst, schemes: readonly tt.Scheme[]): readonly tt.Scheme[];
+export function apply(
+  s: tt.Subst,
+  types: readonly tt.Type[]
+): readonly tt.Type[];
+export function apply(
+  s: tt.Subst,
+  schemes: readonly tt.Scheme[]
+): readonly tt.Scheme[];
 export function apply(s: tt.Subst, constraint: tt.Constraint): tt.Constraint; // special case of tt.Type[]
 export function apply(
   s: tt.Subst,
@@ -262,6 +268,8 @@ const instantiate = (sc: tt.Scheme, ctx: Context): tt.Type => {
 export const simplifyUnion = (union: tt.TUnion, ctx: Context): tt.Type => {
   const { types } = union;
   // Splits by type of type
+  // TODO: handle more types in the future
+  const funTypes = nubTypes(types.filter(tt.isTFun));
   const primTypes = nubPrimTypes(types.filter(tt.isTPrim));
   let litTypes = nubLitTypes(types.filter(tt.isTLit));
 
@@ -301,22 +309,28 @@ export const simplifyUnion = (union: tt.TUnion, ctx: Context): tt.Type => {
   // - start by trying to build a type that represents the rhs, it should look
   //   something like:
   //   <T>{lenght: number, map: <U>((T, number, Array<T>) => U) => Array<U>}
-  //
-  // What do we want to do about element access on arrays?
-  // 1. return Maybe<T> (or T | undefined) and force people to check the result
-  // 2. have a version that throws if we exceed the bounds of the array
-  // 3. have an unsafe version that silently return undefined if we exceed the bounds
-  //
-  // Rescript does 2.
-  // TypeScript does 3.
-
-  const filteredTypes = [...primTypes, ...litTypes];
+  const filteredTypes = [...funTypes, ...primTypes, ...litTypes];
 
   if (filteredTypes.length === 1) {
     return filteredTypes[0];
   }
 
   return tb.tunion(filteredTypes, ctx);
+};
+
+const mem = (haystack: readonly tt.Type[], needle: tt.Type): boolean => {
+  return haystack.some(type => equal(type, needle));
+}
+
+const nubTypes = (types: readonly tt.TFun[]): tt.TFun[] => {
+  const uniqueTypes: tt.Type[] = [];
+  return types.filter((pt) => {
+    if (!mem(uniqueTypes, pt)) {
+      uniqueTypes.push(pt);
+      return true;
+    }
+    return false;
+  });
 };
 
 const nubPrimTypes = (primTypes: readonly tt.TPrim[]): tt.TPrim[] => {
@@ -358,7 +372,7 @@ const nubLitTypes = (litTypes: readonly tt.TLit[]): tt.TLit[] => {
 export const replaceQualifiers = (
   scheme: tt.Scheme,
   typeArgs: readonly tt.Type[],
-  ctx: Context,
+  ctx: Context
 ): tt.Type => {
   // Creates a bunch of tt.Substitutions from qualifier ids to type params
   const subs1: tt.Subst = Map(
@@ -372,4 +386,57 @@ export const replaceQualifiers = (
 
   // Applies the tt.Substitutions to get a type matches the type alias we looked up
   return apply(subs1, scheme.type);
+};
+
+const equal = (t1: tt.Type, t2: tt.Type): boolean => {
+  switch (t1.__type) {
+    case "TFun": {
+      if (!tt.isTFun(t2)) {
+        return false;
+      }
+      if (t1.args.length !== t2.args.length) {
+        return false;
+      }
+      return (
+        zip(t1.args, t2.args).every((pair) => equal(...pair)) &&
+        equal(t1.ret, t2.ret)
+      );
+    }
+    case "TGen": {
+      if (!tt.isTGen(t2)) {
+        return false;
+      }
+      if (t1.params.length !== t2.params.length) {
+        return false;
+      }
+      return (
+        t1.name === t2.name &&
+        zip(t1.params, t2.params).every((pair) => equal(...pair))
+      );
+    }
+    case "TLit": {
+      throw new Error("TODO: implement");
+    }
+    case "TPrim": {
+      if (!tt.isTPrim(t2)) {
+        return false;
+      }
+      return t1.name === t2.name;
+    }
+    case "TMem": {
+      throw new Error("TODO: implement");
+    }
+    case "TRec": {
+      throw new Error("TODO: implement");
+    }
+    case "TTuple": {
+      throw new Error("TODO: implement");
+    }
+    case "TUnion": {
+      throw new Error("TODO: implement");
+    }
+    case "TVar": {
+      return true;
+    }
+  }
 };
