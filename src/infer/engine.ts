@@ -4,11 +4,15 @@ import { Expr, Literal } from "./syntax-types";
 import * as t from "./type-types";
 import { inferExpr } from "./infer";
 import { addBindings } from "./bindings";
+import { createArrayScheme } from "./builtins";
 
 // initCtx.env is reused by all Engine instances.  This is safe because
 // Env is a immutable data type.
-const initCtx: Context = tb.createCtx();
+const initCtx = tb.createCtx();
 addBindings(initCtx);
+const scheme = createArrayScheme(initCtx);
+t.freeze(scheme.type);
+initCtx.env = initCtx.env.set("Array", scheme);
 
 export class Engine {
   ctx: Context;

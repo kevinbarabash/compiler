@@ -335,8 +335,6 @@ describe("function subtyping", () => {
   test("strArray.map((elem) => 5) -> Array<5>", () => {
     const eng = new Engine();
 
-    eng.defScheme("Array", createArrayScheme(eng.ctx));
-
     eng.defScheme(
       "strArray",
       scheme([], eng.tgen("Array", [eng.tprim("string")]))

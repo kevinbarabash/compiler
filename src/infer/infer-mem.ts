@@ -5,6 +5,15 @@ import * as st from "./syntax-types";
 import * as tb from "./type-builders";
 import * as util from "./util";
 
+// What do we want to do about element access on arrays?
+// 1. return Maybe<T> (or T | undefined) and force people to check the result
+// 2. have a version that throws if we exceed the bounds of the array
+// 3. have an unsafe version that silently return undefined if we exceed the bounds
+//
+// Rescript does 2.
+// TypeScript does 3.
+// We currently do 1 (T | undefined), but only when accessing a property on a union
+
 export const inferMem = (
   infer: (expr: st.Expr, ctx: Context) => InferResult,
   expr: st.EMem,
@@ -140,23 +149,39 @@ const typeOfPropertyOnType = (
       return typeOfPropertyOnType(aliasedType, property, ctx);
     }
     case "TFun": {
-      // This is to handle things like .toString() on functions.  Not sure if
-      // this will help with callables or not.
-      // TODO: handle (() => {}).toString() by looking up the scheme for Function
-      throw new Error("TODO: handle member access on function");
+      const aliasedScheme = ctx.env.get("function");
+      if (!aliasedScheme) {
+        throw new Error(`No type named "function" in environment`);
+      }
+
+      try {
+        return typeOfPropertyOnType(aliasedScheme.type, property, ctx);
+      } catch (e) {
+        throw new Error(
+          `${unwrapProperty(property)} property doesn't exist on "function"`
+        );
+      }
+    }
+    case "TUnion": {
+      const constraints: tt.Constraint[] = [];
+
+      const types = type.types.map(elemType => {
+        try {
+          const result = typeOfPropertyOnType(elemType, property, ctx);
+          constraints.push(...result[1]);
+          return unwrapMem(result[0]);
+        } catch (e) {
+          return tb.tlit({ __type: "LUndefined"}, ctx);
+        }
+      });
+
+      return [util.simplifyUnion(tb.tunion(types, ctx), ctx), constraints];
     }
     case "TMem": {
       // It looks like we're handling this already, look at constraint-solver
       // for clues.  It would be nice to have member access on all types handled
       // in the same place.
       throw new Error("TODO: handle member access on a member access");
-    }
-    case "TUnion": {
-      // Get the type of the property on each member of the union.  If
-      // the property doesn't exist then the type should be undefined.
-      // We should do the same for TRec.  We can track the error will
-      // still allowing type inference to continue.
-      throw new Error("TODO: handle member access on a union");
     }
     default:
       util.assertUnreachable(type);
