@@ -2,56 +2,35 @@ import { Map, OrderedSet } from "immutable";
 
 import { Context, Env, newId } from "./context";
 import { UnboundVariable } from "./errors";
-import {
-  Type,
-  TGen,
-  TVar,
-  Subst,
-  Constraint,
-  Scheme,
-  isTLit,
-  isTMem,
-} from "./type-types";
-import {
-  isTGen,
-  isTVar,
-  isTFun,
-  isTUnion,
-  isTRec,
-  isTTuple,
-  isTPrim,
-  isScheme,
-  scheme,
-} from "./type-types";
 import * as tt from "./type-types";
 import * as tb from "./type-builders";
 
-export function apply(s: Subst, type: Type): Type;
-export function apply(s: Subst, scheme: Scheme): Scheme;
-export function apply(s: Subst, types: readonly Type[]): readonly Type[];
-export function apply(s: Subst, schemes: readonly Scheme[]): readonly Scheme[];
-export function apply(s: Subst, constraint: Constraint): Constraint; // special case of Type[]
+export function apply(s: tt.Subst, type: tt.Type): tt.Type;
+export function apply(s: tt.Subst, scheme: tt.Scheme): tt.Scheme;
+export function apply(s: tt.Subst, types: readonly tt.Type[]): readonly tt.Type[];
+export function apply(s: tt.Subst, schemes: readonly tt.Scheme[]): readonly tt.Scheme[];
+export function apply(s: tt.Subst, constraint: tt.Constraint): tt.Constraint; // special case of tt.Type[]
 export function apply(
-  s: Subst,
-  constraint: readonly Constraint[]
-): readonly Constraint[];
+  s: tt.Subst,
+  constraint: readonly tt.Constraint[]
+): readonly tt.Constraint[];
 export function apply(
-  s: Subst,
-  constraint: readonly Constraint[]
-): readonly Constraint[]; // this should just work
-export function apply(s: Subst, env: Env): Env;
-export function apply(s: Subst, a: any): any {
-  // instance Substitutable Type
-  if (isTVar(a)) {
+  s: tt.Subst,
+  constraint: readonly tt.Constraint[]
+): readonly tt.Constraint[]; // this should just work
+export function apply(s: tt.Subst, env: Env): Env;
+export function apply(s: tt.Subst, a: any): any {
+  // instance tt.Substitutable tt.Type
+  if (tt.isTVar(a)) {
     return s.get(a.id) ?? a;
   }
-  if (isTPrim(a)) {
+  if (tt.isTPrim(a)) {
     return s.get(a.id) ?? a;
   }
-  if (isTLit(a)) {
+  if (tt.isTLit(a)) {
     return s.get(a.id) ?? a;
   }
-  if (isTGen(a)) {
+  if (tt.isTGen(a)) {
     return (
       s.get(a.id) ?? {
         ...a,
@@ -59,7 +38,7 @@ export function apply(s: Subst, a: any): any {
       }
     );
   }
-  if (isTFun(a)) {
+  if (tt.isTFun(a)) {
     return (
       s.get(a.id) ?? {
         ...a,
@@ -68,7 +47,7 @@ export function apply(s: Subst, a: any): any {
       }
     );
   }
-  if (isTUnion(a)) {
+  if (tt.isTUnion(a)) {
     return (
       s.get(a.id) ?? {
         ...a,
@@ -76,7 +55,7 @@ export function apply(s: Subst, a: any): any {
       }
     );
   }
-  if (isTRec(a)) {
+  if (tt.isTRec(a)) {
     return (
       s.get(a.id) ?? {
         ...a,
@@ -87,7 +66,7 @@ export function apply(s: Subst, a: any): any {
       }
     );
   }
-  if (isTTuple(a)) {
+  if (tt.isTTuple(a)) {
     return (
       s.get(a.id) ?? {
         ...a,
@@ -95,7 +74,7 @@ export function apply(s: Subst, a: any): any {
       }
     );
   }
-  if (isTMem(a)) {
+  if (tt.isTMem(a)) {
     return (
       s.get(a.id) ?? {
         ...a,
@@ -104,12 +83,12 @@ export function apply(s: Subst, a: any): any {
     );
   }
 
-  // instance Substitutable Scheme
-  if (isScheme(a)) {
-    return scheme(
+  // instance tt.Substitutable tt.Scheme
+  if (tt.isScheme(a)) {
+    return tt.scheme(
       a.qualifiers,
       apply(
-        // remove all TVars from the Substitution mapping that appear in the scheme as
+        // remove all TVars from the tt.Substitution mapping that appear in the scheme as
         // qualifiers.
         // TODO: should this be using reduceRight to match Infer.hs' use of foldr?
         a.qualifiers.reduceRight((accum, val) => accum.delete(val.id), s),
@@ -118,13 +97,13 @@ export function apply(s: Subst, a: any): any {
     );
   }
 
-  // instance Substitutable Constraint
-  // instance Substitutable a => Substitutable [a]
+  // instance tt.Substitutable tt.Constraint
+  // instance tt.Substitutable a => tt.Substitutable [a]
   if (Array.isArray(a)) {
     return a.map((t) => apply(s, t));
   }
 
-  // instance Substitutable Env
+  // instance tt.Substitutable Env
   if (Map.isMap(a)) {
     return (a as Env).map((sc) => apply(s, sc));
   }
@@ -139,56 +118,56 @@ export function apply(s: Subst, a: any): any {
   throw new Error(`apply doesn't handle ${a}`);
 }
 
-export function ftv(type: Type): OrderedSet<TVar>;
-export function ftv(scheme: Scheme): OrderedSet<TVar>;
-export function ftv(types: readonly Type[]): OrderedSet<TVar>;
-export function ftv(schemes: readonly Scheme[]): OrderedSet<TVar>;
-export function ftv(constraint: Constraint): OrderedSet<TVar>; // special case of Type[]
-export function ftv(constraint: readonly Constraint[]): OrderedSet<TVar>; // special case of Type[]
-export function ftv(env: Env): OrderedSet<TVar>;
+export function ftv(type: tt.Type): OrderedSet<tt.TVar>;
+export function ftv(scheme: tt.Scheme): OrderedSet<tt.TVar>;
+export function ftv(types: readonly tt.Type[]): OrderedSet<tt.TVar>;
+export function ftv(schemes: readonly tt.Scheme[]): OrderedSet<tt.TVar>;
+export function ftv(constraint: tt.Constraint): OrderedSet<tt.TVar>; // special case of tt.Type[]
+export function ftv(constraint: readonly tt.Constraint[]): OrderedSet<tt.TVar>; // special case of tt.Type[]
+export function ftv(env: Env): OrderedSet<tt.TVar>;
 export function ftv(a: any): any {
-  // instance Substitutable Type
-  if (isTGen(a)) {
+  // instance tt.Substitutable tt.Type
+  if (tt.isTGen(a)) {
     return OrderedSet(a.params).flatMap(ftv);
   }
-  if (isTVar(a)) {
+  if (tt.isTVar(a)) {
     return OrderedSet([a]);
   }
-  if (isTPrim(a)) {
+  if (tt.isTPrim(a)) {
     return OrderedSet([]);
   }
-  if (isTLit(a)) {
+  if (tt.isTLit(a)) {
     return OrderedSet([]);
   }
-  if (isTFun(a)) {
+  if (tt.isTFun(a)) {
     return OrderedSet([...a.args, a.ret]).flatMap(ftv);
   }
-  if (isTUnion(a)) {
+  if (tt.isTUnion(a)) {
     return ftv(a.types);
   }
-  if (isTRec(a)) {
+  if (tt.isTRec(a)) {
     const types = a.properties.map((prop) => prop.type);
     return ftv(types);
   }
-  if (isTTuple(a)) {
+  if (tt.isTTuple(a)) {
     return ftv(a.types);
   }
-  if (isTMem(a)) {
+  if (tt.isTMem(a)) {
     return ftv(a.object);
   }
 
-  // instance Substitutable Scheme
-  if (isScheme(a)) {
+  // instance tt.Substitutable tt.Scheme
+  if (tt.isScheme(a)) {
     return ftv(a.type).subtract(a.qualifiers);
   }
 
-  // instance Substitutable Constraint
-  // instance Substitutable a => Substitutable [a]
+  // instance tt.Substitutable tt.Constraint
+  // instance tt.Substitutable a => tt.Substitutable [a]
   if (Array.isArray(a)) {
     return OrderedSet(a).flatMap(ftv);
   }
 
-  // instance Substitutable Env
+  // instance tt.Substitutable Env
   if (Map.isMap(a)) {
     const env = a as Env;
     return OrderedSet(env.valueSeq()).flatMap(ftv);
@@ -210,13 +189,13 @@ export function zip<A, B>(
 }
 
 export function zipTypes(
-  ts1: readonly Type[],
-  ts2: readonly Type[],
+  ts1: readonly tt.Type[],
+  ts2: readonly tt.Type[],
   subtype: boolean,
   funcArgs?: boolean
-): readonly Constraint[] {
+): readonly tt.Constraint[] {
   const length = Math.min(ts1.length, ts2.length);
-  const result: Constraint[] = [];
+  const result: tt.Constraint[] = [];
   for (let i = 0; i < length; i++) {
     if (funcArgs && ts1[i].__type === "TFun" && ts2[i].__type === "TFun") {
       // Reverses the order of the types so that the TFun is first.
@@ -240,7 +219,7 @@ export const letterFromIndex = (index: number): string =>
   String.fromCharCode(97 + index);
 
 // TODO: defer naming until print time
-export const fresh = (ctx: Context): TVar => {
+export const fresh = (ctx: Context): tt.TVar => {
   const id = newId(ctx);
   return {
     __type: "TVar",
@@ -252,13 +231,13 @@ export const fresh = (ctx: Context): TVar => {
 export const freshTCon = (
   ctx: Context,
   name: string,
-  params: Type[] = []
-): TGen => {
+  params: tt.Type[] = []
+): tt.TGen => {
   return tb.tgen(name, params, ctx);
 };
 
 // Lookup type in the environment
-export const lookupEnv = (name: string, ctx: Context): Type => {
+export const lookupEnv = (name: string, ctx: Context): tt.Type => {
   const value = ctx.env.get(name);
   if (!value) {
     // TODO: keep track of all unbound variables in a decl
@@ -269,7 +248,7 @@ export const lookupEnv = (name: string, ctx: Context): Type => {
   return instantiate(value, ctx);
 };
 
-const instantiate = (sc: Scheme, ctx: Context): Type => {
+const instantiate = (sc: tt.Scheme, ctx: Context): tt.Type => {
   const freshQualifiers = sc.qualifiers.map(() => fresh(ctx));
   const subs = Map(
     zip(
@@ -381,7 +360,7 @@ export const replaceQualifiers = (
   typeArgs: readonly tt.Type[],
   ctx: Context,
 ): tt.Type => {
-  // Creates a bunch of substitutions from qualifier ids to type params
+  // Creates a bunch of tt.Substitutions from qualifier ids to type params
   const subs1: tt.Subst = Map(
     zip(scheme.qualifiers, typeArgs).map(([q, param]) => {
       // We need a fresh copy of the params so we don't accidentally end
@@ -391,6 +370,6 @@ export const replaceQualifiers = (
     })
   );
 
-  // Applies the substitutions to get a type matches the type alias we looked up
+  // Applies the tt.Substitutions to get a type matches the type alias we looked up
   return apply(subs1, scheme.type);
 };

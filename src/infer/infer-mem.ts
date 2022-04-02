@@ -3,13 +3,7 @@ import { InferResult } from "./infer-types";
 import * as tt from "./type-types";
 import * as st from "./syntax-types";
 import * as tb from "./type-builders";
-import {
-  fresh,
-  assertUnreachable,
-  lookupEnv,
-  simplifyUnion,
-  replaceQualifiers,
-} from "./util";
+import * as util from "./util";
 
 export const inferMem = (
   infer: (expr: st.Expr, ctx: Context) => InferResult,
@@ -31,7 +25,7 @@ const typeOfPropertyOnType = (
 ): InferResult => {
   switch (type.__type) {
     case "TVar": {
-      const tobj = fresh(ctx);
+      const tobj = util.fresh(ctx);
       const tMem1 = tb.tmem(tobj, unwrapProperty(property), ctx);
       const tMem2 = tb.tmem(type, unwrapProperty(property), ctx);
 
@@ -45,7 +39,7 @@ const typeOfPropertyOnType = (
         );
       }
 
-      const tobj = fresh(ctx);
+      const tobj = util.fresh(ctx);
       const tMem1 = tb.tmem(tobj, unwrapProperty(property), ctx);
       const tMem2 = tb.tmem(type, unwrapProperty(property), ctx);
       const prop = type.properties.find((prop) => property.name === prop.name);
@@ -77,8 +71,8 @@ const typeOfPropertyOnType = (
         }
 
         // Removes redundant types from the union
-        const typeArg = simplifyUnion(tb.tunion(type.types, ctx), ctx);
-        const aliasedType = replaceQualifiers(aliasedScheme, [typeArg], ctx);
+        const typeArg = util.simplifyUnion(tb.tunion(type.types, ctx), ctx);
+        const aliasedType = util.replaceQualifiers(aliasedScheme, [typeArg], ctx);
 
         // TODO: instead of rethrowing, refactor to use Option<Result, Error>
         try {
@@ -87,7 +81,7 @@ const typeOfPropertyOnType = (
           throw new Error(`Couldn't find ${property.name} on array`);
         }
       } else if (isNumLit(property)) {
-        const tobj = fresh(ctx);
+        const tobj = util.fresh(ctx);
         const tMem1 = tb.tmem(tobj, unwrapProperty(property), ctx);
         const tMem2 = tb.tmem(type, unwrapProperty(property), ctx);
 
@@ -105,7 +99,7 @@ const typeOfPropertyOnType = (
     case "TPrim":
     case "TLit": {
       const primName = getPrimName(type);
-      const newType = lookupEnv(primName, ctx);
+      const newType = util.lookupEnv(primName, ctx);
 
       // TODO: write some tests where like "hello"[0] to see what happens.
       // TODO: instead of rethrowing, refactor to use Option<Result, Error>
@@ -133,7 +127,7 @@ const typeOfPropertyOnType = (
       // an element doesn't exist at the desired index.  To reflect this, we
       // extend the type to be `T | undefined`.
       if (type.name === "Array" && isNumLit(property)) {
-        const resultType = simplifyUnion(
+        const resultType = util.simplifyUnion(
           tb.tunion(
             [type.params[0], tb.tlit({ __type: "LUndefined" }, ctx)],
             ctx
@@ -143,7 +137,7 @@ const typeOfPropertyOnType = (
         return [resultType, []];
       }
 
-      const aliasedType = replaceQualifiers(aliasedScheme, type.params, ctx);
+      const aliasedType = util.replaceQualifiers(aliasedScheme, type.params, ctx);
 
       return typeOfPropertyOnType(aliasedType, property, ctx);
     }
@@ -167,7 +161,7 @@ const typeOfPropertyOnType = (
       throw new Error("TODO: handle member access on a union");
     }
     default:
-      assertUnreachable(type);
+      util.assertUnreachable(type);
   }
 };
 

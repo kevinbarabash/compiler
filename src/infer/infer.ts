@@ -8,16 +8,7 @@ import { runSolve } from "./constraint-solver";
 import * as tb from "./type-builders";
 import { getOperationType } from "./graphql";
 import { inferMem } from "./infer-mem";
-import {
-  zip,
-  apply,
-  ftv,
-  assertUnreachable,
-  fresh,
-  freshTCon,
-  letterFromIndex,
-  lookupEnv,
-} from "./util";
+import * as util from "./util";
 
 const emptyEnv: Env = Map();
 
@@ -32,7 +23,7 @@ export const inferExpr = (
   };
   const [type, cs] = infer(expr, initCtx);
   const subs = runSolve(cs, initCtx);
-  return closeOver(apply(subs, type));
+  return closeOver(util.apply(subs, type));
 };
 
 //  Return the internal constraints used in solving for the type of an expression
@@ -46,7 +37,7 @@ export const constraintsExpr = (
   };
   const [ty, cs] = infer(expr, initCtx);
   const subst = runSolve(cs, initCtx);
-  const sc = closeOver(apply(subst, ty));
+  const sc = closeOver(util.apply(subst, ty));
   return [cs, subst, ty, sc];
 };
 
@@ -75,12 +66,12 @@ function nub<T extends { id: number }>(array: readonly T[]): readonly T[] {
 // Renames type variables so that they start with 'a' and there are no gaps
 const normalize = (sc: tt.Scheme): tt.Scheme => {
   const body = sc.type;
-  const keys = nub([...ftv(body)]).map((tv) => tv.id);
+  const keys = nub([...util.ftv(body)]).map((tv) => tv.id);
   const values: tt.TVar[] = keys.map((key, index) => {
-    return { __type: "TVar", id: key, name: letterFromIndex(index) };
+    return { __type: "TVar", id: key, name: util.letterFromIndex(index) };
   });
   const mapping: Record<number, tt.TVar> = Object.fromEntries(
-    zip(keys, values)
+    util.zip(keys, values)
   );
 
   const normType = (type: tt.Type): tt.Type => {
@@ -145,7 +136,7 @@ const normalize = (sc: tt.Scheme): tt.Scheme => {
         };
       }
       default:
-        assertUnreachable(type);
+        util.assertUnreachable(type);
     }
   };
 
@@ -153,7 +144,7 @@ const normalize = (sc: tt.Scheme): tt.Scheme => {
 };
 
 const generalize = (env: Env, type: tt.Type): tt.Scheme => {
-  return tt.scheme(ftv(type).subtract(ftv(env)).toArray(), type);
+  return tt.scheme(util.ftv(type).subtract(util.ftv(env)).toArray(), type);
 };
 
 const infer = (expr: st.Expr, ctx: Context): InferResult => {
@@ -173,7 +164,7 @@ const infer = (expr: st.Expr, ctx: Context): InferResult => {
     case "EMem":     return inferMem    (infer, expr, ctx);
     case "ERest":    return inferRest   (expr, ctx);
     case "ETagTemp": return inferTagTemp(expr, ctx);
-    default: assertUnreachable(expr);
+    default: util.assertUnreachable(expr);
   }
 };
 
@@ -181,7 +172,7 @@ const inferApp = (expr: st.EApp, ctx: Context): InferResult => {
   const { fn, args } = expr;
   const [t_fn, cs_fn] = infer(fn, ctx);
   const [t_args, cs_args] = inferMany(args, ctx);
-  const tv = fresh(ctx);
+  const tv = util.fresh(ctx);
   // This is almost the reverse of what we return from the "Lam" case
   return [
     tv,
@@ -219,7 +210,7 @@ const inferAwait = (expr: st.EAwait, ctx: Context): InferResult => {
 const inferFix = (expr: st.EFix, ctx: Context): InferResult => {
   const { expr: e } = expr;
   const [t, cs] = infer(e, ctx);
-  const tv = fresh(ctx);
+  const tv = util.fresh(ctx);
   return [tv, [...cs, { types: [tb.tfun([tv], tv, ctx), t], subtype: false }]];
 };
 
@@ -248,20 +239,20 @@ const inferLam = (expr: st.ELam, ctx: Context): InferResult => {
   const argCount = args.length;
   const tvs = args.map((arg, index) => {
     if (arg.__type === "EIdent") {
-      return fresh(ctx);
+      return util.fresh(ctx);
     } else {
       if (index !== argCount - 1) {
         throw new Error("Rest param must come last.");
       }
       variadic = true;
-      return tb.tgen("Array", [fresh(ctx)], ctx);
+      return tb.tgen("Array", [util.fresh(ctx)], ctx);
     }
   });
   // newCtx introduces a new scope
   const newCtx: Context = {
     ...ctx,
     env: ctx.env.withMutations((env) => {
-      for (const [arg, tv] of zip(args, tvs)) {
+      for (const [arg, tv] of util.zip(args, tvs)) {
         // t.scheme([], tv) is a type variable without any qualifiers
         switch (arg.__type) {
           case "EIdent": {
@@ -273,7 +264,7 @@ const inferLam = (expr: st.ELam, ctx: Context): InferResult => {
             break;
           }
           default:
-            assertUnreachable(arg);
+            util.assertUnreachable(arg);
         }
       }
     }),
@@ -287,7 +278,7 @@ const inferLam = (expr: st.ELam, ctx: Context): InferResult => {
   const ret =
     !expr.async || (tt.isTGen(type) && type.name === "Promise")
       ? type
-      : freshTCon(ctx, "Promise", [type]);
+      : util.freshTCon(ctx, "Promise", [type]);
 
   return [tb.tfun(tvs, ret, ctx, variadic), cs];
 };
@@ -301,7 +292,7 @@ const inferLet = (expr: st.ELet, ctx: Context): InferResult => {
   const [t2, cs2] = infer(body, newCtx);
 
   // We apply subs from let's `value` to its `body`, namely t2 and cs2
-  return [apply(subs, t2), [...cs1, ...newCs, ...apply(subs, cs2)]];
+  return [util.apply(subs, t2), [...cs1, ...newCs, ...util.apply(subs, cs2)]];
 };
 
 const inferPattern = (
@@ -313,7 +304,7 @@ const inferPattern = (
   // TODO:
   // - Disallow reusing the same variable when destructuring a value
 
-  const sc = generalize(apply(subs, ctx.env), apply(subs, type));
+  const sc = generalize(util.apply(subs, ctx.env), util.apply(subs, type));
 
   switch (pattern.__type) {
     case "PVar": {
@@ -376,7 +367,7 @@ const inferPattern = (
       }
       const cs: tt.Constraint[] = [];
       let newCtx = ctx;
-      for (const [p, t] of zip(pattern.patterns, type.types)) {
+      for (const [p, t] of util.zip(pattern.patterns, type.types)) {
         const result = inferPattern(p, t, subs, newCtx);
         newCtx = result[0];
         cs.push(...result[1]);
@@ -384,7 +375,7 @@ const inferPattern = (
       return [newCtx, cs];
     }
     default:
-      assertUnreachable(pattern);
+      util.assertUnreachable(pattern);
   }
 };
 
@@ -396,7 +387,7 @@ const inferLit = (expr: st.ELit, ctx: Context): InferResult => {
 const inferOp = (expr: st.EOp, ctx: Context): InferResult => {
   const { op, left, right } = expr;
   const [ts, cs] = inferMany([left, right], ctx);
-  const tv = fresh(ctx);
+  const tv = util.fresh(ctx);
   return [
     tv,
     [...cs, { types: [tb.tfun(ts, tv, ctx), ops(op, ctx)], subtype: true }],
@@ -419,7 +410,7 @@ const inferTuple = (expr: st.ETuple, ctx: Context): InferResult<tt.TTuple> => {
 };
 
 const inferIdent = (expr: st.EIdent, ctx: Context): InferResult => {
-  const type = lookupEnv(expr.name, ctx);
+  const type = util.lookupEnv(expr.name, ctx);
   return [type, []];
 };
 
@@ -436,7 +427,7 @@ const inferTagTemp = (expr: st.ETagTemp, ctx: Context): InferResult => {
   const [t_strs, cs_strs] = inferMany(strings, ctx);
   const [t_exprs, cs_exprs] = inferMany(expressions, ctx);
 
-  const tv = fresh(ctx);
+  const tv = util.fresh(ctx);
   const stringArray = tb.tgen("Array", [tb.tprim("string", ctx)], ctx);
 
   if (tag.name === "gql") {

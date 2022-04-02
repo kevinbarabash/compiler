@@ -5,7 +5,7 @@ import { Context, lookupEnv } from "./context";
 import * as t from "./type-types";
 import * as tb from "./type-builders";
 import { Literal } from "./syntax-types";
-import { apply, ftv, simplifyUnion, zipTypes } from "./util";
+import * as util from "./util";
 import {
   InfiniteType,
   UnificationFail,
@@ -38,7 +38,7 @@ const unifyMany = (
   const [c, ...rest] = constraints;
   const su1 = unifies(c, ctx);
   // TODO: figure out how to make this step non recursive
-  const su2 = unifyMany(apply(su1, rest), ctx);
+  const su2 = unifyMany(util.apply(su1, rest), ctx);
   return composeSubs(su2, su1);
 };
 
@@ -92,7 +92,7 @@ export const unifies = (c: t.Constraint, ctx: Context): t.Subst => {
       if (t1.params.length !== t2.params.length) {
         throw new UnificationMismatch(t1.params, t2.params);
       }
-      return unifyMany(zipTypes(t1.params, t2.params, c.subtype), ctx);
+      return unifyMany(util.zipTypes(t1.params, t2.params, c.subtype), ctx);
     }
   }
   if (isTUnion(c)) return unifyUnions(c, ctx);
@@ -170,7 +170,7 @@ const unifyFuncs = (c: t.Constraint<t.TFun>, ctx: Context): t.Subst => {
       ret: tb.tfun(t2.args.slice(t1.args.length), t2.ret, ctx),
     };
     const constraints: readonly t.Constraint[] = [
-      ...zipTypes(t1.args, t2_partial.args, c.subtype, true),
+      ...util.zipTypes(t1.args, t2_partial.args, c.subtype, true),
       { types: [t1.ret, t2_partial.ret], subtype: c.subtype },
     ];
     return unifyMany(constraints, ctx);
@@ -185,7 +185,7 @@ const unifyFuncs = (c: t.Constraint<t.TFun>, ctx: Context): t.Subst => {
         args: t1.args.slice(0, t2.args.length),
       };
       const constraints: readonly t.Constraint[] = [
-        ...zipTypes(t1_without_extra_args.args, t2.args, c.subtype, true),
+        ...util.zipTypes(t1_without_extra_args.args, t2.args, c.subtype, true),
         { types: [t1_without_extra_args.ret, t2.ret], subtype: c.subtype },
       ];
       return unifyMany(constraints, ctx);
@@ -199,7 +199,7 @@ const unifyFuncs = (c: t.Constraint<t.TFun>, ctx: Context): t.Subst => {
   }
 
   const constraints: readonly t.Constraint[] = [
-    ...zipTypes(t1.args, t2.args, c.subtype, true),
+    ...util.zipTypes(t1.args, t2.args, c.subtype, true),
     { types: [t1.ret, t2.ret], subtype: c.subtype },
   ];
 
@@ -251,7 +251,7 @@ const unifyRecords = (c: t.Constraint<t.TRec>, ctx: Context): t.Subst => {
   if (ot1.length !== ot2.length) {
     throw new UnificationMismatch(ot1, ot2);
   }
-  return unifyMany(zipTypes(ot1, ot2, c.subtype), ctx);
+  return unifyMany(util.zipTypes(ot1, ot2, c.subtype), ctx);
 };
 
 const unifyTuples = (c: t.Constraint<t.TTuple>, ctx: Context): t.Subst => {
@@ -264,7 +264,7 @@ const unifyTuples = (c: t.Constraint<t.TTuple>, ctx: Context): t.Subst => {
   if (t1.types.length !== t2.types.length) {
     throw new UnificationMismatch(t1.types, t2.types);
   }
-  return unifyMany(zipTypes(t1.types, t2.types, c.subtype), ctx);
+  return unifyMany(util.zipTypes(t1.types, t2.types, c.subtype), ctx);
 };
 
 const unifyUnions = (c: t.Constraint<t.TUnion>, ctx: Context): t.Subst => {
@@ -275,11 +275,11 @@ const unifyUnions = (c: t.Constraint<t.TUnion>, ctx: Context): t.Subst => {
   if (t1.types.length !== t2.types.length) {
     throw new UnificationMismatch(t1.types, t2.types);
   }
-  return unifyMany(zipTypes(t1.types, t2.types, c.subtype), ctx);
+  return unifyMany(util.zipTypes(t1.types, t2.types, c.subtype), ctx);
 };
 
 const composeSubs = (s1: t.Subst, s2: t.Subst): t.Subst => {
-  return s2.map((t) => apply(s1, t)).merge(s1);
+  return s2.map((t) => util.apply(s1, t)).merge(s1);
 };
 
 // Unification solver
@@ -290,7 +290,7 @@ const solver = (u: t.Unifier, ctx: Context): t.Subst => {
   }
   const [c, ...rest] = cs;
   const su1 = unifies(c, ctx);
-  return solver([composeSubs(su1, su), apply(su1, rest)], ctx);
+  return solver([composeSubs(su1, su), util.apply(su1, rest)], ctx);
 };
 
 const bind = (tv: t.TVar, type: t.Type, ctx: Context): t.Subst => {
@@ -326,7 +326,7 @@ const bind = (tv: t.TVar, type: t.Type, ctx: Context): t.Subst => {
 };
 
 const occursCheck = (tv: t.TVar, t: t.Type): boolean => {
-  return ftv(t).includes(tv);
+  return util.ftv(t).includes(tv);
 };
 
 const compareLiterals = (lit1: Literal, lit2: Literal): boolean => {
@@ -383,7 +383,7 @@ const flattenUnion = (type: t.Type): t.Type[] => {
 
 export const computeUnion = (t1: t.Type, t2: t.Type, ctx: Context): t.Type => {
   const types = [...flattenUnion(t1), ...flattenUnion(t2)];
-  return simplifyUnion(tb.tunion(types, ctx), ctx);
+  return util.simplifyUnion(tb.tunion(types, ctx), ctx);
 };
 
 // Eventually we'll want to be able to widen more than two at the same
