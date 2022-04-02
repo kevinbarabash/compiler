@@ -74,7 +74,6 @@ const typeOfPropertyOnType = (
         const typeArg = util.simplifyUnion(tb.tunion(type.types, ctx), ctx);
         const aliasedType = util.replaceQualifiers(aliasedScheme, [typeArg], ctx);
 
-        // TODO: instead of rethrowing, refactor to use Option<Result, Error>
         try {
           return typeOfPropertyOnType(aliasedType, property, ctx);
         } catch (e) {
@@ -102,7 +101,6 @@ const typeOfPropertyOnType = (
       const newType = util.lookupEnv(primName, ctx);
 
       // TODO: write some tests where like "hello"[0] to see what happens.
-      // TODO: instead of rethrowing, refactor to use Option<Result, Error>
       try {
         return typeOfPropertyOnType(newType, property, ctx);
       } catch (e) {

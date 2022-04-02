@@ -1,12 +1,10 @@
 import * as sb from "../syntax-builders";
 import * as tt from "../type-types";
-import { addBindings } from "../bindings";
 import { Engine } from "../engine";
 
 describe("addBindings", () => {
   test("'hello'.length", () => {
     const eng = new Engine();
-    addBindings(eng);
 
     const result = eng.inferExpr(sb.mem(sb.str("hello"), sb.ident("length")));
 
@@ -15,7 +13,6 @@ describe("addBindings", () => {
 
   test("'hello, world'.split(',')", () => {
     const eng = new Engine();
-    addBindings(eng);
 
     const result = eng.inferExpr(
       sb.app(sb.mem(sb.str("hello, world"), sb.ident("split")), [
@@ -29,7 +26,6 @@ describe("addBindings", () => {
 
   test("string.length", () => {
     const eng = new Engine();
-    addBindings(eng);
 
     eng.defType("msg", eng.tprim("string"));
 
@@ -40,7 +36,6 @@ describe("addBindings", () => {
 
   test("string.split(',')", () => {
     const eng = new Engine();
-    addBindings(eng);
 
     eng.defType("msg", eng.tprim("string"));
 

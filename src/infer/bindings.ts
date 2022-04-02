@@ -3,12 +3,11 @@ import path from "path";
 import { parse } from "@babel/parser";
 import * as t from "@babel/types";
 
-import { Engine } from "./engine";
 import { Context } from "./context";
 import * as tt from "./type-types";
 import * as tb from "./type-builders";
 
-export const addBindings = (eng: Engine): void => {
+export const addBindings = (ctx: Context): void => {
   const src = fs.readFileSync(
     path.join(__dirname, "../../node_modules/typescript/lib/lib.es5.d.ts"),
     "utf-8"
@@ -26,8 +25,10 @@ export const addBindings = (eng: Engine): void => {
       const {name} = stmt.id;
       if (["String", "Number", "Boolean"].includes(name)) {
         try {
-          const type = convert(stmt, eng.ctx);
-          eng.defType(name.toLocaleLowerCase(), type);
+          const type = convert(stmt, ctx);
+          const scheme = tt.scheme([], type);
+          tt.freeze(scheme.type);
+          ctx.env = ctx.env.set(name.toLocaleLowerCase(), scheme);
         } catch (e) {
           // Ignores empty interfaces
           // console.log(e);

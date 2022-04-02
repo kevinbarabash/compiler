@@ -3,12 +3,19 @@ import { Context } from "./context";
 import { Expr, Literal } from "./syntax-types";
 import * as t from "./type-types";
 import { inferExpr } from "./infer";
+import { addBindings } from "./bindings";
+
+// initCtx.env is reused by all Engine instances.  This is safe because
+// Env is a immutable data type.
+const initCtx: Context = tb.createCtx();
+addBindings(initCtx);
 
 export class Engine {
   ctx: Context;
 
   constructor() {
     this.ctx = tb.createCtx();
+    this.ctx.env = initCtx.env;
   }
 
   inferExpr(expr: Expr): t.Scheme {
